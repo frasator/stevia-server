@@ -1,3 +1,7 @@
+var mongoose = require("mongoose")
+var userModel = require('./models/user.js');
+var config = require('./config.json')
+
 // Include the cluster module
 var cluster = require('cluster');
 
@@ -14,11 +18,9 @@ if (cluster.isMaster) {
 
     // Listen for dying workers
     cluster.on('exit', function(worker) {
-
         // Replace the dead worker, we're not sentimental
         console.log('Worker %d died :(', worker.id);
         cluster.fork();
-
     });
 
 } else {
@@ -30,8 +32,11 @@ if (cluster.isMaster) {
     var express = require('express');
     var cors = require('cors');
 
+
+
     // Routes includes
     var testRoute = require('./routes/test');
+    var userRoute = require('./routes/user');
 
     // Create a new Express application
     var app = express();
@@ -39,12 +44,29 @@ if (cluster.isMaster) {
 
     // Routes use
     app.use('/test', testRoute);
+    app.use('/user', userRoute);
 
     app.get('/', function(req, res) {
+        console.log(req.params);
         res.send('I am alive!');
     });
 
+    connect()
+      .on('error', console.log)
+      .on('disconnected', connect)
+      .once('open', listen);
+
+    function listen () {
+    //   if (app.get('env') === 'test') return;
+      app.listen(config.httpPort);
+      console.log('Worker %d running!', cluster.worker.id);
+
+    }
+
+    function connect () {
+      var options = { server: { socketOptions: { keepAlive: 1 } } };
+      return mongoose.connect(config.mongodb, options).connection;
+    }
+
     // Bind to a port
-    app.listen(5555);
-    console.log('Worker %d running!', cluster.worker.id);
 }

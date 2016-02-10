@@ -1,0 +1,4 @@
+{
+    "mongodb": "mongodb://mem18/babelomics-server_0_1_0",
+    "httpPort": 5555
+}
