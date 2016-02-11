@@ -1,4 +1,4 @@
-Babelomics Server
+Stevia Server
 =================
 
 ### Install Node
@@ -16,7 +16,7 @@ npm install
 node server.js
 ```
 
-### Open the browser and enter 
+### Open the browser and enter
 ```bash
 http://localhost:5555
 ```

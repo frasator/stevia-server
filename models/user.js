@@ -12,13 +12,6 @@ const Schema = mongoose.Schema;
 /**
  * User Schema
  */
-// {
-//            "id" : "CqDZHgX8hH1W3OwYVgBW",
-//            "ip" : "172.24.78.100",
-//            "login" : "20150120170059",
-//            "logout" : ""
-//        },
-
 const UserSchema = new Schema({
     email: {
         type: String,
@@ -55,7 +48,6 @@ const UserSchema = new Schema({
         type: Schema.Types.Mixed,
         default: {}
     }
-
 });
 
 /**

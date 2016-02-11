@@ -1,6 +1,9 @@
-var mongoose = require("mongoose")
+var config = require('./config.json');
+var mongoose = require("mongoose");
 var userModel = require('./models/user.js');
-var config = require('./config.json')
+var userModel = require('./models/file.js');
+var userModel = require('./models/job.js');
+
 
 // Include the cluster module
 var cluster = require('cluster');
@@ -28,23 +31,26 @@ if (cluster.isMaster) {
     /******************************/
     /****** Server instance *******/
     /******************************/
+
     // Includes
     var express = require('express');
     var cors = require('cors');
-
-
-
-    // Routes includes
-    var testRoute = require('./routes/test');
-    var userRoute = require('./routes/user');
 
     // Create a new Express application
     var app = express();
     app.use(cors());
 
+    // Routes includes
+    var testRoute = require('./routes/test');
+    var userRoute = require('./routes/user');
+    var fileRoute = require('./routes/file');
+    var jobRoute = require('./routes/job');
+
     // Routes use
     app.use('/test', testRoute);
     app.use('/user', userRoute);
+    app.use('/file', fileRoute);
+    app.use('/job', jobRoute);
 
     app.get('/', function(req, res) {
         console.log(req.params);
@@ -52,21 +58,26 @@ if (cluster.isMaster) {
     });
 
     connect()
-      .on('error', console.log)
-      .on('disconnected', connect)
-      .once('open', listen);
+        .on('error', console.log)
+        .on('disconnected', connect)
+        .once('open', listen);
 
-    function listen () {
-    //   if (app.get('env') === 'test') return;
-      app.listen(config.httpPort);
-      console.log('Worker %d running!', cluster.worker.id);
-
+    function listen() {
+        //   if (app.get('env') === 'test') return;
+        // Bind to a port
+        app.listen(config.httpPort);
+        console.log('Worker %d running!', cluster.worker.id);
     }
 
-    function connect () {
-      var options = { server: { socketOptions: { keepAlive: 1 } } };
-      return mongoose.connect(config.mongodb, options).connection;
+    function connect() {
+        var options = {
+            server: {
+                socketOptions: {
+                    keepAlive: 120
+                }
+            }
+        };
+        return mongoose.connect(config.mongodb, options).connection;
     }
 
-    // Bind to a port
 }
