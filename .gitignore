@@ -53,3 +53,5 @@ local.properties
 
 # sftp configuration file
 sftp-config.json
+
+.foreverignore

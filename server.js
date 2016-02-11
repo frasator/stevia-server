@@ -6,67 +6,94 @@ var config = require('./config.json')
 var cluster = require('cluster');
 
 if (cluster.isMaster) {
-    // Code to run if we're in the master process
+  // Code to run if we're in the master process
 
-    // Count the machine's CPUs
-    var cpuCount = require('os').cpus().length;
+  // Count the machine's CPUs
+  var cpuCount = require('os').cpus().length;
 
-    // Create a worker for each CPU
-    for (var i = 0; i < cpuCount; i += 1) {
-        cluster.fork();
-    }
+  // Create a worker for each CPU
+  for (var i = 0; i < cpuCount; i += 1) {
+    cluster.fork();
+  }
 
-    // Listen for dying workers
-    cluster.on('exit', function(worker) {
-        // Replace the dead worker, we're not sentimental
-        console.log('Worker %d died :(', worker.id);
-        cluster.fork();
-    });
+  // Listen for dying workers
+  cluster.on('exit', function(worker) {
+    // Replace the dead worker, we're not sentimental
+    console.log('Worker %d died :(', worker.id);
+    cluster.fork();
+  });
 
 } else {
-    //  Code to run if we're in a worker process
-    /******************************/
-    /****** Server instance *******/
-    /******************************/
-    // Includes
-    var express = require('express');
-    var cors = require('cors');
+  //  Code to run if we're in a worker process
+  /******************************/
+  /****** Server instance *******/
+  /******************************/
+  // Includes
+  var express = require('express');
+  var swagger = require('swagger-express');
+  var cors = require('cors');
+  var bodyParser = require('body-parser');
 
 
 
-    // Routes includes
-    var testRoute = require('./routes/test');
-    var userRoute = require('./routes/user');
 
-    // Create a new Express application
-    var app = express();
-    app.use(cors());
+  // Routes includes
+  var testRoute = require('./routes/test');
+  var userRoute = require('./routes/user');
 
-    // Routes use
-    app.use('/test', testRoute);
-    app.use('/user', userRoute);
+  // Create a new Express application
+  var app = express();
+  app.use(cors());
 
-    app.get('/', function(req, res) {
-        console.log(req.params);
-        res.send('I am alive!');
-    });
+  app.use(bodyParser.urlencoded({ extended: true })); // support encoded bodies
+  app.use(bodyParser.json()); // support json encoded bodies
 
-    connect()
-      .on('error', console.log)
-      .on('disconnected', connect)
-      .once('open', listen);
+  app.use(swagger.init(app, {
+    apiVersion: '1.0',
+    swaggerVersion: '1.0',
+    swaggerURL: '/swagger',
+    // swaggerJSON: '/api-docs.json',
+    swaggerUI: './public/swagger/',
+    basePath: 'http://localhost:5555',
+    info: {
+      title: 'TITLE',
+      description: 'DESC'
+    },
+    apis: ['./routes/user.js'],
+    middleware: function(req, res){}
+  }));
 
-    function listen () {
+  // Routes use
+  app.use('/test', testRoute);
+  app.use('/user', userRoute);
+
+  app.get('/', function(req, res) {
+    console.log(req.params);
+    res.send('I am alive!');
+  });
+
+  connect()
+    .on('error', console.log)
+    .on('disconnected', connect)
+    .once('open', listen);
+
+  function listen() {
     //   if (app.get('env') === 'test') return;
-      app.listen(config.httpPort);
-      console.log('Worker %d running!', cluster.worker.id);
+    app.listen(config.httpPort);
+    console.log('Worker %d running!', cluster.worker.id);
 
-    }
+  }
 
-    function connect () {
-      var options = { server: { socketOptions: { keepAlive: 1 } } };
-      return mongoose.connect(config.mongodb, options).connection;
-    }
+  function connect() {
+    var options = {
+      server: {
+        socketOptions: {
+          keepAlive: 1
+        }
+      }
+    };
+    return mongoose.connect(config.mongodb, options).connection;
+  }
 
-    // Bind to a port
+  // Bind to a port
 }
