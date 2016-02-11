@@ -60,7 +60,8 @@ if (cluster.isMaster) {
       description: 'DESC'
     },
     apis: ['./routes/user.js'],
-    middleware: function(req, res){}
+    middleware: function(req, res){
+    }
   }));
 
   // Routes use

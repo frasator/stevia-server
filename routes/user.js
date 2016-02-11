@@ -76,9 +76,8 @@ router.get('/create', function(req, res) {
  *          paramType: body
  *          required: true
  *          dataType: string
-
  */
- router.post('/create', function(req, res) {
+router.post('/create', function(req, res) {
 
   var email = req.body.email;
   var pass = req.body.password;
@@ -96,11 +95,33 @@ router.get('/create', function(req, res) {
   res.send(user);
 });
 
-//login user
-router.get('/login', function(req, res) {
+/**
+ * @swagger
+ * path: /user/{email}/login
+ * operations:
+ *   -  httpMethod: GET
+ *      summary: User login returns a valid session ID token
+ *      notes:
+ *      responseClass: User
+ *      nickname: login
+ *      consumes:
+ *        - application/json
+ *      parameters:
+ *        - name: email
+ *          description: Your email
+ *          paramType: path
+ *          required: true
+ *          dataType: string
+ *        - name: password
+ *          description: Your password
+ *          paramType: query
+ *          required: true
+ *          dataType: string
+ */
+router.get('/:email/login', function(req, res) {
 
-  var email = req.query.email;
-  var pass = req.query.pass;
+  var email = req.params.email;
+  var pass = req.query.password;
 
   User.findOne({
     'email': email
@@ -115,25 +136,44 @@ router.get('/login', function(req, res) {
         error: "User does not exist"
       });
     } else {
+      console.log(user)
 
       if (user.password !== pass) {
         res.json({
           error: "Password incorrect!!"
         });
       } else {
+        var sessionId = utils.generateRandomString();
         user.sessions.push({
-          id: utils.generateRandomString(),
+          id: sessionId,
           date: Date.now()
         })
         user.save();
 
-        res.json(user);
+        res.json(sessionId);
       }
     }
   });
 });
 
-//login user
+/**
+ * @swagger
+ * path: /user/login
+ * operations:
+ *   -  httpMethod: POST
+ *      summary: User login returns a valid session ID token
+ *      notes:
+ *      responseClass: User
+ *      nickname: login
+ *      consumes:
+ *        - application/json
+ *      parameters:
+ *        - name: body
+ *          description: body
+ *          paramType: body
+ *          required: true
+ *          dataType: string
+ */
 router.post('/login', function(req, res) {
 
   var email = req.body.email;
@@ -158,13 +198,14 @@ router.post('/login', function(req, res) {
           error: "Password incorrect!!"
         });
       } else {
+        var sessionId = utils.generateRandomString();
         user.sessions.push({
-          id: utils.generateRandomString(),
+          id: sessionId,
           date: Date.now()
         })
         user.save();
 
-        res.json(user);
+        res.json(sessionId);
       }
     }
   });
