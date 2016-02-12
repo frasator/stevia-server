@@ -35,6 +35,10 @@ if (cluster.isMaster) {
   var bodyParser = require('body-parser');
 
 
+  // express.response.customRender = function() {
+    // console.log("custom");
+    // next();
+  // }
 
 
   // Routes includes
@@ -45,7 +49,9 @@ if (cluster.isMaster) {
   var app = express();
   app.use(cors());
 
-  app.use(bodyParser.urlencoded({ extended: true })); // support encoded bodies
+  app.use(bodyParser.urlencoded({
+    extended: true
+  })); // support encoded bodies
   app.use(bodyParser.json()); // support json encoded bodies
 
   app.use(swagger.init(app, {
@@ -60,8 +66,7 @@ if (cluster.isMaster) {
       description: 'DESC'
     },
     apis: ['./routes/user.js'],
-    middleware: function(req, res){
-    }
+    middleware: function(req, res) {}
   }));
 
   // Routes use

@@ -7,13 +7,20 @@
 var express = require('express');
 var router = express.Router();
 var utils = require('../lib/utils.js');
+var STVResult = require('../lib/STVResult.js');
+var STVResponse = require('../lib/STVResponse.js');
 
 const mongoose = require('mongoose');
 const User = mongoose.model('User');
 
 // middleware that is specific to this router
 router.use(function timeLog(req, res, next) {
-  console.log('Time: ', Date.now());
+
+  res._stvResponse = new STVResponse({
+    paramsOptions: req.params,
+    queryOptions: req.query
+  });
+
   next();
 });
 
@@ -118,14 +125,23 @@ router.post('/create', function(req, res) {
  *          required: true
  *          dataType: string
  */
-router.get('/:email/login', function(req, res) {
+router.get('/:email/login', function(req, res, next) {
+
+  var stvResult = new STVResult();
 
   var email = req.params.email;
   var pass = req.query.password;
 
+  stvResult.id = email;
+  var start = new Date().getTime();
+
   User.findOne({
     'email': email
   }, function(err, user) {
+
+    var end = new Date().getTime();
+
+    stvResult.dbTime = new Date().getTime() - start;
 
     if (err) {
       return handleError(err);
@@ -136,21 +152,28 @@ router.get('/:email/login', function(req, res) {
         error: "User does not exist"
       });
     } else {
-      console.log(user)
-
       if (user.password !== pass) {
         res.json({
           error: "Password incorrect!!"
         });
       } else {
         var sessionId = utils.generateRandomString();
-        user.sessions.push({
+        var session = {
           id: sessionId,
-          date: Date.now()
-        })
+          data: Date.now()
+        };
+
+        user.sessions.push(session);
         user.save();
 
-        res.json(sessionId);
+        stvResult.numResults = 1;
+        stvResult.numTotalResults = 1;
+        stvResult.results.push(session);
+        stvResult.time = (new Date().getTime()) - start;
+
+        res._stvResponse.response.push(stvResult);
+
+        res.json(res._stvResponse);
       }
     }
   });
@@ -238,7 +261,7 @@ router.get('/logout', function(req, res) {
 
 
 
-//login user
+//Show user
 router.get('/:email/show', function(req, res) {
   User.findOne({
     'email': req.params.email
