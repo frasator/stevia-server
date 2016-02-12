@@ -81,7 +81,7 @@ router.post('/upload', function(req, res, next) {
         part.pipe(writeStream);
         writeStream.on('finish', function() {
             var stats = fs.statSync(filepath);
-            console.log('Chunk ' + fields.chunk_id + ' created. Chunk size: '+stats.size);
+            console.log('Chunk ' + fields.chunk_id + ' created. Chunk size: ' + stats.size);
 
             if (fields.last_chunk === 'true') {
                 console.log('Chunk ' + fields.chunk_id + ' is the last');
@@ -98,12 +98,14 @@ router.post('/upload', function(req, res, next) {
                 }
                 fs.closeSync(fd);
                 var stats = fs.statSync(finalFilePath);
-                console.log('File ' + finalFilePath + ' created. Final size: '+stats.size);
-                res.send({});
+                console.log('File ' + finalFilePath + ' created. Final size: ' + stats.size);
+                rimraf(uploadPath, function() {
+                    console.log('Temporal upload folder ' + uploadPath + ' removed');
+                    res.send({});
+                });
             } else {
                 res.send({});
             }
-
         });
     });
 
