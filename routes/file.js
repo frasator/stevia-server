@@ -1,6 +1,8 @@
 var config = require('../config.json');
 var multiparty = require('multiparty');
+var rimraf = require('rimraf');
 var fs = require('fs');
+var exec = require('child_process').exec;
 
 var express = require('express');
 var router = express.Router();
@@ -68,7 +70,7 @@ router.post('/upload', function(req, res, next) {
 
     //Files, should be only one;
     form.on('part', function(part) {
-        var path = config.dirname;
+        var path = config.dirname; // TODO get file dir with multipartFields.parentId
         var uploadPath = path + fields.name + "_partial";
         try {
             fs.mkdirSync(uploadPath);
@@ -77,15 +79,12 @@ router.post('/upload', function(req, res, next) {
         }
         var filepath = uploadPath + '/' + fields.chunk_id + "_" + fields.chunk_size + "_partial";
         var writeStream = fs.createWriteStream(filepath);
+        // part.pipe(process.stdout);
         part.pipe(writeStream);
-
-
-        if(fields.last_chunk === 'true'){
-            // TODO join all files maybe using for with pipe ??
-        }
     });
 
     form.on('close', function() {
+        console.log('!! Multiparty finish !!');
         req._multipartFields = fields;
         req._multipartStream = stream;
         next();
@@ -95,21 +94,42 @@ router.post('/upload', function(req, res, next) {
 
 }, function(req, res, next) {
     var multipartFields = req._multipartFields;
-    console.log(multipartFields);
+    var path = config.dirname; // TODO get file dir with multipartFields.parentId
+    var uploadPath = path + multipartFields.name + "_partial";
     if (multipartFields.resume_upload === 'true') {
-        // TODO get file dir with multipartFields.parentId
-        var path = config.dirname;
-        var uploadPath = path + multipartFields.name + "_partial";
-        console.log('uploadPath:' + uploadPath);
         res.setHeader('Content-Type', 'application/json');
         res.send(getResumeFileInfo(uploadPath));
-    } else {
-        next();
-    }
-}, function(req, res) {
-    console.log('three');
-    res.send({});// TODO return file model
+    } else if (multipartFields.last_chunk === 'true') {
+        console.log('!!!!!!!!!!!!!   LAST CHUNK');
+        var finalFilePath = path + multipartFields.name;
+        // var fd = fs.openSync(finalFilePath, 'w');
+        // fs.writeSync(fd.)
+        var finalWriteStream = fs.createWriteStream(finalFilePath);
+        var files = getSortedChunkList(uploadPath);
+        finalWriteStream.setMaxListeners(10 + files.length);
+        var c = 0;
+        for (var i = 0; i < files.length; i++) {
+            var file = uploadPath + '/' + files[i];
+            var stats = fs.statSync(file);
+            console.log(i + ': ' + stats.size);
+            var chunkReadStream = fs.createReadStream(file);
+            chunkReadStream.pipe(finalWriteStream, {
+                end: false
+            });
+            chunkReadStream.on('end', () => {
+                c++;
+                if (c == files.length) {
+                    finalWriteStream.end();
+                    res.send({});
+                }
+            });
+        }
 
+        // rimraf(uploadPath, function() {
+        // });
+    } else {
+        res.send({});
+    }
     // res.send('upload');
     // console.log(path);
     // User.findOne({
@@ -126,7 +146,6 @@ function getResumeFileInfo(path) {
         fs.accessSync(path);
         var stats = fs.statSync(path);
         if (stats.isDirectory()) {
-            console.log('is directory !!!!');
             var filesInFolder = fs.readdirSync(path);
             for (var i = 0; i < filesInFolder.length; i++) {
                 var file = filesInFolder[i];
@@ -142,6 +161,36 @@ function getResumeFileInfo(path) {
     }
     return info;
 };
+
+function getSortedChunkList(path) {
+    var files, chunkId, file, nameSplit;
+    try {
+        fs.accessSync(path);
+        var stats = fs.statSync(path);
+        if (stats.isDirectory()) {
+            files = [];
+            var filesInFolder = fs.readdirSync(path);
+            files.length = filesInFolder.length;
+            for (var i = 0; i < filesInFolder.length; i++) {
+                file = filesInFolder[i];
+                nameSplit = file.split("_");
+                chunkId = nameSplit[0];
+                files[chunkId] = file;
+            }
+            // for (var i = 0; i < filesInFolder.length; i++) {
+            //     var file = filesInFolder[i];
+            //     var nameSplit = file.split("_");
+            //     info[nameSplit[0]] = {
+            //         size: nameSplit[1]
+            //     };
+            // }
+        }
+    } catch (e) {
+        console.log('Sort chunks: ' + e.message);
+        console.log('Sort chunks: ' + 'Could not get chunks from partial folder.');
+    }
+    return files;
+}
 
 
 module.exports = router;

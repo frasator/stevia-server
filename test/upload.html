@@ -11,9 +11,7 @@
             var input = document.body.querySelector('#input');
             input.addEventListener('change', function(e) {
                 var file = this.files[0];
-                debugger
-                test.upload(file, file.name, 'todo', 'bioformat', file.type, function(file, msg, result){
-                });
+                test.upload(file, file.name, 'todo', 'bioformat', file.type, function(file, msg, result) {});
             });
 
             var test = {
@@ -35,7 +33,7 @@
                             var percentProgress = Math.round((chunk.id / total) * 100);
                             console.log(percentProgress);
                             if (chunk.last) {
-                                console.log(response);
+                                // console.log(response);
                                 callback(response);
                             }
                         },
@@ -64,7 +62,7 @@
                     var chunkMap = {};
                     var chunkId = 0;
                     // var BYTES_PER_CHUNK = 2 * 1024 * 1024;
-                    var BYTES_PER_CHUNK = 5;
+                    var BYTES_PER_CHUNK = 10 * 1024 * 1024;
                     var SIZE = blob.size;
                     var NUM_CHUNKS = Math.max(Math.ceil(SIZE / BYTES_PER_CHUNK), 1);
                     var start;
@@ -131,7 +129,7 @@
                         xhr.open('POST', url, true);
                         xhr.onload = function(e) {
                             chunk.done = true;
-                            console.log("chunk done");
+                            console.log('chunk ' + chunk.id + ' done');
                             callback(JSON.parse(xhr.responseText));
                         };
                         xhr.send(formData);
@@ -175,11 +173,10 @@
 
 
             var text = "hola que pasa como estas";
-            var testBlob = new Blob([text], {type: 'text/plain'});
-            test.upload(testBlob, 'test.txt', 'todo', 'bioformat', testBlob.type, function(file, msg, result){
-                debugger
+            var testBlob = new Blob([text], {
+                type: 'text/plain'
             });
-
+            test.upload(testBlob, 'test.txt', 'todo', 'bioformat', testBlob.type, function(file, msg, result) {});
         </script>
 
 
