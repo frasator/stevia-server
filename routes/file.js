@@ -118,7 +118,7 @@ router.post('/upload', function(req, res, next) {
             });
             chunkReadStream.on('end', () => {
                 c++;
-                if (c == files.length) {
+                if (c >= files.length) {
                     finalWriteStream.end();
                     res.send({});
                 }
