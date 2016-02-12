@@ -6,6 +6,7 @@
 
 const mongoose = require('mongoose');
 const crypto = require('crypto');
+const utils = require('../lib/utils.js');
 
 const Schema = mongoose.Schema;
 
@@ -30,7 +31,8 @@ const UserSchema = new Schema({
   },
   password: {
     type: String,
-    default: ''
+    default: '',
+    select: false
   },
   lastActivity: {
     type: Date,
@@ -84,6 +86,20 @@ UserSchema.methods = {
   updateLastActivity: function() {
     this.lastActivity = Date.now();
     this.save();
+  },
+  login: function() {
+
+    var sessionId = utils.generateRandomString();
+    var session = {
+      id: sessionId,
+      data: Date.now()
+    };
+
+    this.sessions.push(session);
+      this.save();
+
+    return session;
+
   }
 
 };

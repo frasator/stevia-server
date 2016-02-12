@@ -50,20 +50,41 @@ router.use(function timeLog(req, res, next) {
  */
 router.get('/create', function(req, res) {
 
+  var stvResult = new STVResult();
+
   var email = req.query.email;
   var pass = req.query.password;
+
+  stvResult.id = email;
+  var start = new Date().getTime();
 
   const user = new User({
     email: email,
     password: pass
   });
 
+
   user.save(function(err) {
     if (err) {
       console.log("error: " + err)
+      res.json({
+        error: "Error: " + err
+      })
+    } else {
+
+      user.password = '';
+      user.login();
+
+      stvResult.numResults = 1;
+      stvResult.numTotalResults = 1;
+      stvResult.results.push(user);
+      stvResult.time = (new Date().getTime()) - start;
+
+      res._stvResponse.response.push(stvResult);
+
+      res.json(res._stvResponse);
     }
   });
-  res.send(user);
 });
 
 /**
@@ -157,14 +178,8 @@ router.get('/:email/login', function(req, res, next) {
           error: "Password incorrect!!"
         });
       } else {
-        var sessionId = utils.generateRandomString();
-        var session = {
-          id: sessionId,
-          data: Date.now()
-        };
 
-        user.sessions.push(session);
-        user.save();
+        var session = user.login();
 
         stvResult.numResults = 1;
         stvResult.numTotalResults = 1;
@@ -176,7 +191,7 @@ router.get('/:email/login', function(req, res, next) {
         res.json(res._stvResponse);
       }
     }
-  });
+  }).select('+password');
 });
 
 /**
@@ -199,12 +214,21 @@ router.get('/:email/login', function(req, res, next) {
  */
 router.post('/login', function(req, res) {
 
+  var stvResult = new STVResult();
+
   var email = req.body.email;
   var pass = req.body.password;
+
+  stvResult.id = email;
+  var start = new Date().getTime();
 
   User.findOne({
     'email': email
   }, function(err, user) {
+
+    var end = new Date().getTime();
+
+    stvResult.dbTime = new Date().getTime() - start;
 
     if (err) {
       return handleError(err);
@@ -215,23 +239,24 @@ router.post('/login', function(req, res) {
         error: "User does not exist"
       });
     } else {
-
       if (user.password !== pass) {
         res.json({
           error: "Password incorrect!!"
         });
       } else {
-        var sessionId = utils.generateRandomString();
-        user.sessions.push({
-          id: sessionId,
-          date: Date.now()
-        })
-        user.save();
+        var session = user.login();
 
-        res.json(sessionId);
+        stvResult.numResults = 1;
+        stvResult.numTotalResults = 1;
+        stvResult.results.push(session);
+        stvResult.time = (new Date().getTime()) - start;
+
+        res._stvResponse.response.push(stvResult);
+
+        res.json(res._stvResponse);
       }
     }
-  });
+  }).select('+password');
 });
 
 //logout user
