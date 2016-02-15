@@ -165,7 +165,9 @@
                         end = start + BYTES_PER_CHUNK;
                         chunkId++;
                     }
-                    processChunk(chunkMap[0]);
+                    setTimeout(function() {
+                        processChunk(chunkMap[0]);
+                    }, 50);
 
                 }
             }
