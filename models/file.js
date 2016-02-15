@@ -6,6 +6,7 @@
 
 const mongoose = require('mongoose');
 const crypto = require('crypto');
+const ObjectId = require('mongoose').Types.ObjectId;
 
 const Schema = mongoose.Schema;
 
@@ -14,54 +15,54 @@ const Schema = mongoose.Schema;
  */
 
 const FileSchema = new Schema({
-    name: {
-        type: String,
-        default: '',
-    },
-    type: {
-        type: String,
-        default: '',
-    },
-    format: {
-        type: String,
-        default: '',
-    },
-    bioformat: {
-        type: String,
-        default: '',
-    },
-    created: {
-        type: Date,
-        default: Date.now
-    },
-    modified: {
-        type: Date,
-        default: Date.now
-    },
-    size: {
-        type: Number,
-        default: 0
-    },
-    attributes: {
-        type: Schema.Types.Mixed,
-        default: {}
-    },
-    files: [{
-        type: Schema.Types.ObjectId,
-        ref: 'File'
-    }],
-    user: {
-        type: Schema.Types.ObjectId,
-        ref: 'User'
-    },
-    job: {
-        type: Schema.Types.ObjectId,
-        ref: 'Job'
-    },
-    parent: {
-        type: Schema.Types.ObjectId,
-        ref: 'File'
-    }
+  name: {
+    type: String,
+    default: '',
+  },
+  type: {
+    type: String,
+    default: '',
+  },
+  format: {
+    type: String,
+    default: '',
+  },
+  bioformat: {
+    type: String,
+    default: '',
+  },
+  created: {
+    type: Date,
+    default: Date.now
+  },
+  modified: {
+    type: Date,
+    default: Date.now
+  },
+  size: {
+    type: Number,
+    default: 0
+  },
+  attributes: {
+    type: Schema.Types.Mixed,
+    default: {}
+  },
+  files: [{
+    type: Schema.Types.ObjectId,
+    ref: 'File'
+  }],
+  user: {
+    type: Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  job: {
+    type: Schema.Types.ObjectId,
+    ref: 'Job'
+  },
+  parent: {
+    type: Schema.Types.ObjectId,
+    ref: 'File'
+  }
 });
 
 /**
@@ -69,13 +70,23 @@ const FileSchema = new Schema({
  */
 
 FileSchema.methods = {
-
+  addFile: function(file) {
+    this.files.push(file);
+  }
 };
 
 /**
  * Statics
  */
 
-FileSchema.statics = {};
+FileSchema.statics = {
+  getFile: function(fileId, callback) {
+    var fid = new ObjectId(fileId);
+
+    return this.findOne({
+      "_id": fid
+    }).exec(callback);
+  }
+};
 
 mongoose.model('File', FileSchema);

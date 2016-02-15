@@ -3,6 +3,8 @@ var multiparty = require('multiparty');
 var rimraf = require('rimraf');
 var fs = require('fs');
 var exec = require('child_process').exec;
+var STVResult = require('../lib/STVResult.js');
+var STVResponse = require('../lib/STVResponse.js');
 
 var express = require('express');
 var router = express.Router();
@@ -12,20 +14,48 @@ const File = mongoose.model('File');
 
 // middleware that is specific to this router
 router.use(function timeLog(req, res, next) {
-    console.log('Time: ', Date.now());
+    res._stvResponse = new STVResponse({
+        paramsOptions: req.params,
+        queryOptions: req.query
+    });
     next();
 });
 
 
-router.get('/create', function(req, res) {
-    // const user = new User(req.query);
-    // console.log(user);
-    // console.log(user.save(function(err) {
-    //     if (err) {
-    //         console.log("error: " + err)
-    //     }
-    // }));
-    res.send('user works!!!!!');
+router.get('/create', function(req, res, next) {
+
+    var name = req.query.name;
+    var parentId = req.query.parentId;
+    var type = req.query.type;
+
+    var file = new File(req.query);
+
+    if (parentId != null) {
+        File.getFile(parentId, function(err, parent) {
+            if (err) {
+                console.log("error")
+            } else {
+                console.log(parent);
+                if (parent.type === "FOLDER") {
+
+                    file.parent = parent;
+                    parent.addFile(file);
+                    parent.save();
+                    file.save();
+                    res.json(file);
+
+                } else {
+                    res.json({
+                        error: "PARENT is not a folder"
+                    })
+                }
+            }
+        });
+    } else {
+        file.save();
+        res.json(file);
+    }
+
 });
 
 router.delete('/delete', function(req, res) {
@@ -55,6 +85,7 @@ router.get('/:fileId/get', function(req, res) {
 /******************************/
 /******************************/
 router.post('/upload', function(req, res, next) {
+
     var fields = {};
     var stream;
     var form = new multiparty.Form({
