@@ -58,6 +58,7 @@ router.post('/upload', function(req, res, next) {
     var fields = {};
     var stream;
     var form = new multiparty.Form({
+        // Parts for fields are not emitted when autoFields is on, and likewise parts for files are not emitted when autoFiles is on.
         autoFields: true
     });
 
@@ -160,13 +161,6 @@ function getSortedChunkList(path) {
                 chunkId = nameSplit[0];
                 files[chunkId] = file;
             }
-            // for (var i = 0; i < filesInFolder.length; i++) {
-            //     var file = filesInFolder[i];
-            //     var nameSplit = file.split("_");
-            //     info[nameSplit[0]] = {
-            //         size: nameSplit[1]
-            //     };
-            // }
         }
     } catch (e) {
         console.log('Sort chunks: ' + e.message);

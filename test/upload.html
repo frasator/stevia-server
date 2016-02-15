@@ -61,8 +61,8 @@
                     var resumeInfo = {};
                     var chunkMap = {};
                     var chunkId = 0;
-                    // var BYTES_PER_CHUNK = 2 * 1024 * 1024;
-                    var BYTES_PER_CHUNK = 10 * 1024 * 1024;
+                    var BYTES_PER_CHUNK = 4 * 1024 * 1024;
+                    // var BYTES_PER_CHUNK = 10 * 1024 * 1024;
                     var SIZE = blob.size;
                     var NUM_CHUNKS = Math.max(Math.ceil(SIZE / BYTES_PER_CHUNK), 1);
                     var start;
