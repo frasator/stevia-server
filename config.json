@@ -1,5 +1,7 @@
 {
-    "mongodb": "mongodb://mem18/babelomics-server_0_1_0",
+    "mongodb": "mongodb://mem18/stevia-server_0_1_0",
     "httpPort": 5555,
-    "dirname": "/tmp/stevia/"
+    "steviaDir": "/tmp/stevia/",
+    "toolPath": "tools",
+    "usersPath": "users"
 }

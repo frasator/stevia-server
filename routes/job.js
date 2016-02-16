@@ -11,7 +11,7 @@ router.use(function timeLog(req, res, next) {
 });
 
 
-router.get('/create', function(req, res) {
+router.post('/run', function(req, res) {
     // const user = new User(req.query);
     // console.log(user);
     // console.log(user.save(function(err) {

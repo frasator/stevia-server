@@ -1,8 +1,8 @@
 var config = require('./config.json');
 var mongoose = require("mongoose");
-var userModel = require('./models/user.js');
-var userModel = require('./models/file.js');
-var userModel = require('./models/job.js');
+require('./models/user.js');
+require('./models/file.js');
+require('./models/job.js');
 
 
 // Include the cluster module
@@ -60,7 +60,7 @@ if (cluster.isMaster) {
       },
       apis: ['./routes/user.js'],
       middleware: function(req, res) {}
-    }));
+  }));mongoose
 
 
     // Routes includes
@@ -71,9 +71,9 @@ if (cluster.isMaster) {
 
     // Routes use
     app.use('/test', testRoute);
-    app.use('/user', userRoute);
-    app.use('/file', fileRoute);
-    app.use('/job', jobRoute);
+    app.use('/users', userRoute);
+    app.use('/files', fileRoute);
+    app.use('/jobs', jobRoute);
 
     app.get('/', function(req, res) {
         console.log(req.params);

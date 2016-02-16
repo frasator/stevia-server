@@ -5,6 +5,8 @@
  */
 
 const mongoose = require('mongoose');
+require('./file.js');
+
 const crypto = require('crypto');
 
 const Schema = mongoose.Schema;
@@ -14,7 +16,7 @@ const Schema = mongoose.Schema;
  */
 
 const JobSchema = new Schema({
-    
+
 });
 
 /**

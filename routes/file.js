@@ -58,24 +58,121 @@ router.get('/create', function(req, res, next) {
 
 });
 
-router.delete('/delete', function(req, res) {
-    // User.findOne({
-    //     'email': req.query.email
-    // }, function(err, user) {
-    //     if (err) return handleError(err);
-    //     console.log(user);
-    //     user.save();
-    //
-    //     res.send(user);
-    // });
+router.get('/:fileId/delete', function(req, res) {
+    var stvResult = new STVResult();
+
+    var fileId = req.params.fileId;
+    var sid = req.query.sid;
+
+    stvResult.id = fileId;
+    var start = new Date().getTime();
+
+    File.findOne({
+        '_id': fileId
+    }, function(err, file) {
+        var end = new Date().getTime();
+
+
+        var index = file.parent.files.indexOf(file._id);
+        console.log(index);
+        if (index != -1) {
+            file.parent.files.splice(index, 1);
+        }
+        file.parent.save();
+
+        file.removeChilds();
+        file.remove();
+
+        stvResult.results = [];
+
+        stvResult.dbTime = new Date().getTime() - start;
+
+        stvResult.numResults = 0;
+        stvResult.numTotalResults = 0;
+        stvResult.time = (new Date().getTime()) - start;
+
+        res._stvResponse.response.push(stvResult);
+
+        res.json(res._stvResponse);
+    }).populate('parent');
 });
 
-router.get('/:fileId/get', function(req, res) {
-    // User.findOne({
-    //     'email': req.params.email
-    // }, function(err, user) {
-    //     res.send(user);
-    // });
+router.get('/:fileId/list', function(req, res) {
+
+    var stvResult = new STVResult();
+
+    var fileId = req.params.fileId;
+    var sid = req.query.sid;
+    var type = req.query.type;
+    var status = req.query.status;
+
+    stvResult.id = fileId;
+    var start = new Date().getTime();
+
+    File.findOne({
+        '_id': fileId
+    }, function(err, file) {
+        var end = new Date().getTime();
+
+
+        stvResult.results = file.files;
+
+        stvResult.dbTime = new Date().getTime() - start;
+
+        stvResult.numResults = file.files.length;
+        stvResult.numTotalResults = file.files.length;
+        stvResult.time = (new Date().getTime()) - start;
+
+        res._stvResponse.response.push(stvResult);
+
+        res.json(res._stvResponse);
+    }).populate('files');
+});
+
+router.get('/:fileId/create-folder', function(req, res) {
+    var stvResult = new STVResult();
+
+    var fileId = req.params.fileId;
+    var sid = req.query.sid;
+    var name = req.query.name;
+
+
+    stvResult.id = fileId;
+    var start = new Date().getTime();
+
+    File.findOne({
+        '_id': fileId
+    }, function(err, parent) {
+
+        // var newFolder = parent.createFolder(name);
+
+        var folder = new File({
+            name: name,
+            user: parent.user,
+            parent: parent._id,
+            type: "FOLDER"
+        });
+
+        parent.files.push(folder);
+        folder.save();
+        parent.save();
+
+        parent.user.save();
+
+        var end = new Date().getTime();
+
+        stvResult.results.push(folder);
+
+        stvResult.dbTime = new Date().getTime() - start;
+
+        stvResult.numResults = 1;
+        stvResult.numTotalResults = 1;
+        stvResult.time = (new Date().getTime()) - start;
+
+        res._stvResponse.response.push(stvResult);
+
+        res.json(res._stvResponse);
+    }).populate("user");
 });
 
 /******************************/
@@ -85,7 +182,6 @@ router.get('/:fileId/get', function(req, res) {
 /******************************/
 /******************************/
 router.post('/upload', function(req, res, next) {
-
     var fields = {};
     var stream;
     var form = new multiparty.Form({
@@ -101,7 +197,7 @@ router.post('/upload', function(req, res, next) {
 
     //Files, should be only one;
     form.on('part', function(part) {
-        var path = config.dirname; // TODO get file dir with multipartFields.parentId
+        var path = config.steviaDir; // TODO get file dir with multipartFields.parentId
         var uploadPath = path + fields.name + "_partial";
         try {
             fs.mkdirSync(uploadPath);
@@ -131,10 +227,42 @@ router.post('/upload', function(req, res, next) {
                 fs.closeSync(fd);
                 var stats = fs.statSync(finalFilePath);
                 console.log('File ' + finalFilePath + ' created. Final size: ' + stats.size);
-                rimraf(uploadPath, function() {
-                    console.log('Temporal upload folder ' + uploadPath + ' removed');
-                    res.send({});
-                });
+
+                /* Database entry */
+                File.findOne({
+                    '_id': fields.parentId
+                }, function(err, parent) {
+
+                    var file = new File({
+                        name: fields.name,
+                        user: parent.user,
+                        parent: parent._id,
+                        type: "FILE"
+                    });
+
+                    parent.files.push(file);
+                    file.save();
+                    parent.save();
+
+                    parent.user.save();
+
+                    var stvResult = new STVResult();
+                    stvResult.results.push(file);
+
+                    stvResult.dbTime = -1;
+
+                    stvResult.numResults = 1;
+                    stvResult.numTotalResults = 1;
+                    stvResult.time = -1;
+
+                    res._stvResponse.response.push(stvResult);
+
+                    rimraf(uploadPath, function() {
+                        console.log('Temporal upload folder ' + uploadPath + ' removed');
+                        res.json(res._stvResponse);
+                    });
+                }).populate("user");
+
             } else {
                 res.send({});
             }

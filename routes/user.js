@@ -13,15 +13,16 @@ var STVResponse = require('../lib/STVResponse.js');
 const mongoose = require('mongoose');
 const User = mongoose.model('User');
 
+
 // middleware that is specific to this router
 router.use(function timeLog(req, res, next) {
 
-  res._stvResponse = new STVResponse({
-    paramsOptions: req.params,
-    queryOptions: req.query
-  });
+    res._stvResponse = new STVResponse({
+        paramsOptions: req.params,
+        queryOptions: req.query
+    });
 
-  next();
+    next();
 });
 
 
@@ -50,41 +51,42 @@ router.use(function timeLog(req, res, next) {
  */
 router.get('/create', function(req, res) {
 
-  var stvResult = new STVResult();
+    var stvResult = new STVResult();
 
-  var email = req.query.email;
-  var pass = req.query.password;
+    var email = req.query.email;
+    var pass = req.query.password;
 
-  stvResult.id = email;
-  var start = new Date().getTime();
+    stvResult.id = email;
+    var start = new Date().getTime();
 
-  const user = new User({
-    email: email,
-    password: pass
-  });
+    const user = new User({
+        email: email,
+        password: pass
+    });
 
 
-  user.save(function(err) {
-    if (err) {
-      console.log("error: " + err)
-      res.json({
-        error: "Error: " + err
-      })
-    } else {
+    user.save(function(err) {
+        if (err) {
+            console.log("error: " + err)
+            res.json({
+                error: "Error: " + err
+            })
+        } else {
 
-    // user.password = '';
-      user.login();
+            // user.password = '';
+            user.createHomeFolder();
+            user.login();
 
-      stvResult.numResults = 1;
-      stvResult.numTotalResults = 1;
-      stvResult.results.push(user);
-      stvResult.time = (new Date().getTime()) - start;
+            stvResult.numResults = 1;
+            stvResult.numTotalResults = 1;
+            stvResult.results.push(user);
+            stvResult.time = (new Date().getTime()) - start;
 
-      res._stvResponse.response.push(stvResult);
+            res._stvResponse.response.push(stvResult);
 
-      res.json(res._stvResponse);
-    }
-  });
+            res.json(res._stvResponse);
+        }
+    });
 });
 
 /**
@@ -107,20 +109,20 @@ router.get('/create', function(req, res) {
  */
 router.post('/create', function(req, res) {
 
-  var email = req.body.email;
-  var pass = req.body.password;
+    var email = req.body.email;
+    var pass = req.body.password;
 
-  const user = new User({
-    email: email,
-    password: pass
-  });
+    const user = new User({
+        email: email,
+        password: pass
+    });
 
-  user.save(function(err) {
-    if (err) {
-      console.log("error: " + err)
-    }
-  });
-  res.send(user);
+    user.save(function(err) {
+        if (err) {
+            console.log("error: " + err)
+        }
+    });
+    res.send(user);
 });
 
 /**
@@ -148,50 +150,49 @@ router.post('/create', function(req, res) {
  */
 router.get('/:email/login', function(req, res, next) {
 
-  var stvResult = new STVResult();
+    var stvResult = new STVResult();
 
-  var email = req.params.email;
-  var pass = req.query.password;
+    var email = req.params.email;
+    var pass = req.query.password;
 
-  stvResult.id = email;
-  var start = new Date().getTime();
+    stvResult.id = email;
+    var start = new Date().getTime();
 
-  User.findOne({
-    'email': email
-  }, function(err, user) {
+    User.findOne({
+        'email': email
+    }, function(err, user) {
 
-    var end = new Date().getTime();
+        var end = new Date().getTime();
 
-    stvResult.dbTime = new Date().getTime() - start;
+        stvResult.dbTime = new Date().getTime() - start;
 
-    if (err) {
-      return handleError(err);
-    }
+        if (err) {
+            return handleError(err);
+        }
 
-    if (!user) { // User does not exist;
-      res.json({
-        error: "User does not exist"
-      });
-    } else {
-      if (user.password !== pass) {
-        res.json({
-          error: "Password incorrect!!"
-        });
-      } else {
+        if (!user) { // User does not exist;
+            res.json({
+                error: "User does not exist"
+            });
+        } else {
+            if (user.password !== pass) {
+                res.json({
+                    error: "Password incorrect!!"
+                });
+            } else {
+                var session = user.login();
 
-        var session = user.login();
+                stvResult.numResults = 1;
+                stvResult.numTotalResults = 1;
+                stvResult.results.push(session);
+                stvResult.time = (new Date().getTime()) - start;
 
-        stvResult.numResults = 1;
-        stvResult.numTotalResults = 1;
-        stvResult.results.push(session);
-        stvResult.time = (new Date().getTime()) - start;
+                res._stvResponse.response.push(stvResult);
 
-        res._stvResponse.response.push(stvResult);
-
-        res.json(res._stvResponse);
-      }
-    }
-  }).select('+password');
+                next();
+            }
+        }
+    }).select('+password');
 });
 
 /**
@@ -214,120 +215,154 @@ router.get('/:email/login', function(req, res, next) {
  */
 router.post('/login', function(req, res) {
 
-  var stvResult = new STVResult();
+    var stvResult = new STVResult();
 
-  var email = req.body.email;
-  var pass = req.body.password;
+    var email = req.body.email;
+    var pass = req.body.password;
 
-  stvResult.id = email;
-  var start = new Date().getTime();
+    stvResult.id = email;
+    var start = new Date().getTime();
 
-  User.findOne({
-    'email': email
-  }, function(err, user) {
+    User.findOne({
+        'email': email
+    }, function(err, user) {
 
-    var end = new Date().getTime();
+        var end = new Date().getTime();
 
-    stvResult.dbTime = new Date().getTime() - start;
+        stvResult.dbTime = new Date().getTime() - start;
 
-    if (err) {
-      return handleError(err);
-    }
+        if (err) {
+            return handleError(err);
+        }
 
-    if (!user) { // User does not exist;
-      res.json({
-        error: "User does not exist"
-      });
-    } else {
-      if (user.password !== pass) {
-        res.json({
-          error: "Password incorrect!!"
-        });
-      } else {
-        var session = user.login();
+        if (!user) { // User does not exist;
+            res.json({
+                error: "User does not exist"
+            });
+        } else {
+            if (user.password !== pass) {
+                res.json({
+                    error: "Password incorrect!!"
+                });
+            } else {
+                var session = user.login();
 
-        stvResult.numResults = 1;
-        stvResult.numTotalResults = 1;
-        stvResult.results.push(session);
-        stvResult.time = (new Date().getTime()) - start;
+                stvResult.numResults = 1;
+                stvResult.numTotalResults = 1;
+                stvResult.results.push(session);
+                stvResult.time = (new Date().getTime()) - start;
 
-        res._stvResponse.response.push(stvResult);
+                res._stvResponse.response.push(stvResult);
 
-        res.json(res._stvResponse);
-      }
-    }
-  }).select('+password');
+                res.json(res._stvResponse);
+            }
+        }
+    }).select('+password');
 });
 
 //logout user
-router.get('/logout', function(req, res) {
-  User.findOne({
-    'email': req.query.email
-  }, function(err, user) {
+router.get('/:email/logout', function(req, res) {
+    var email = req.params.email;
+    var sid = req.query.sid;
 
-    if (err) {
-      return handleError(err);
-    }
+    User.findOne({
+        'email': email
+    }, function(err, user) {
 
-    if (!user) { // User does not exist;
-      res.json({
-        error: "User does not exist"
-      });
-    } else {
+        if (err) {
+            return handleError(err);
+        }
 
-      var sessionId = req.query.sessionId;
+        if (!user) { // User does not exist;
+            res.json({
+                error: "User does not exist"
+            });
+        } else {
 
-      user.removeSessionId(sessionId);
+            user.removeSessionId(sid);
 
-      res.json(user)
-    }
-  });
+            res.json(user)
+        }
+    });
 });
 
 
 
 //Show user
-router.get('/:email/show', function(req, res) {
-  User.findOne({
-    'email': req.params.email
-  }, function(err, user) {
-    res.send(user);
-  });
+router.get('/:email/info', function(req, res) {
+    var stvResult = new STVResult();
+    var email = req.params.email;
+    var sid = req.query.sid;
+    var updated_at = (req.query.updated_at != null) ? new Date(req.query.updated_at) : new Date();
+
+    stvResult.id = email;
+    var start = new Date().getTime();
+
+
+
+    User.findOne({
+        'email': req.params.email
+    }, function(err, user) {
+        var end = new Date().getTime();
+
+        console.log(user.updated_at);
+        console.log(updated_at);
+        if (user.updated_at.getTime() !== updated_at.getTime()) {
+            stvResult.results.push(user);
+        }
+
+        stvResult.dbTime = new Date().getTime() - start;
+
+        stvResult.numResults = 1;
+        stvResult.numTotalResults = 1;
+        stvResult.time = (new Date().getTime()) - start;
+
+        res._stvResponse.response.push(stvResult);
+
+        res.json(res._stvResponse);
+    }).populate('home');
 });
 
 //login user
 router.get('/list', function(req, res) {
-  User.find(function(err, user) {
-    res.send(user);
-  });
+    User.find(function(err, user) {
+        res.send(user);
+    });
 });
 
 //delete user
 router.delete('/:email', function(req, res) {
-  User.remove({
-    'email': req.params.email
-  }, function(err, user) {
-    if (!err) {
-      res.send(user);
+    User.remove({
+        'email': req.params.email
+    }, function(err, user) {
+        if (!err) {
+            res.send(user);
 
-    } else {
-      res.send("ERROR")
-    }
-  });
+        } else {
+            res.send("ERROR")
+        }
+    });
 });
 
 //delete user
 router.get('/:email/delete', function(req, res) {
-  User.remove({
-    'email': req.query.email
-  }, function(err, user) {
-    if (!err) {
-      res.send(user);
+    User.remove({
+        'email': req.query.email
+    }, function(err, user) {
+        if (!err) {
+            res.send(user);
 
-    } else {
-      res.send("ERROR")
-    }
-  });
+        } else {
+            res.send("ERROR")
+        }
+    });
+});
+
+router.use(function(req, res, next) {
+
+    console.log("after");
+    res.json(res._stvResponse);
+
 });
 
 module.exports = router;
