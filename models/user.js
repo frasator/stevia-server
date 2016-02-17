@@ -6,11 +6,13 @@
 
 const mongoose = require('mongoose');
 require('./file.js');
+// require('./job.js');
+const File = mongoose.model('File');
+// const Job = mongoose.model('Job');
 
 const crypto = require('crypto');
 const utils = require('../lib/utils.js');
 
-const File = mongoose.model('File');
 
 const Schema = mongoose.Schema;
 

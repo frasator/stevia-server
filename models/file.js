@@ -5,12 +5,11 @@
  */
 
 const mongoose = require('mongoose');
-require('./user.js');
-require('./job.js');
+// require('./user.js');
+// require('./job.js');
 
 
 const crypto = require('crypto');
-const ObjectId = require('mongoose').Types.ObjectId;
 
 const Schema = mongoose.Schema;
 
@@ -20,6 +19,10 @@ const Schema = mongoose.Schema;
 
 const FileSchema = new Schema({
     name: {
+        type: String,
+        default: '',
+    },
+    path: {
         type: String,
         default: '',
     },
