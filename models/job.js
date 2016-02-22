@@ -9,8 +9,6 @@
  require('./file.js');
  const File = mongoose.model('File');
 
-const crypto = require('crypto');
-
 
 /**
  * File Schema
@@ -37,6 +35,11 @@ const JobSchema = new Schema({
         type: String,
         default: '',
     },
+    executable: {
+        type: String,
+        default: '',
+    },
+    /*QUEUED RUNNING DONE ERROR EXEC_ERROR QUEUE_ERROR QUEUE_WAITING_ERROR*/ 
     status: {
         type: String,
         default: '',
@@ -49,7 +52,7 @@ const JobSchema = new Schema({
         type: String,
         default: '',
     },
-    args: {
+    options: {
         type: Schema.Types.Mixed,
         default: {}
     },
@@ -68,12 +71,14 @@ const JobSchema = new Schema({
  */
 
 JobSchema.methods = {
-    createJobFolder: function(name, parent) {
+    createJobFolder: function(name, parent, user) {
+        var newName = parent.getDuplicatedFileName(name);
         var jobFolder = new File({
-            name: name,
-            user: parent.user,
+            name: newName,
+            user: user,
             parent: parent,
-            job: me._id,
+            job: this._id,
+            path: parent.path + '/' + newName,
             type: "FOLDER"
         });
         parent.files.push(jobFolder);
@@ -81,8 +86,10 @@ JobSchema.methods = {
         parent.save();
 
         this.folder = jobFolder;
-        this.user = jobFolder.user
+        this.user = user;
         this.save();
+        jobFolder.fsCreateFolder(parent);
+        user.save();
     }
 };
 

@@ -1,7 +1,7 @@
 var config = require('../config.json');
 var multiparty = require('multiparty');
-var rimraf = require('rimraf');
 var fs = require('fs');
+var remove = require('remove');
 var exec = require('child_process').exec;
 var STVResult = require('../lib/STVResult.js');
 var STVResponse = require('../lib/STVResponse.js');
@@ -19,43 +19,6 @@ router.use(function timeLog(req, res, next) {
         queryOptions: req.query
     });
     next();
-});
-
-
-router.get('/create', function(req, res, next) {
-
-    var name = req.query.name;
-    var parentId = req.query.parentId;
-    var type = req.query.type;
-
-    var file = new File(req.query);
-
-    if (parentId != null) {
-        File.getFile(parentId, function(err, parent) {
-            if (err) {
-                console.log("error")
-            } else {
-                console.log(parent);
-                if (parent.type === "FOLDER") {
-
-                    file.parent = parent;
-                    parent.addFile(file);
-                    parent.save();
-                    file.save();
-                    res.json(file);
-
-                } else {
-                    res.json({
-                        error: "PARENT is not a folder"
-                    })
-                }
-            }
-        });
-    } else {
-        file.save();
-        res.json(file);
-    }
-
 });
 
 router.get('/:fileId/delete', function(req, res) {
@@ -80,9 +43,13 @@ router.get('/:fileId/delete', function(req, res) {
         }
         file.parent.save();
 
+        if (file.job) {
+            file.job.remove();
+        }
         file.removeChilds();
         file.remove();
 
+        file.fsDelete();
         stvResult.results = [];
 
         stvResult.dbTime = new Date().getTime() - start;
@@ -94,7 +61,8 @@ router.get('/:fileId/delete', function(req, res) {
         res._stvResponse.response.push(stvResult);
 
         res.json(res._stvResponse);
-    }).populate('parent');
+
+    }).populate('parent').populate('job');
 });
 
 router.get('/:fileId/list', function(req, res) {
@@ -114,7 +82,6 @@ router.get('/:fileId/list', function(req, res) {
     }, function(err, file) {
         var end = new Date().getTime();
 
-
         stvResult.results = file.files;
 
         stvResult.dbTime = new Date().getTime() - start;
@@ -126,7 +93,12 @@ router.get('/:fileId/list', function(req, res) {
         res._stvResponse.response.push(stvResult);
 
         res.json(res._stvResponse);
-    }).populate('files');
+    }).populate({
+        path: 'files',
+        populate: {
+            path: 'job'
+        }
+    }).populate('job');
 });
 
 router.get('/:fileId/create-folder', function(req, res) {
@@ -143,36 +115,44 @@ router.get('/:fileId/create-folder', function(req, res) {
     File.findOne({
         '_id': fileId
     }, function(err, parent) {
+        var folder = parent.hasFile(name);
+        if (folder != null) {
+            stvResult.results.push(folder);
+            res._stvResponse.response.push(stvResult);
+            res.json(res._stvResponse);
+        } else {
+            var folder = new File({
+                name: name,
+                user: parent.user,
+                parent: parent._id,
+                type: "FOLDER",
+                path: parent.path + '/' + name
+            });
+
+            parent.files.push(folder);
+            folder.save();
+            parent.save();
+
+            parent.user.save();
+            folder.fsCreateFolder(parent);
+
+            var end = new Date().getTime();
+
+            stvResult.results.push(folder);
+
+            stvResult.dbTime = new Date().getTime() - start;
+
+            stvResult.numResults = 1;
+            stvResult.numTotalResults = 1;
+            stvResult.time = (new Date().getTime()) - start;
+
+            res._stvResponse.response.push(stvResult);
+
+            res.json(res._stvResponse);
+        }
 
         // var newFolder = parent.createFolder(name);
-
-        var folder = new File({
-            name: name,
-            user: parent.user,
-            parent: parent._id,
-            type: "FOLDER"
-        });
-
-        parent.files.push(folder);
-        folder.save();
-        parent.save();
-
-        parent.user.save();
-
-        var end = new Date().getTime();
-
-        stvResult.results.push(folder);
-
-        stvResult.dbTime = new Date().getTime() - start;
-
-        stvResult.numResults = 1;
-        stvResult.numTotalResults = 1;
-        stvResult.time = (new Date().getTime()) - start;
-
-        res._stvResponse.response.push(stvResult);
-
-        res.json(res._stvResponse);
-    }).populate("user");
+    }).populate("user").populate('files');
 });
 
 /******************************/
@@ -182,8 +162,28 @@ router.get('/:fileId/create-folder', function(req, res) {
 /******************************/
 /******************************/
 router.post('/upload', function(req, res, next) {
+    console.log(req.query.parentId);
+    File.findOne({
+        '_id': req.query.parentId
+    }, function(err, parent) {
+        req._parent = parent;
+        next();
+    }).populate('files');
+}, function(req, res, next) {
+    console.log(req.query.name);
+    var parent = req._parent;
+    var file = parent.hasFile(req.query.name);
+    if (file != null) {
+        res.json({
+            exists: true,
+            file: file
+        });
+    } else {
+        next();
+    }
+
+}, function(req, res, next) {
     var fields = {};
-    var stream;
     var form = new multiparty.Form({
         // Parts for fields are not emitted when autoFields is on, and likewise parts for files are not emitted when autoFiles is on.
         autoFields: true
@@ -197,105 +197,125 @@ router.post('/upload', function(req, res, next) {
 
     //Files, should be only one;
     form.on('part', function(part) {
-        var path = config.steviaDir; // TODO get file dir with multipartFields.parentId
-        var uploadPath = path + fields.name + "_partial";
-        try {
-            fs.mkdirSync(uploadPath);
-        } catch (e) {
-            console.log('Upload: ' + uploadPath + ' ' + 'already created');
-        }
-        var filepath = uploadPath + '/' + fields.chunk_id + "_" + fields.chunk_size + "_partial";
-        var writeStream = fs.createWriteStream(filepath);
-        part.pipe(writeStream);
-        writeStream.on('finish', function() {
-            var stats = fs.statSync(filepath);
-            console.log('Chunk ' + fields.chunk_id + ' created. Chunk size: ' + stats.size);
-
-            if (fields.last_chunk === 'true') {
-                console.log('Chunk ' + fields.chunk_id + ' is the last');
-                var finalFilePath = path + fields.name;
-                var files = getSortedChunkList(uploadPath);
-                var fd = fs.openSync(finalFilePath, 'w');
-                fs.closeSync(fd);
-                var fd = fs.openSync(finalFilePath, 'a');
-                var c = 0;
-                for (var i = 0; i < files.length; i++) {
-                    var file = uploadPath + '/' + files[i];
-                    var data = fs.readFileSync(file);
-                    fs.appendFileSync(fd, data, null);
-                }
-                fs.closeSync(fd);
-                var stats = fs.statSync(finalFilePath);
-                console.log('File ' + finalFilePath + ' created. Final size: ' + stats.size);
-
-                /* Database entry */
-                File.findOne({
-                    '_id': fields.parentId
-                }, function(err, parent) {
-
-                    var file = new File({
-                        name: fields.name,
-                        user: parent.user,
-                        parent: parent._id,
-                        type: "FILE"
-                    });
-
-                    parent.files.push(file);
-                    file.save();
-                    parent.save();
-
-                    parent.user.save();
-
-                    var stvResult = new STVResult();
-                    stvResult.results.push(file);
-
-                    stvResult.dbTime = -1;
-
-                    stvResult.numResults = 1;
-                    stvResult.numTotalResults = 1;
-                    stvResult.time = -1;
-
-                    res._stvResponse.response.push(stvResult);
-
-                    rimraf(uploadPath, function() {
-                        console.log('Temporal upload folder ' + uploadPath + ' removed');
-                        res.json(res._stvResponse);
-                    });
-                }).populate("user");
-
-            } else {
-                res.send({});
+        File.findOne({
+            '_id': fields.parentId
+        }, function(err, parent) {
+            var path = config.steviaDir + config.usersPath + parent.path + '/';
+            var uploadPath = path + fields.name + "_partial";
+            try {
+                fs.mkdirSync(uploadPath);
+            } catch (e) {
+                console.log('Upload: ' + uploadPath + ' ' + 'already created');
             }
-        });
+            var filepath = uploadPath + '/' + fields.chunk_id + "_chunk";
+            var writeStream = fs.createWriteStream(filepath);
+            part.pipe(writeStream);
+            writeStream.on('finish', function() {
+                var stats = fs.statSync(filepath);
+                console.log('Chunk ' + fields.chunk_id + ' created. Chunk size: ' + stats.size);
+
+                if (fields.last_chunk === 'true') {
+                    console.log('Chunk ' + fields.chunk_id + ' is the last');
+                    joinAllChunks(path, uploadPath, fields, parent, function(file) {
+                        res.json({
+                            file: file
+                        });
+                    })
+                } else {
+                    res.json({
+                        chunkId: fields.chunk_id
+                    });
+                }
+            });
+        }).populate("user");
     });
 
     form.on('close', function() {
-        req._multipartFields = fields;
-        var path = config.dirname; // TODO get file dir with multipartFields.parentId
-        var uploadPath = path + fields.name + "_partial";
-        if (fields.resume_upload === 'true') {
-            res.setHeader('Content-Type', 'application/json');
-            res.send(getResumeFileInfo(uploadPath));
-        }
+        File.findOne({
+            '_id': fields.parentId
+        }, function(err, parent) {
+            var path = config.steviaDir + config.usersPath + parent.path + '/';
+            var uploadPath = path + fields.name + "_partial";
+            if (fields.resume_upload === 'true') {
+                var chunkMap = JSON.parse(fields.chunk_map);
+                var resumeInfo = getResumeFileInfo(uploadPath, chunkMap);
+                if (checkAllIsUploaded(resumeInfo, chunkMap)) {
+                    joinAllChunks(path, uploadPath, fields, parent, function(file) {
+                        res.json({
+                            file: file,
+                            resumeInfo: resumeInfo
+                        });
+                    })
+                } else {
+                    res.json({
+                        resumeInfo: resumeInfo
+                    });
+                }
+            }
+        }).populate("user");
+    });
+    form.on('aborted', function() {
+        console.log('form parse aborted !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! ');
     });
     form.parse(req);
 });
+/******************************/
+/******************************/
 
-/******************************/
-/******************************/
-function getResumeFileInfo(path) {
+function joinAllChunks(path, uploadPath, fields, parent, callback) {
+    console.log('Joining all chunks...');
+    var finalFilePath = path + fields.name;
+    var files = getSortedChunkList(uploadPath);
+    var fd = fs.openSync(finalFilePath, 'w');
+    fs.closeSync(fd);
+    var fd = fs.openSync(finalFilePath, 'a');
+    var c = 0;
+    for (var i = 0; i < files.length; i++) {
+        var file = uploadPath + '/' + files[i];
+        var data = fs.readFileSync(file);
+        fs.appendFileSync(fd, data, null);
+    }
+    fs.closeSync(fd);
+    var stats = fs.statSync(finalFilePath);
+    console.log('File ' + finalFilePath + ' created. Final size: ' + stats.size);
+
+    /* Database entry */
+    var file = new File({
+        name: fields.name,
+        user: parent.user,
+        parent: parent._id,
+        type: "FILE",
+        path: parent.path + '/' + fields.name
+    });
+
+    parent.files.push(file);
+    file.save();
+    parent.save();
+
+    parent.user.save();
+
+    remove.removeSync(uploadPath);
+    console.log('Temporal upload folder ' + uploadPath + ' removed');
+    callback(file);
+};
+
+function getResumeFileInfo(uploadPath, chunkMap) {
     var info = {};
     try {
-        fs.accessSync(path);
-        var stats = fs.statSync(path);
+        fs.accessSync(uploadPath);
+        var stats = fs.statSync(uploadPath);
         if (stats.isDirectory()) {
-            var filesInFolder = fs.readdirSync(path);
+            var filesInFolder = fs.readdirSync(uploadPath);
             for (var i = 0; i < filesInFolder.length; i++) {
                 var file = filesInFolder[i];
+                var stats = fs.statSync(uploadPath + '/' + file);
                 var nameSplit = file.split("_");
-                info[nameSplit[0]] = {
-                    size: nameSplit[1]
-                };
+                var chunkId = nameSplit[0];
+                if (stats.size === chunkMap[chunkId].size) {
+                    info[chunkId] = {
+                        size: stats.size
+                    };
+                }
             }
         }
     } catch (e) {
@@ -305,14 +325,25 @@ function getResumeFileInfo(path) {
     return info;
 };
 
-function getSortedChunkList(path) {
+function checkAllIsUploaded(resumeInfo, chunkMap) {
+    var allUploaded = true;
+    for (var key in chunkMap) {
+        if (resumeInfo[key] == null) {
+            allUploaded = false;
+            break;
+        }
+    }
+    return allUploaded;
+};
+
+function getSortedChunkList(uploadPath) {
     var files, chunkId, file, nameSplit;
     try {
-        fs.accessSync(path);
-        var stats = fs.statSync(path);
+        fs.accessSync(uploadPath);
+        var stats = fs.statSync(uploadPath);
         if (stats.isDirectory()) {
             files = [];
-            var filesInFolder = fs.readdirSync(path);
+            var filesInFolder = fs.readdirSync(uploadPath);
             files.length = filesInFolder.length;
             for (var i = 0; i < filesInFolder.length; i++) {
                 file = filesInFolder[i];
@@ -326,7 +357,7 @@ function getSortedChunkList(path) {
         console.log('Sort chunks: ' + 'Could not get chunks from partial folder.');
     }
     return files;
-}
+};
 
 
 module.exports = router;

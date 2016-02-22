@@ -10,7 +10,6 @@ require('./file.js');
 const File = mongoose.model('File');
 // const Job = mongoose.model('Job');
 
-const crypto = require('crypto');
 const utils = require('../lib/utils.js');
 
 
@@ -71,14 +70,15 @@ const UserSchema = new Schema({
 
 UserSchema.methods = {
     createHomeFolder: function() {
-
         var homeFolder = new File({
             name: this.email,
-            user: this._id
+            user: this._id,
+            path: this.email
         });
         homeFolder.save();
         this.home = homeFolder;
         this.save();
+        homeFolder.fsCreateFolder();
     },
     removeSessionId: function(sessionId) {
 

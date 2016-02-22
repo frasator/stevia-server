@@ -1,9 +1,13 @@
 'use strict';
 
+
 /**
  * Module dependencies.
  */
 
+var fs = require('fs');
+var config = require('../config.json');
+var remove = require('remove');
 const mongoose = require('mongoose');
 // require('./user.js');
 // require('./job.js');
@@ -77,25 +81,32 @@ FileSchema.methods = {
     addFile: function(file) {
         this.files.push(file);
     },
-    createFolder: function(name) {
-
-        var folder = new File({
-            name: name,
-            user: this.user._id,
-            parent: this._id,
-            type: "FOLDER"
-        });
-
-        this.files.push(folder);
-        folder.save();
-
-        this.save();
-        user.save();
-        return folder;
+    hasFile: function(name) {
+        var foundFile = null;
+        for (var i = 0; i < this.files.length; i++) {
+            var file = this.files[i];
+            if (file.name === name) {
+                foundFile = file;
+                break;
+            }
+        }
+        return foundFile;
+    },
+    getDuplicatedFileName: function(name) {
+        var suffix = 0;
+        var nameToCheck = name;
+        while (this.hasFile(nameToCheck) != null) {
+            suffix++;
+            nameToCheck = name + '-' + suffix;
+        }
+        return nameToCheck;
     },
     removeChilds: function() {
         if (this.files.length == 0) {
             this.remove();
+            if (this.job) {
+                this.job.remove();
+            }
         } else {
             for (var i = 0; i < this.files.length; i++) {
                 var file = this.files[i];
@@ -104,9 +115,34 @@ FileSchema.methods = {
                 }, function(err, fileChild) {
                     fileChild.removeChilds();
                     fileChild.remove();
-                })
+                    if (fileChild.job) {
+                        fileChild.job.remove();
+                    }
+                }).populate('job');
             }
         }
+    },
+    fsCreateFolder: function(parent) {
+        var userspath = config.steviaDir + config.usersPath;
+        try {
+            var stats = fs.statSync(userspath);
+        } catch (e) {
+            fs.mkdirSync(userspath);
+        }
+
+        var realPath;
+        if (parent != undefined) {
+            var parentPath = parent.path + '/';
+            realPath = userspath + parentPath + this.name;
+        } else {
+            realPath = userspath + this.name;
+        }
+        fs.mkdirSync(realPath);
+    },
+    fsDelete: function() {
+        var userspath = config.steviaDir + config.usersPath;
+        var realPath = userspath + this.path;
+        remove.removeSync(realPath);
     }
 };
 

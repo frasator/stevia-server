@@ -299,26 +299,26 @@ router.get('/:email/info', function(req, res) {
     var start = new Date().getTime();
 
 
-
     User.findOne({
         'email': req.params.email
     }, function(err, user) {
-        var end = new Date().getTime();
+        if (user) {
+            var end = new Date().getTime();
+            // console.log(user.updated_at);
+            // console.log(updated_at);
+            if (user.updated_at.getTime() !== updated_at.getTime()) {
+                stvResult.results.push(user);
+            }
 
-        console.log(user.updated_at);
-        console.log(updated_at);
-        if (user.updated_at.getTime() !== updated_at.getTime()) {
-            stvResult.results.push(user);
+            stvResult.dbTime = new Date().getTime() - start;
+            stvResult.numResults = 1;
+            stvResult.numTotalResults = 1;
+            stvResult.time = (new Date().getTime()) - start;
+
+        }else{
+            stvResult.errorMsg = "User not found!";
         }
-
-        stvResult.dbTime = new Date().getTime() - start;
-
-        stvResult.numResults = 1;
-        stvResult.numTotalResults = 1;
-        stvResult.time = (new Date().getTime()) - start;
-
         res._stvResponse.response.push(stvResult);
-
         res.json(res._stvResponse);
     }).populate('home');
 });
