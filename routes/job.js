@@ -144,7 +144,7 @@ router.post('/create', function(req, res, next) {
             }
         }
         var commandLine = config.steviaDir + config.toolPath + jobConfig.tool + '/' + jobConfig.executable + ' ' + computedOptions.join(' ');
-        var command = 'qsub -N "j' + job._id + '" -q normal.q -o ' + realOutPath + ' -b y ' + commandLine;
+        var command = 'qsub -N "j' + job._id + '" -q ' + config.queue + ' -o ' + realOutPath + ' -b y ' + commandLine;
         console.log(command);
 
 

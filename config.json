@@ -3,5 +3,6 @@
     "httpPort": 5555,
     "steviaDir": "/tmp/stevia/",
     "toolPath": "tools/",
-    "usersPath": "users/"
+    "usersPath": "users/",
+    "queue": "all.q"
 }
