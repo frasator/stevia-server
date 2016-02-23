@@ -3,71 +3,75 @@ var multiparty = require('multiparty');
 var fs = require('fs');
 var remove = require('remove');
 var exec = require('child_process').exec;
-var STVResult = require('../lib/STVResult.js');
-var STVResponse = require('../lib/STVResponse.js');
+var StvResult = require('../lib/StvResult.js');
 
 var express = require('express');
 var router = express.Router();
 
 const mongoose = require('mongoose');
 const File = mongoose.model('File');
+const User = mongoose.model('User');
 
-// middleware that is specific to this router
-router.use(function timeLog(req, res, next) {
-    res._stvResponse = new STVResponse({
-        paramsOptions: req.params,
-        queryOptions: req.query
-    });
-    next();
+// // middleware that is specific to this router
+router.use(function(req, res, next) {
+    var sid = req.query.sid;
+    User.findOne({
+        'sessions.id': sid
+    }, function(err, user) {
+        if (!user) {
+            var stvResult = new StvResult();
+            stvResult.error = "Authentication error";
+            console.log("error: " + stvResult.error);
+            stvResult.end();
+            res._stvres.response.push(stvResult);
+            res.json(res._stvres);
+        } else {
+            req._user = user;
+            next();
+        }
+    }).select('+password');
 });
 
-router.get('/:fileId/delete', function(req, res) {
-    var stvResult = new STVResult();
+router.get('/:fileId/delete', function(req, res, next) {
+    var stvResult = new StvResult();
 
     var fileId = req.params.fileId;
     var sid = req.query.sid;
 
     stvResult.id = fileId;
-    var start = new Date().getTime();
 
     File.findOne({
         '_id': fileId
     }, function(err, file) {
-        var end = new Date().getTime();
+        if (!file) {
+            stvResult.error = "File not exist";
+            console.log("error: " + stvResult.error);
+        } else if (file.user.toString() != req._user._id.toString()) {
+            stvResult.error = "Authentication error";
+            console.log("error: " + stvResult.error);
+        } else {
+            var index = file.parent.files.indexOf(file._id);
+            if (index != -1) {
+                file.parent.files.splice(index, 1);
+            }
+            file.parent.save();
 
+            if (file.job) {
+                file.job.remove();
+            }
+            file.removeChilds();
+            file.remove();
 
-        var index = file.parent.files.indexOf(file._id);
-        console.log(index);
-        if (index != -1) {
-            file.parent.files.splice(index, 1);
+            file.fsDelete();
         }
-        file.parent.save();
-
-        if (file.job) {
-            file.job.remove();
-        }
-        file.removeChilds();
-        file.remove();
-
-        file.fsDelete();
-        stvResult.results = [];
-
-        stvResult.dbTime = new Date().getTime() - start;
-
-        stvResult.numResults = 0;
-        stvResult.numTotalResults = 0;
-        stvResult.time = (new Date().getTime()) - start;
-
-        res._stvResponse.response.push(stvResult);
-
-        res.json(res._stvResponse);
-
+        stvResult.end();
+        res._stvres.response.push(stvResult);
+        next();
     }).populate('parent').populate('job');
 });
 
-router.get('/:fileId/list', function(req, res) {
-
-    var stvResult = new STVResult();
+router.get('/:fileId/list', function(req, res, next) {
+    var stvResult = new StvResult();
 
     var fileId = req.params.fileId;
     var sid = req.query.sid;
@@ -75,24 +79,22 @@ router.get('/:fileId/list', function(req, res) {
     var status = req.query.status;
 
     stvResult.id = fileId;
-    var start = new Date().getTime();
 
     File.findOne({
         '_id': fileId
     }, function(err, file) {
-        var end = new Date().getTime();
-
-        stvResult.results = file.files;
-
-        stvResult.dbTime = new Date().getTime() - start;
-
-        stvResult.numResults = file.files.length;
-        stvResult.numTotalResults = file.files.length;
-        stvResult.time = (new Date().getTime()) - start;
-
-        res._stvResponse.response.push(stvResult);
-
-        res.json(res._stvResponse);
+        if (!file) {
+            stvResult.error = "File not exist";
+            console.log("error: " + stvResult.error);
+        } else if (file.user.toString() != req._user._id.toString()) {
+            stvResult.error = "Authentication error";
+            console.log("error: " + stvResult.error);
+        } else {
+            stvResult.results = file.files;
+        }
+        stvResult.end();
+        res._stvres.response.push(stvResult);
+        next();
     }).populate({
         path: 'files',
         populate: {
@@ -101,57 +103,50 @@ router.get('/:fileId/list', function(req, res) {
     }).populate('job');
 });
 
-router.get('/:fileId/create-folder', function(req, res) {
-    var stvResult = new STVResult();
+router.get('/:fileId/create-folder', function(req, res, next) {
+    var stvResult = new StvResult();
 
     var fileId = req.params.fileId;
     var sid = req.query.sid;
     var name = req.query.name;
 
-
     stvResult.id = fileId;
-    var start = new Date().getTime();
 
     File.findOne({
         '_id': fileId
     }, function(err, parent) {
-        var folder = parent.hasFile(name);
-        if (folder != null) {
-            stvResult.results.push(folder);
-            res._stvResponse.response.push(stvResult);
-            res.json(res._stvResponse);
+        if (!parent) {
+            stvResult.error = "File not exist";
+            console.log("error: " + stvResult.error);
+        } else if (parent.user.toString() != req._user._id.toString()) {
+            stvResult.error = "Authentication error";
+            console.log("error: " + stvResult.error);
         } else {
-            var folder = new File({
-                name: name,
-                user: parent.user,
-                parent: parent._id,
-                type: "FOLDER",
-                path: parent.path + '/' + name
-            });
+            var folder = parent.hasFile(name);
+            if (folder != null) {
+                stvResult.results.push(folder);
+            } else {
+                var folder = new File({
+                    name: name,
+                    user: parent.user,
+                    parent: parent._id,
+                    type: "FOLDER",
+                    path: parent.path + '/' + name
+                });
 
-            parent.files.push(folder);
-            folder.save();
-            parent.save();
+                parent.files.push(folder);
+                folder.save();
+                parent.save();
 
-            parent.user.save();
-            folder.fsCreateFolder(parent);
+                parent.user.save();
+                folder.fsCreateFolder(parent);
 
-            var end = new Date().getTime();
-
-            stvResult.results.push(folder);
-
-            stvResult.dbTime = new Date().getTime() - start;
-
-            stvResult.numResults = 1;
-            stvResult.numTotalResults = 1;
-            stvResult.time = (new Date().getTime()) - start;
-
-            res._stvResponse.response.push(stvResult);
-
-            res.json(res._stvResponse);
+                stvResult.results.push(folder);
+            }
         }
-
-        // var newFolder = parent.createFolder(name);
+        stvResult.end();
+        res._stvres.response.push(stvResult);
+        next();
     }).populate("user").populate('files');
 });
 
@@ -162,12 +157,21 @@ router.get('/:fileId/create-folder', function(req, res) {
 /******************************/
 /******************************/
 router.post('/upload', function(req, res, next) {
-    console.log(req.query.parentId);
     File.findOne({
         '_id': req.query.parentId
     }, function(err, parent) {
-        req._parent = parent;
-        next();
+        if (!parent) {
+            res.json({
+                error:"File not exist"
+            });
+        } else if (parent.user.toString() != req._user._id.toString()) {
+            res.json({
+                error:"Authentication error"
+            });
+        }else{
+            req._parent = parent;
+            next();
+        }
     }).populate('files');
 }, function(req, res, next) {
     console.log(req.query.name);

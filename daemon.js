@@ -4,9 +4,11 @@ const fs = require('fs');
 const exec = require('child_process').exec;
 const mongoose = require('mongoose');
 require('./models/job.js');
+require('./models/file.js');
 require('./models/user.js');
 const Job = mongoose.model('Job');
 const xml2js = require('xml2js');
+
 
 if (cluster.isMaster) {
     // Code to run if we're in the master process
@@ -41,7 +43,7 @@ if (cluster.isMaster) {
         console.log('Worker %d running!', cluster.worker.id);
         var interval = setInterval(function() {
             run();
-        }, 1000);
+        }, 2000);
     }
 
     function connect() {
@@ -61,7 +63,7 @@ function run() {
     getDbJobs(function(jobs) {
         getSGEQstatJobs(jobs, function() {
             for (var id in jobs) {
-                checkSGEQacctJob(jobs[id]);
+                checkSGEQacctJob(jobs[id], function() {});
             }
         });
     });
@@ -84,36 +86,45 @@ function getSGEQstatJobs(jobs, cb) {
         // console.log('stdout: ' + stdout);
         // console.log('stderr: ' + stderr);
         xml2js.parseString(stdout, function(err, result) {
-            var items = [];
-            var l1 = result.job_info.queue_info[0].job_list;
-            var l2 = result.job_info.job_info[0].job_list;
-            if (l1 != null) {
-                items = items.concat(l1);
-            }
-            if (l2 != null) {
-                items = items.concat(l2);
-            }
-            for (var i = 0; i < items.length; i++) {
-                var item = items[i];
-                var id = item.JB_name[0].substring(1);
-                var state = item.state[0];
-                var dbJob = jobs[id];
-                switch (state) {
-                    case 'r':
-                        dbJob.status = "RUNNING";
-                        dbJob.save();
-                        dbJob.user.save();
-                        break;
-                    case 'qw':
-                        dbJob.status = "QUEUED";
-                        dbJob.save();
-                        dbJob.user.save();
-                        break;
-                    case 'Eqw':
-                        dbJob.status = "QUEUE_WAITING_ERROR";
-                        dbJob.save();
-                        dbJob.user.save();
-                        break;
+            if (result != null) {
+                var items = [];
+                var l1 = result.job_info.queue_info[0].job_list;
+                var l2 = result.job_info.job_info[0].job_list;
+                if (l1 != null) {
+                    items = items.concat(l1);
+                }
+                if (l2 != null) {
+                    items = items.concat(l2);
+                }
+                for (var i = 0; i < items.length; i++) {
+                    var item = items[i];
+                    var id = item.JB_name[0].substring(1);
+                    var state = item.state[0];
+                    var dbJob = jobs[id];
+                    var currentStatus = dbJob.status;
+                    switch (state) {
+                        case 'r':
+                            if (dbJob.status != "RUNNING") {
+                                dbJob.status = "RUNNING";
+                                dbJob.save();
+                                dbJob.user.save();
+                            }
+                            break;
+                        case 'qw':
+                            if (dbJob.status != "QUEUED") {
+                                dbJob.status = "QUEUED";
+                                dbJob.save();
+                                dbJob.user.save();
+                            }
+                            break;
+                        case 'Eqw':
+                            if (dbJob.status != "QUEUE_WAITING_ERROR") {
+                                dbJob.status = "QUEUE_WAITING_ERROR";
+                                dbJob.save();
+                                dbJob.user.save();
+                            }
+                            break;
+                    }
                 }
             }
         });
@@ -125,7 +136,7 @@ function getSGEQstatJobs(jobs, cb) {
     });
 }
 
-function checkSGEQacctJob(dbJob) {
+function checkSGEQacctJob(dbJob, cb) {
     var qId = 'j' + dbJob._id;
     exec("qacct -j " + qId, function(error, stdout, stderr) {
         if (error == null) {
@@ -157,5 +168,6 @@ function checkSGEQacctJob(dbJob) {
             // var msg = 'exec error: ' + error;
             // console.log(msg);
         }
+        cb();
     });
 }

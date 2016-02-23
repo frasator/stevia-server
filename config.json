@@ -4,5 +4,5 @@
     "steviaDir": "/tmp/stevia/",
     "toolPath": "tools/",
     "usersPath": "users/",
-    "queue": "all.q"
+    "queue": "normal.q"
 }

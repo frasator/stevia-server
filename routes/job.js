@@ -1,7 +1,6 @@
 var config = require('../config.json');
 var exec = require('child_process').exec;
-var STVResult = require('../lib/STVResult.js');
-var STVResponse = require('../lib/STVResponse.js');
+var StvResult = require('../lib/StvResult.js');
 var fs = require('fs');
 
 var express = require('express');
@@ -12,54 +11,53 @@ const Job = mongoose.model('Job');
 const File = mongoose.model('File');
 const User = mongoose.model('User');
 
-// middleware that is specific to this router
-router.use(function timeLog(req, res, next) {
-    res._stvResponse = new STVResponse({
-        paramsOptions: req.params,
-        queryOptions: req.query
+// // middleware that is specific to this router
+router.use(function(req, res, next) {
+    var sid = req.query.sid;
+    User.findOne({
+        'sessions.id': sid
+    }, function(err, user) {
+        if (!user) {
+            var stvResult = new StvResult();
+            stvResult.error = "Authentication error";
+            console.log("error: " + stvResult.error);
+            stvResult.end();
+            res._stvres.response.push(stvResult);
+            res.json(res._stvres);
+        } else {
+            req._user = user;
+            next();
+        }
+    }).select('+password').populate({
+        path: 'home',
+        populate: {
+            path: 'files'
+        }
     });
-    next();
 });
 
-
 router.post('/create', function(req, res, next) {
-    var sid = req.query.sid;
-    if (sid != null) {
-        User.findOne({
-            'sessions.id': sid
-        }, function(err, user) {
-            if (user != null) {
-                req._user = user;
-                next();
-            } else {
-                res.json({});
-            }
-        }).populate({
-            path: 'home',
-            populate: {
-                path: 'files'
-            }
-        });
-    }
-}, function(req, res, next) {
     var parentId = req.query.outdirId;
     if (parentId != null) {
         File.findOne({
             '_id': parentId
         }, function(err, parent) {
-            if (parent != null) {
-                req._parent = parent;
-                next();
-            } else {
+            if (!parent) {
                 req._parent = req._user.home;
-                next();
+            } else if (parent.user.toString() != req._user._id.toString()) {
+                req._parent = req._user.home;
+            } else {
+                req._parent = parent;
             }
+            next();
         }).populate('files');
     } else {
         req._parent = req._user.home;
         next();
     }
-}, function(req, res) {
+}, function(req, res, next) {
+    var stvResult = new StvResult();
+
     var jobConfig = req.body;
     var name = req.query.name;
     var description = req.query.description;
@@ -105,10 +103,12 @@ router.post('/create', function(req, res, next) {
             switch (option.type) {
                 case 'file':
                     if (option.mode === 'id') {
-                        var userspath = config.steviaDir + config.usersPath;
-                        var realPath = userspath + fileMap[option.value].path;
-                        computedOptions.push(prefix + name);
-                        computedOptions.push(realPath.replace(/ /gi, '\\ '));
+                        if (fileMap[option.value] != null) {
+                            var userspath = config.steviaDir + config.usersPath;
+                            var realPath = userspath + fileMap[option.value].path;
+                            computedOptions.push(prefix + name);
+                            computedOptions.push(realPath.replace(/ /gi, '\\ '));
+                        }
                     }
                     if (option.mode === 'text') {
                         var filename = name + '.txt';
@@ -152,9 +152,12 @@ router.post('/create', function(req, res, next) {
             // console.log('stdout: ' + stdout);
             // console.log('stderr: ' + stderr);
 
-            var stvResult = new STVResult();
-            res._stvResponse.response.push(stvResult);
-            res.json(res._stvResponse);
+            job.commandLine = command;
+            job.save();
+            stvResult.results.push(job);
+            stvResult.end();
+            res._stvres.response.push(stvResult);
+            next();
 
             if (error !== null) {
                 var msg = 'exec error: ' + error;

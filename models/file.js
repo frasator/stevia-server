@@ -82,15 +82,20 @@ FileSchema.methods = {
         this.files.push(file);
     },
     hasFile: function(name) {
-        var foundFile = null;
-        for (var i = 0; i < this.files.length; i++) {
-            var file = this.files[i];
-            if (file.name === name) {
-                foundFile = file;
-                break;
+        try{
+            var stats = fs.statSync(this.path + '/' + name);
+            return null;
+        }catch(e){
+            var foundFile = null;
+            for (var i = 0; i < this.files.length; i++) {
+                var file = this.files[i];
+                if (file.name === name) {
+                    foundFile = file;
+                    break;
+                }
             }
+            return foundFile;
         }
-        return foundFile;
     },
     getDuplicatedFileName: function(name) {
         var suffix = 0;
