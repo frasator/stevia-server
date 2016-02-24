@@ -7,6 +7,7 @@ require('./models/job.js');
 require('./models/file.js');
 require('./models/user.js');
 const Job = mongoose.model('Job');
+const File = mongoose.model('File');
 const xml2js = require('xml2js');
 
 
@@ -72,13 +73,21 @@ function run() {
 function getDbJobs(cb) {
     // QUEUED RUNNING DONE ERROR EXEC_ERROR QUEUE_ERROR QUEUE_WAITING_ERROR
     var jobs = {};
-    Job.where('status').in(['QUEUED', 'RUNNING']).populate('user').exec(function(err, result) {
-        for (var i = 0; i < result.length; i++) {
-            var job = result[i];
-            jobs[job._id] = job;
-        }
-        cb(jobs);
-    });
+    Job.where('status')
+        .in(['QUEUED', 'RUNNING'])
+        .populate('user')
+        .populate({
+            path: 'folder',
+            populate: {
+                path: 'files'
+            }
+        }).exec(function(err, result) {
+            for (var i = 0; i < result.length; i++) {
+                var job = result[i];
+                jobs[job._id] = job;
+            }
+            cb(jobs);
+        });
 }
 
 function getSGEQstatJobs(jobs, cb) {
@@ -149,6 +158,7 @@ function checkSGEQacctJob(dbJob, cb) {
                         dbJob.status = "QUEUE_ERROR";
                         dbJob.save();
                         dbJob.user.save();
+                        recordOutputFolder(dbJob);
                     }
                 }
                 if (line.indexOf('exit_status') != -1) {
@@ -162,6 +172,7 @@ function checkSGEQacctJob(dbJob, cb) {
                         dbJob.save();
                         dbJob.user.save();
                     }
+                    recordOutputFolder(dbJob);
                 }
             }
         } else {
@@ -170,4 +181,42 @@ function checkSGEQacctJob(dbJob, cb) {
         }
         cb();
     });
+}
+
+function recordOutputFolder(job) {
+    var folder = job.folder;
+    var path = config.steviaDir + config.usersPath + folder.path + '/';
+    try {
+        var folderStats = fs.statSync(path);
+        if (folderStats.isDirectory()) {
+            var filesInFolder = fs.readdirSync(path);
+            for (var i = 0; i < filesInFolder.length; i++) {
+                var file = filesInFolder[i];
+                if (folder.hasFile(file) == null) {
+                    var filePath = path + file;
+                    var stats = fs.statSync(filePath);
+
+                    /* Database entry */
+                    var type = "FILE";
+                    if (stats.isDirectory()) {
+                        type = "FOLDER";
+                    }
+                    var file = new File({
+                        name: file,
+                        user: folder.user,
+                        parent: folder,
+                        type: type,
+                        path: filePath
+                    });
+                    folder.files.push(file);
+                    file.save();
+                    folder.save();
+                    folder.user.save();
+                }
+            }
+        }
+    } catch (e) {
+        console.log('recordOutputFolder: ');
+        console.log(e);
+    }
 }

@@ -118,7 +118,7 @@ router.get('/:fileId/create-folder', function(req, res, next) {
         if (!parent) {
             stvResult.error = "File not exist";
             console.log("error: " + stvResult.error);
-        } else if (parent.user.toString() != req._user._id.toString()) {
+        } else if (parent.user._id.toString() != req._user._id.toString()) {
             stvResult.error = "Authentication error";
             console.log("error: " + stvResult.error);
         } else {
