@@ -114,17 +114,10 @@ router.post('/create', function(req, res, next) {
                         var userspath = config.steviaDir + config.usersPath;
                         var realPath = userspath + job.folder.path + '/' + filename;
                         fs.writeFileSync(realPath, option.value);
-                        var file = new File({
-                            name: filename,
-                            user: req._user,
-                            parent: job.folder,
-                            type: "FILE",
-                            path: job.folder.path + '/' + filename
-                        });
-                        job.folder.files.push(file);
-                        file.save();
-                        job.folder.save();
-                        req._user.save();
+
+                        /* Database entry */
+                        var file = File.createFile(filename, job.folder, req._user);
+
                         computedOptions.push(prefix + name);
                         computedOptions.push('"' + realPath.replace(/ /gi, '\\ ') + '"');
                     }
@@ -157,23 +150,14 @@ router.post('/create', function(req, res, next) {
                 stvResult.end();
                 res._stvres.response.push(stvResult);
             } else {
-                // Remove files
-                var index = req._parent.files.indexOf(job.folder._id);
-                if (index != -1) {
-                    req._parent.files.splice(index, 1);
-                }
-                req._parent.save();
-
-                job.folder.removeChilds();
-                job.folder.remove();
-                job.folder.fsDelete();
-                job.remove();
+                File.delete(job.folder, req._parent, job);
                 var msg = 'exec error: ' + error;
                 console.log(msg);
                 stvResult.error = 'Execution error';
                 stvResult.end();
                 res._stvres.response.push(stvResult);
             }
+            req._user.save();
             next();
         });
     });

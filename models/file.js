@@ -27,8 +27,7 @@ const FileSchema = new Schema({
         default: '',
     },
     path: {
-        type: String,
-        default: '',
+        type: String
     },
     type: {
         type: String,
@@ -145,9 +144,13 @@ FileSchema.methods = {
         fs.mkdirSync(realPath);
     },
     fsDelete: function() {
-        var userspath = config.steviaDir + config.usersPath;
-        var realPath = userspath + this.path;
-        remove.removeSync(realPath);
+        if(this.path == null || this.path == ''){
+            console.log("File fsDelete: file path is null or ''.")
+        }else{
+            var userspath = config.steviaDir + config.usersPath;
+            var realPath = userspath + this.path;
+            remove.removeSync(realPath);
+        }
     }
 };
 
@@ -161,6 +164,56 @@ FileSchema.statics = {
         return this.findOne({
             "_id": fid
         }).exec(callback);
+    },
+    createFolder:function(name, parent, user){
+        var folder = new this({
+            name: name,
+            user: user._id,
+            parent: parent._id,
+            type: "FOLDER",
+            path: parent.path + '/' + name
+        });
+
+        parent.files.push(folder);
+        folder.save();
+        parent.save();
+        user.save();
+
+        folder.fsCreateFolder(parent);
+
+        return folder;
+    },
+    createFile:function(name, parent, user){
+        var file = new this({
+            name: name,
+            user: user._id,
+            parent: parent._id,
+            type: "FILE",
+            path: parent.path + '/' + name
+        });
+
+        parent.files.push(file);
+        file.save();
+        parent.save();
+        user.save();
+
+        return file;
+    },
+    delete:function(file, parent, job){
+        var index = parent.files.indexOf(file._id);
+        if (index != -1) {
+            parent.files.splice(index, 1);
+        }
+        parent.save();
+
+        if (job != null) {
+            job.remove();
+        }
+
+        file.removeChilds();
+        file.remove();
+
+        file.fsDelete();
     }
 };
 

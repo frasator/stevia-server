@@ -50,19 +50,7 @@ router.get('/:fileId/delete', function(req, res, next) {
             stvResult.error = "Authentication error";
             console.log("error: " + stvResult.error);
         } else {
-            var index = file.parent.files.indexOf(file._id);
-            if (index != -1) {
-                file.parent.files.splice(index, 1);
-            }
-            file.parent.save();
-
-            if (file.job) {
-                file.job.remove();
-            }
-            file.removeChilds();
-            file.remove();
-
-            file.fsDelete();
+            File.delete(file, file.parent, file.job);
         }
         stvResult.end();
         res._stvres.response.push(stvResult);
@@ -126,21 +114,7 @@ router.get('/:fileId/create-folder', function(req, res, next) {
             if (folder != null) {
                 stvResult.results.push(folder);
             } else {
-                var folder = new File({
-                    name: name,
-                    user: parent.user,
-                    parent: parent._id,
-                    type: "FOLDER",
-                    path: parent.path + '/' + name
-                });
-
-                parent.files.push(folder);
-                folder.save();
-                parent.save();
-
-                parent.user.save();
-                folder.fsCreateFolder(parent);
-
+                var folder = File.createFolder(name, parent, req._user);
                 stvResult.results.push(folder);
             }
         }
@@ -162,13 +136,13 @@ router.post('/upload', function(req, res, next) {
     }, function(err, parent) {
         if (!parent) {
             res.json({
-                error:"File not exist"
+                error: "File not exist"
             });
         } else if (parent.user.toString() != req._user._id.toString()) {
             res.json({
-                error:"Authentication error"
+                error: "Authentication error"
             });
-        }else{
+        } else {
             req._parent = parent;
             next();
         }
@@ -284,19 +258,7 @@ function joinAllChunks(path, uploadPath, fields, parent, callback) {
     console.log('File ' + finalFilePath + ' created. Final size: ' + stats.size);
 
     /* Database entry */
-    var file = new File({
-        name: fields.name,
-        user: parent.user,
-        parent: parent._id,
-        type: "FILE",
-        path: parent.path + '/' + fields.name
-    });
-
-    parent.files.push(file);
-    file.save();
-    parent.save();
-
-    parent.user.save();
+    var file = File.createFile(fields.name, parent, parent.user);
 
     remove.removeSync(uploadPath);
     console.log('Temporal upload folder ' + uploadPath + ' removed');
