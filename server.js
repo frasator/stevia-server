@@ -5,6 +5,7 @@ require('./models/file.js');
 require('./models/job.js');
 var StvResult = require('./lib/StvResult.js');
 var StvResponse = require('./lib/StvResponse.js');
+var fs = require('fs');
 
 // Include the cluster module
 var cluster = require('cluster');
@@ -12,20 +13,36 @@ var cluster = require('cluster');
 if (cluster.isMaster) {
     // Code to run if we're in the master process
 
-    // Count the machine's CPUs
-    var cpuCount = require('os').cpus().length;
+    // Check config directory
+    var stats = fs.stat(config.steviaDir, function(err, stats) {
+        if (err != null) {
+            console.log(err);
+        } else {
+            try {
+                fs.mkdirSync(config.steviaDir + config.toolPath);
+                fs.mkdirSync(config.steviaDir + config.usersPath);
+            } catch (e) {
 
-    // Create a worker for each CPU
-    for (var i = 0; i < cpuCount; i += 1) {
-        cluster.fork();
-    }
+            }
 
-    // Listen for dying workers
-    cluster.on('exit', function(worker) {
-        // Replace the dead worker, we're not sentimental
-        console.log('Worker %d died :(', worker.id);
-        cluster.fork();
+            // Count the machine's CPUs
+            var cpuCount = require('os').cpus().length;
+
+            // Create a worker for each CPU
+            for (var i = 0; i < cpuCount; i += 1) {
+                cluster.fork();
+            }
+
+            // Listen for dying workers
+            cluster.on('exit', function(worker) {
+                // Replace the dead worker, we're not sentimental
+                console.log('Worker %d died :(', worker.id);
+                cluster.fork();
+            });
+        }
+
     });
+
 
 } else {
     //  Code to run if we're in a worker process

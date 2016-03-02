@@ -106,7 +106,7 @@ router.post('/create', function(req, res, next) {
                             var userspath = config.steviaDir + config.usersPath;
                             var realPath = userspath + fileMap[option.value].path;
                             computedOptions.push(prefix + name);
-                            computedOptions.push('"'+realPath.replace(/ /gi, '\\ ')+'"');
+                            computedOptions.push('"' + realPath.replace(/ /gi, '\\ ') + '"');
                         }
                     }
                     if (option.mode === 'text') {
@@ -126,12 +126,12 @@ router.post('/create', function(req, res, next) {
                         job.folder.save();
                         req._user.save();
                         computedOptions.push(prefix + name);
-                        computedOptions.push('"'+realPath.replace(/ /gi, '\\ ')+'"');
+                        computedOptions.push('"' + realPath.replace(/ /gi, '\\ ') + '"');
                     }
                     break;
                 case 'text':
                     computedOptions.push(prefix + name);
-                    computedOptions.push(option.value);
+                    computedOptions.push('"' + option.value + '"');
                     break;
                 case 'flag':
                     computedOptions.push(prefix + name);
@@ -139,7 +139,7 @@ router.post('/create', function(req, res, next) {
             }
             if (option.out === true) {
                 computedOptions.push(prefix + name);
-                computedOptions.push('"'+realOutPath+'"');
+                computedOptions.push('"' + realOutPath + '"');
             }
         }
         var commandLine = config.steviaDir + config.toolPath + jobConfig.tool + '/' + jobConfig.executable + ' ' + computedOptions.join(' ');
@@ -150,18 +150,31 @@ router.post('/create', function(req, res, next) {
         exec(command, function(error, stdout, stderr) {
             // console.log('stdout: ' + stdout);
             // console.log('stderr: ' + stderr);
+            if (error == null) {
+                job.commandLine = command;
+                job.save();
+                stvResult.results.push(job);
+                stvResult.end();
+                res._stvres.response.push(stvResult);
+            } else {
+                // Remove files
+                var index = req._parent.files.indexOf(job.folder._id);
+                if (index != -1) {
+                    req._parent.files.splice(index, 1);
+                }
+                req._parent.save();
 
-            job.commandLine = command;
-            job.save();
-            stvResult.results.push(job);
-            stvResult.end();
-            res._stvres.response.push(stvResult);
-            next();
-
-            if (error !== null) {
+                job.folder.removeChilds();
+                job.folder.remove();
+                job.folder.fsDelete();
+                job.remove();
                 var msg = 'exec error: ' + error;
                 console.log(msg);
+                stvResult.error = 'Execution error';
+                stvResult.end();
+                res._stvres.response.push(stvResult);
             }
+            next();
         });
     });
 });
