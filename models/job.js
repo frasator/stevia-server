@@ -15,6 +15,10 @@
  */
 
 const JobSchema = new Schema({
+    qId:{
+        type: String,
+        default: '',
+    },
     user: {
         type: Schema.Types.ObjectId,
         ref: 'User'
@@ -39,7 +43,7 @@ const JobSchema = new Schema({
         type: String,
         default: '',
     },
-    /*QUEUED RUNNING DONE ERROR EXEC_ERROR QUEUE_ERROR QUEUE_WAITING_ERROR*/ 
+    /*QUEUED RUNNING DONE ERROR EXEC_ERROR QUEUE_ERROR QUEUE_WAITING_ERROR*/
     status: {
         type: String,
         default: '',

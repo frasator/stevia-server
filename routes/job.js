@@ -73,6 +73,7 @@ router.post('/create', function(req, res, next) {
         options: jobConfig.options,
         status: 'QUEUED'
     });
+    job.qId = job.tool + '-' + job.execution + '-' + job._id;
 
     job.createJobFolder(name, req._parent, req._user);
     var realOutPath = (config.steviaDir + config.usersPath + job.folder.path + '/').replace(/ /gi, '\\ ');
@@ -135,8 +136,9 @@ router.post('/create', function(req, res, next) {
                 computedOptions.push('"' + realOutPath + '"');
             }
         }
+
         var commandLine = config.steviaDir + config.toolPath + jobConfig.tool + '/' + jobConfig.executable + ' ' + computedOptions.join(' ');
-        var command = 'qsub -N "j' + job._id + '" -q ' + config.queue + ' -o ' + realOutPath + ' -b y ' + commandLine;
+        var command = 'qsub -N "' + job.qId + '" -q ' + config.queue + ' -o ' + realOutPath + ' -b y ' + commandLine;
         console.log(command);
 
 

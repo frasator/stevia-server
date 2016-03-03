@@ -61,10 +61,18 @@ if (cluster.isMaster) {
 
 
 function run() {
-    getDbJobs(function(jobs) {
-        getSGEQstatJobs(jobs, function() {
-            for (var id in jobs) {
-                checkSGEQacctJob(jobs[id], function() {});
+    getDbJobs(function(dbJobs) {
+        getSGEQstatJobs(function(qJobs) {
+            for (var qId in dbJobs) {
+                var dbJob = dbJobs[qId];
+                var qJob = qJobs[qId];
+                if (qJob != null) {
+                    //The job is on the qstat
+                    checkSGEQstatJob(dbJob, qJob);
+                } else {
+                    //If not in qstat check on qacct
+                    checkSGEQacctJob(dbJob, function() {});
+                }
             }
         });
     });
@@ -84,13 +92,14 @@ function getDbJobs(cb) {
         }).exec(function(err, result) {
             for (var i = 0; i < result.length; i++) {
                 var job = result[i];
-                jobs[job._id] = job;
+                jobs[job.qId] = job;
             }
             cb(jobs);
         });
 }
 
-function getSGEQstatJobs(jobs, cb) {
+function getSGEQstatJobs(cb) {
+    var jobs = {};
     exec('qstat -xml', function(error, stdout, stderr) {
         // console.log('stdout: ' + stdout);
         // console.log('stderr: ' + stderr);
@@ -107,33 +116,12 @@ function getSGEQstatJobs(jobs, cb) {
                 }
                 for (var i = 0; i < items.length; i++) {
                     var item = items[i];
-                    var id = item.JB_name[0].substring(1);
+                    var jobName = item.JB_name[0];
                     var state = item.state[0];
-                    var dbJob = jobs[id];
-                    var currentStatus = dbJob.status;
-                    switch (state) {
-                        case 'r':
-                            if (dbJob.status != "RUNNING") {
-                                dbJob.status = "RUNNING";
-                                dbJob.save();
-                                dbJob.user.save();
-                            }
-                            break;
-                        case 'qw':
-                            if (dbJob.status != "QUEUED") {
-                                dbJob.status = "QUEUED";
-                                dbJob.save();
-                                dbJob.user.save();
-                            }
-                            break;
-                        case 'Eqw':
-                            if (dbJob.status != "QUEUE_WAITING_ERROR") {
-                                dbJob.status = "QUEUE_WAITING_ERROR";
-                                dbJob.save();
-                                dbJob.user.save();
-                            }
-                            break;
-                    }
+                    jobs[jobName] = {
+                        qId: jobName,
+                        state: state
+                    };
                 }
             }
         });
@@ -141,12 +129,40 @@ function getSGEQstatJobs(jobs, cb) {
             var msg = 'exec error: ' + error;
             console.log(msg);
         }
-        cb();
+        cb(jobs);
     });
 }
 
+
+function checkSGEQstatJob(dbJob, qJob) {
+    switch (qJob.state) {
+        case 'r':
+            if (dbJob.status != "RUNNING") {
+                dbJob.status = "RUNNING";
+                dbJob.save();
+                dbJob.user.save();
+            }
+            break;
+        case 'qw':
+            if (dbJob.status != "QUEUED") {
+                dbJob.status = "QUEUED";
+                dbJob.save();
+                dbJob.user.save();
+            }
+            break;
+        case 'Eqw':
+            if (dbJob.status != "QUEUE_WAITING_ERROR") {
+                dbJob.status = "QUEUE_WAITING_ERROR";
+                dbJob.save();
+                dbJob.user.save();
+            }
+            break;
+    }
+}
+
+
 function checkSGEQacctJob(dbJob, cb) {
-    var qId = 'j' + dbJob._id;
+    var qId = dbJob.qId;
     exec("qacct -j " + qId, function(error, stdout, stderr) {
         if (error == null) {
             var stdoutLines = stdout.split('\n');
@@ -160,8 +176,7 @@ function checkSGEQacctJob(dbJob, cb) {
                         dbJob.user.save();
                         recordOutputFolder(dbJob);
                     }
-                }
-                if (line.indexOf('exit_status') != -1) {
+                } else if (line.indexOf('exit_status') != -1) {
                     var value = line.trim().split('exit_status')[1].trim();
                     if (value != '0') {
                         dbJob.status = "EXEC_ERROR";
@@ -178,6 +193,7 @@ function checkSGEQacctJob(dbJob, cb) {
         } else {
             // var msg = 'exec error: ' + error;
             // console.log(msg);
+            // cb(error, dbJob);
         }
         cb();
     });
@@ -211,7 +227,7 @@ function recordOutputFolder(job) {
                     folder.files.push(file);
                     file.save();
                     folder.save();
-                    folder.user.save();
+                    job.user.save();
                 }
             }
         }
