@@ -11,6 +11,7 @@ var StvResult = require('../lib/StvResult.js');
 
 const mongoose = require('mongoose');
 const User = mongoose.model('User');
+const File = mongoose.model('File');
 
 
 // // middleware that is specific to this router
@@ -166,17 +167,26 @@ router.get('/:email/info', function(req, res, next) {
             console.log("error: " + stvResult.error);
         } else {
             if (user.updated_at.getTime() !== updated_at.getTime()) {
-                stvResult.results.push(user);
-                stvResult.numTotalResults = 1;
+                File.tree(user.home, user._id, function(tree) {
+                    var userObject = user.toObject();
+                    userObject.tree = tree;
+                    stvResult.results.push(userObject);
+                    stvResult.numTotalResults = 1;
+                    stvResult.end();
+                    res._stvres.response.push(stvResult);
+                    next();
+                });
             } else {
                 stvResult.numTotalResults = 0;
+                stvResult.end();
+                res._stvres.response.push(stvResult);
+                next();
             }
+
         }
-        stvResult.end();
-        res._stvres.response.push(stvResult);
-        next();
     }).populate('home');
 });
+
 
 //
 // //delete user

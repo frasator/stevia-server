@@ -1,5 +1,4 @@
-'use strict';
-
+var util = require('util');
 
 /**
  * Module dependencies.
@@ -81,10 +80,10 @@ FileSchema.methods = {
         this.files.push(file);
     },
     hasFile: function(name) {
-        try{
+        try {
             var stats = fs.statSync(this.path + '/' + name);
             return null;
-        }catch(e){
+        } catch (e) {
             var foundFile = null;
             for (var i = 0; i < this.files.length; i++) {
                 var file = this.files[i];
@@ -144,9 +143,9 @@ FileSchema.methods = {
         fs.mkdirSync(realPath);
     },
     fsDelete: function() {
-        if(this.path == null || this.path == ''){
+        if (this.path == null || this.path == '') {
             console.log("File fsDelete: file path is null or ''.")
-        }else{
+        } else {
             var userspath = config.steviaDir + config.usersPath;
             var realPath = userspath + this.path;
             remove.removeSync(realPath);
@@ -165,7 +164,7 @@ FileSchema.statics = {
             "_id": fid
         }).exec(callback);
     },
-    createFolder:function(name, parent, user){
+    createFolder: function(name, parent, user) {
         var folder = new this({
             name: name,
             user: user._id,
@@ -183,7 +182,7 @@ FileSchema.statics = {
 
         return folder;
     },
-    createFile:function(name, parent, user){
+    createFile: function(name, parent, user) {
         var file = new this({
             name: name,
             user: user._id,
@@ -199,7 +198,7 @@ FileSchema.statics = {
 
         return file;
     },
-    delete:function(file, parent, job){
+    delete: function(file, parent, job) {
         var index = parent.files.indexOf(file._id);
         if (index != -1) {
             parent.files.splice(index, 1);
@@ -214,6 +213,52 @@ FileSchema.statics = {
         file.remove();
 
         file.fsDelete();
+    },
+    tree: function(folder, userId, cb) {
+        var filePathMap = {};
+        filePathMap[folder.path] = folder;
+        this.find({
+            'user': userId,
+            'type': 'FOLDER',
+            'path': {
+                $regex: new RegExp('^' + folder.path)
+            }
+        }, {
+            path: 1
+        }, function(err, files) {
+            for (var i = 0; i < files.length; i++) {
+                var file = files[i];
+                filePathMap[file.path] = file;
+            }
+            var final = [];
+            var aux = final;
+            var index = {};
+            for (var i = 0; i < files.length; i++) {
+                var file = files[i];
+                var split = file.path.split('/');
+                for (var j = 0; j < split.length; j++) {
+                    var p = split.slice(0, j + 1).join('/');
+                    if (index[p] == null) {
+                        var part = split[j];
+                        var n = {
+                            _id: filePathMap[p]._id,
+                            n: part,
+                            f: []
+                        };
+                        aux.push(n);
+                        index[p] = n;
+                    }
+                    aux = index[p].f;
+                }
+                aux = final;
+            }
+            // cb(final[0].f);
+            cb(final);
+            // console.log(util.inspect(final, false, null));
+            // console.log('----i---');
+            // console.log(util.inspect(index, false, null));
+            // console.log('-------');
+        });
     }
 };
 

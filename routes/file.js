@@ -1,8 +1,9 @@
 var config = require('../config.json');
 var multiparty = require('multiparty');
-var fs = require('fs');
 var remove = require('remove');
 var exec = require('child_process').exec;
+const fs = require('fs');
+const readline = require('readline');
 var StvResult = require('../lib/StvResult.js');
 
 var express = require('express');
@@ -78,7 +79,7 @@ router.get('/:fileId/list', function(req, res, next) {
             stvResult.error = "Authentication error";
             console.log("error: " + stvResult.error);
         } else {
-            stvResult.results = file.files;
+            stvResult.results.push(file);
         }
         stvResult.end();
         res._stvres.response.push(stvResult);
@@ -122,6 +123,75 @@ router.get('/:fileId/create-folder', function(req, res, next) {
         res._stvres.response.push(stvResult);
         next();
     }).populate("user").populate('files');
+});
+
+
+router.get('/:fileId/content', function(req, res, next) {
+    var stvResult = new StvResult();
+
+    var fileId = req.params.fileId;
+    var sid = req.query.sid;
+    var start = 0;
+    var limit = 0;
+    var l = parseInt(req.query.limit);
+    var s = parseInt(req.query.start);
+
+    if (!isNaN(l) && l > 0) {
+        limit = l;
+    }
+    if (!isNaN(s) && s >= 0) {
+        start = s;
+    }
+
+    stvResult.id = fileId;
+
+    File.findOne({
+        '_id': fileId
+    }, function(err, file) {
+        if (!file) {
+            stvResult.error = "File not exist";
+            console.log("error: " + stvResult.error);
+            stvResult.end();
+            res._stvres.response.push(stvResult);
+            next();
+        } else if (file.user._id.toString() != req._user._id.toString()) {
+            stvResult.error = "Authentication error";
+            console.log("error: " + stvResult.error);
+            stvResult.end();
+            res._stvres.response.push(stvResult);
+            next();
+        } else {
+            try {
+                var lines = [];
+                var lineCount = 0;
+                var end = start + limit;
+                var filePath = (config.steviaDir + config.usersPath + file.path);
+                const rl = readline.createInterface({
+                    input: fs.createReadStream(filePath)
+                });
+                rl.on('line', (line) => {
+                    if (lineCount >= start) {
+                        lines.push(line);
+                    }
+                    if (limit > 0 && lineCount > end) {
+                        rl.close()
+                    }
+                    lineCount++;
+                });
+                rl.on('close', function() {
+                    stvResult.results.push(lines.join('\n'));
+                    stvResult.end();
+                    res._stvres.response.push(stvResult);
+                    next();
+                });
+            } catch (e) {
+                stvResult.error = "Could not read the file.";
+                stvResult.end();
+                res._stvres.response.push(stvResult);
+                next();
+            }
+        }
+    }).populate("user").populate('parent');
 });
 
 /******************************/

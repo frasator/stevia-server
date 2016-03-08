@@ -1,11 +1,11 @@
+require('./models/job.js');
+require('./models/file.js');
+require('./models/user.js');
 const config = require('./config.json');
 const cluster = require('cluster');
 const fs = require('fs');
 const exec = require('child_process').exec;
 const mongoose = require('mongoose');
-require('./models/job.js');
-require('./models/file.js');
-require('./models/user.js');
 const Job = mongoose.model('Job');
 const File = mongoose.model('File');
 const xml2js = require('xml2js');
@@ -170,24 +170,25 @@ function checkSGEQacctJob(dbJob, cb) {
                 var line = stdoutLines[i];
                 if (line.indexOf('failed') != -1) {
                     var value = line.trim().split('failed')[1].trim();
-                    if (value != '0') {
+                    if (value != '0' && dbJob.status != "QUEUE_ERROR") {
                         dbJob.status = "QUEUE_ERROR";
                         dbJob.save();
+                        recordOutputFolder(dbJob.folder);
                         dbJob.user.save();
-                        recordOutputFolder(dbJob);
                     }
                 } else if (line.indexOf('exit_status') != -1) {
                     var value = line.trim().split('exit_status')[1].trim();
-                    if (value != '0') {
+                    if (value != '0' && dbJob.status != "EXEC_ERROR") {
                         dbJob.status = "EXEC_ERROR";
                         dbJob.save();
+                        recordOutputFolder(dbJob.folder);
                         dbJob.user.save();
-                    } else {
+                    } else if (dbJob.status != "DONE") {
                         dbJob.status = "DONE";
                         dbJob.save();
+                        recordOutputFolder(dbJob.folder);
                         dbJob.user.save();
                     }
-                    recordOutputFolder(dbJob);
                 }
             }
         } else {
@@ -199,37 +200,36 @@ function checkSGEQacctJob(dbJob, cb) {
     });
 }
 
-function recordOutputFolder(job) {
-    var folder = job.folder;
-    var path = config.steviaDir + config.usersPath + folder.path + '/';
+function recordOutputFolder(folder) {
+    var folderPath = config.steviaDir + config.usersPath + folder.path + '/';
     try {
-        var folderStats = fs.statSync(path);
+        var folderStats = fs.statSync(folderPath);
         if (folderStats.isDirectory()) {
-            var filesInFolder = fs.readdirSync(path);
+            var filesInFolder = fs.readdirSync(folderPath);
             for (var i = 0; i < filesInFolder.length; i++) {
-                var file = filesInFolder[i];
-                if (folder.hasFile(file) == null) {
-                    var filePath = path + file;
-                    var stats = fs.statSync(filePath);
+                var fileName = filesInFolder[i];
+                var filePath = folderPath + fileName;
+                var fileStats = fs.statSync(filePath);
 
-                    /* Database entry */
-                    var type = "FILE";
-                    if (stats.isDirectory()) {
-                        type = "FOLDER";
-                    }
-                    var file = new File({
-                        name: file,
-                        user: folder.user,
-                        parent: folder,
-                        type: type,
-                        path: filePath
-                    });
-                    folder.files.push(file);
-                    file.save();
-                    folder.save();
-                    job.user.save();
+                /* Database entry */
+                var type = "FILE";
+                if (fileStats.isDirectory()) {
+                    type = "FOLDER";
+                }
+                var file = new File({
+                    name: fileName,
+                    user: folder.user,
+                    parent: folder,
+                    type: type,
+                    path: folder.path + '/' + fileName
+                });
+                folder.files.push(file);
+                file.save();
+                if (fileStats.isDirectory()) {
+                    recordOutputFolder(file);
                 }
             }
+            folder.save();
         }
     } catch (e) {
         console.log('recordOutputFolder: ');
