@@ -233,6 +233,12 @@ FileSchema.statics = {
             var final = [];
             var aux = final;
             var index = {};
+            index[folder.path] = {
+                _id: folder._id,
+                n: folder.name,
+                f: []
+            };
+            final.push(index[folder.path]);
             for (var i = 0; i < files.length; i++) {
                 var file = files[i];
                 var split = file.path.split('/');
@@ -252,9 +258,8 @@ FileSchema.statics = {
                 }
                 aux = final;
             }
-            // cb(final[0].f);
-            cb(final);
             // console.log(util.inspect(final, false, null));
+            cb(final);
             // console.log('----i---');
             // console.log(util.inspect(index, false, null));
             // console.log('-------');
