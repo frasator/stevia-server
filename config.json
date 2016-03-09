@@ -1,5 +1,5 @@
 {
-    "mongodb": "mongodb://mem18/stevia-server_0_1_0",
+    "mongodb": "mongodb://localhost/stevia-server_0_1_0",
     "httpPort": 5555,
     "steviaDir": "/tmp/stevia/",
     "toolPath": "tools/",

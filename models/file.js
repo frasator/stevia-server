@@ -148,7 +148,13 @@ FileSchema.methods = {
         } else {
             var userspath = config.steviaDir + config.usersPath;
             var realPath = userspath + this.path;
-            remove.removeSync(realPath);
+            //check exists
+            try {
+                var stats = fs.statSync(realPath);
+                remove.removeSync(realPath);
+            } catch (e) {
+                console.log("File fsDelete: file not exists on file system")
+            }
         }
     }
 };
