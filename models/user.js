@@ -32,6 +32,13 @@ const UserSchema = new Schema({
         default: '',
         select: false
     },
+    resetPasswordToken: {
+      type: String,
+      default: ''
+    },
+    resetPasswordExpires:{
+      type: Date
+    },
     diskQuota: {
         type: Number,
         default: 1000000
