@@ -253,7 +253,10 @@ router.get('/reset-password', function(req, res, next) {
                     if (!user) {
                         stvResult.error = "No account with that email address exists";
                         console.log("error: " + stvResult.error);
-                        return res.redirect('/reset-password');
+                        stvResult.end();
+                        res._stvres.response.push(stvResult);
+                        next();
+                        // return res.redirect('/reset-password');
                     } else {
                         user.resetPasswordToken = token;
                         user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
@@ -300,6 +303,7 @@ router.get('/reset-password', function(req, res, next) {
 });
 
 router.get('/reset/:token', function(req, res) {
+    var stvResult = new StvResult();
     User.findOne({
         resetPasswordToken: req.params.token,
         resetPasswordExpires: {
@@ -309,6 +313,7 @@ router.get('/reset/:token', function(req, res) {
         if (!user) {
             stvResult.error = "Password reset token is invalid or has expired";
             console.log("error: " + stvResult.error);
+            res.render('resetinvalid');
         }
         console.log('reset-token')
         res.render('reset');
@@ -316,7 +321,7 @@ router.get('/reset/:token', function(req, res) {
 });
 
 router.post('/reset/:token', function(req, res, next) {
-  var stvResult = new StvResult();
+    var stvResult = new StvResult();
     async.waterfall([
         function(done) {
             User.findOne({
@@ -329,6 +334,7 @@ router.post('/reset/:token', function(req, res, next) {
                 if (!user) {
                     stvResult.error = "Password reset token is invalid or has expired";
                     console.log("error: " + stvResult.error);
+                    res.render('resetinvalid');
                 }
                 var encPassword = crypto.createHash('sha1').update(req.body.password).digest('hex');
                 user.password = encPassword;
@@ -354,17 +360,13 @@ router.post('/reset/:token', function(req, res, next) {
                     done(err);
                 }
                 console.log('Message sent: ' + info.response);
-                res.render('resetcomplete');
             });
+            res.render('resetcomplete');
         }
     ], function(err) {
         if (err) {
             console.log(err)
             return next(err);
-        }else {
-            stvResult.end();
-            res._stvres.response.push(stvResult);
-            next();
         }
     });
 });
