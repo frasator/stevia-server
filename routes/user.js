@@ -12,6 +12,7 @@ var StvResult = require('../lib/StvResult.js');
 const mongoose = require('mongoose');
 const User = mongoose.model('User');
 const File = mongoose.model('File');
+const Job = mongoose.model('Job');
 
 
 // // middleware that is specific to this router
@@ -154,7 +155,7 @@ router.get('/:email/info', function(req, res, next) {
     var stvResult = new StvResult();
     var email = req.params.email;
     var sid = req.query.sid;
-    var updated_at = (req.query.updated_at != null) ? new Date(req.query.updated_at) : new Date();
+    var updatedAt = (req.query.updatedAt != null) ? new Date(req.query.updatedAt) : new Date();
 
     stvResult.id = email;
 
@@ -166,15 +167,21 @@ router.get('/:email/info', function(req, res, next) {
             stvResult.error = "User does not exist";
             console.log("error: " + stvResult.error);
         } else {
-            if (user.updated_at.getTime() !== updated_at.getTime()) {
+            var userObject = user.toObject();
+            if (user.updatedAt.getTime() !== updatedAt.getTime()) {
                 File.tree(user.home, user._id, function(tree) {
-                    var userObject = user.toObject();
                     userObject.tree = tree;
-                    stvResult.results.push(userObject);
-                    stvResult.numTotalResults = 1;
-                    stvResult.end();
-                    res._stvres.response.push(stvResult);
-                    next();
+                    Job.find({
+                        user: user._id
+                    }, function(error, jobs) {
+                        userObject.jobs = jobs;
+                        stvResult.results.push(userObject);
+                        stvResult.numTotalResults = 1;
+                        stvResult.end();
+                        res._stvres.response.push(stvResult);
+                        next();
+                    }).sort({createdAt: -1}).populate('folder');
+
                 });
             } else {
                 stvResult.numTotalResults = 0;

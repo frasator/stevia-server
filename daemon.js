@@ -10,6 +10,7 @@ const Job = mongoose.model('Job');
 const File = mongoose.model('File');
 const xml2js = require('xml2js');
 
+var LOCK = false;
 
 if (cluster.isMaster) {
     // Code to run if we're in the master process
@@ -43,8 +44,14 @@ if (cluster.isMaster) {
     function listen() {
         console.log('Worker %d running!', cluster.worker.id);
         var interval = setInterval(function() {
-            run();
-        }, 2000);
+            // console.log('LOCK is: ' + LOCK);
+            if (LOCK == false) {
+                LOCK = true;
+                run(function() {
+                    LOCK = false;
+                });
+            }
+        }, 500);
     }
 
     function connect() {
@@ -60,19 +67,37 @@ if (cluster.isMaster) {
 }
 
 
-function run() {
+function run(cb) {
     getDbJobs(function(dbJobs) {
         getSGEQstatJobs(function(qJobs) {
-            for (var qId in dbJobs) {
-                var dbJob = dbJobs[qId];
-                var qJob = qJobs[qId];
-                if (qJob != null) {
-                    //The job is on the qstat
-                    checkSGEQstatJob(dbJob, qJob);
-                } else {
-                    //If not in qstat check on qacct
-                    checkSGEQacctJob(dbJob, function() {});
+            var ids = Object.keys(dbJobs);
+            var c = ids.length;
+            if (c > 0) {
+                console.log('---Jobs to check---');
+                console.log(ids);
+                console.log('-------------------');
+                for (var qId in dbJobs) {
+                    var dbJob = dbJobs[qId];
+                    var qJob = qJobs[qId];
+                    if (qJob != null) {
+                        //The job is on the qstat
+                        checkSGEQstatJob(dbJob, qJob);
+                        c--;
+                        if (c == 0) {
+                            cb();
+                        }
+                    } else {
+                        //If not in qstat check on qacct
+                        checkSGEQacctJob(dbJob, function() {
+                            c--;
+                            if (c == 0) {
+                                cb();
+                            }
+                        });
+                    }
                 }
+            } else {
+                cb();
             }
         });
     });

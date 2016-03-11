@@ -66,8 +66,8 @@ const FileSchema = new Schema({
     }
 }, {
     timestamps: {
-        createdAt: 'created_at',
-        updatedAt: 'updated_at'
+        createdAt: 'createdAt',
+        updatedAt: 'updatedAt'
     }
 });
 
@@ -140,7 +140,11 @@ FileSchema.methods = {
         } else {
             realPath = userspath + this.name;
         }
-        fs.mkdirSync(realPath);
+        try {
+            fs.mkdirSync(realPath);
+        } catch (e) {
+            console.log("File fsCreateFolder: file already exists on file system");
+        }
     },
     fsDelete: function() {
         if (this.path == null || this.path == '') {
@@ -150,7 +154,6 @@ FileSchema.methods = {
             var realPath = userspath + this.path;
             //check exists
             try {
-                var stats = fs.statSync(realPath);
                 remove.removeSync(realPath);
             } catch (e) {
                 console.log("File fsDelete: file not exists on file system")
@@ -250,17 +253,20 @@ FileSchema.statics = {
                 var split = file.path.split('/');
                 for (var j = 0; j < split.length; j++) {
                     var p = split.slice(0, j + 1).join('/');
-                    if (index[p] == null) {
-                        var part = split[j];
-                        var n = {
-                            _id: filePathMap[p]._id,
-                            n: part,
-                            f: []
-                        };
-                        aux.push(n);
-                        index[p] = n;
+                    var foundFile = filePathMap[p];
+                    if (foundFile != null) {
+                        if (index[p] == null) {
+                            var part = split[j];
+                            var n = {
+                                _id: foundFile._id,
+                                n: part,
+                                f: []
+                            };
+                            aux.push(n);
+                            index[p] = n;
+                        }
+                        aux = index[p].f;
                     }
-                    aux = index[p].f;
                 }
                 aux = final;
             }

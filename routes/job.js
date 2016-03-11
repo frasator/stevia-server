@@ -146,7 +146,7 @@ router.post('/create', function(req, res, next) {
             // console.log('stdout: ' + stdout);
             // console.log('stderr: ' + stderr);
             if (error == null) {
-                job.commandLine = command;
+                job.commandLine = commandLine;
                 job.save();
                 stvResult.results.push(job);
                 stvResult.end();
@@ -164,7 +164,6 @@ router.post('/create', function(req, res, next) {
         });
     });
 });
-
 
 /* input from web */
 // var jobConfig = {

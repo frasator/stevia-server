@@ -36,10 +36,6 @@ const UserSchema = new Schema({
         type: Number,
         default: 1000000
     },
-    diskQuota: {
-        type: Number,
-        default: 1000000
-    },
     diskUsage: {
         type: Number,
         default: 0
@@ -59,8 +55,8 @@ const UserSchema = new Schema({
 
 }, {
     timestamps: {
-        createdAt: 'created_at',
-        updatedAt: 'updated_at'
+        createdAt: 'createdAt',
+        updatedAt: 'updatedAt'
     }
 });
 
@@ -73,7 +69,8 @@ UserSchema.methods = {
         var homeFolder = new File({
             name: this.email,
             user: this._id,
-            path: this.email
+            path: this.email,
+            type: 'FOLDER'
         });
         homeFolder.save();
         this.home = homeFolder;
