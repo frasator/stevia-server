@@ -3,11 +3,13 @@
  * resourcePath: /user
  * description: All about USER
  */
-
+var mail = require('../lib/mail/mail.js');
+var crypto = require('crypto');
 var express = require('express');
 var router = express.Router();
 var utils = require('../lib/utils.js');
 var StvResult = require('../lib/StvResult.js');
+const async = require('async');
 
 const mongoose = require('mongoose');
 const User = mongoose.model('User');
@@ -19,7 +21,6 @@ const Job = mongoose.model('Job');
 // router.use(function timeLog(req, res, next) {
 //     next();
 // });
-
 
 /**
  * @swagger
@@ -152,6 +153,7 @@ router.get('/:email/logout', function(req, res, next) {
 
 // info user
 router.get('/:email/info', function(req, res, next) {
+    console.log('info');
     var stvResult = new StvResult();
     var email = req.params.email;
     var sid = req.query.sid;
@@ -163,6 +165,7 @@ router.get('/:email/info', function(req, res, next) {
         'email': req.params.email,
         'sessions.id': sid
     }, function(err, user) {
+        console.log(user);
         if (!user) {
             stvResult.error = "User does not exist";
             console.log("error: " + stvResult.error);
@@ -232,5 +235,148 @@ router.get('/:email/change-password', function(req, res, next) {
         next();
     });
 });
+
+
+//reset pasword
+router.get('/reset-password', function(req, res, next) {
+    console.log('reset')
+    var stvResult = new StvResult();
+    var email = req.query.email;
+    console.log(email)
+    async.waterfall([
+            function(done) {
+                console.log("waterfall-1");
+                crypto.randomBytes(20, function(err, buf) {
+                    var token = buf.toString('hex');
+                    console.log(token)
+                    done(err, token);
+                });
+            },
+            function(token, done) {
+                console.log("waterfall-2");
+                User.findOne({
+                    'email': email
+                }, function(err, user) {
+                    if (!user) {
+                        stvResult.error = "No account with that email address exists";
+                        console.log("error: " + stvResult.error);
+                        stvResult.end();
+                        res._stvres.response.push(stvResult);
+                        next();
+                        // return res.redirect('/reset-password');
+                    } else {
+                        user.resetPasswordToken = token;
+                        user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
+
+                        user.save(function(err) {
+                            done(err, token, user);
+                        });
+                    }
+                });
+            },
+            function(token, user, done) {
+                console.log("waterfall-3");
+                mail.send({
+                    to: user.email,
+                    subject: 'Reset password instructions',
+                    text: 'You are receiving this because you (or someone else) have requested the reset of the password for your account.\n\n' +
+                        'Please click on the following link, or paste this into your browser to complete the process:\n\n' +
+                        'http://' + req.headers.host + '/users/reset/' + token + '\n\n' +
+                        'If you did not request this, please ignore this email and your password will remain unchanged.\n'
+                }, function(err, info) {
+                    if (err) {
+                        stvResult.error = err
+                        console.log(err);
+                        done(err, 'done');
+                    } else {
+                        stvResult.results.push('An e-mail has been sent to ' + user.email + ' with further instructions.');
+                        console.log('Message sent: ' + info.response);
+                        done(err, 'done');
+                    }
+                });
+            },
+        ],
+        function(err) {
+            console.log("waterfall-end");
+            if (err) {
+                console.log(err)
+                return next(err);
+            } else {
+                stvResult.end();
+                res._stvres.response.push(stvResult);
+                next();
+            }
+        });
+});
+
+router.get('/reset/:token', function(req, res) {
+    var stvResult = new StvResult();
+    User.findOne({
+        resetPasswordToken: req.params.token,
+        resetPasswordExpires: {
+            $gt: Date.now()
+        }
+    }, function(err, user) {
+        if (!user) {
+            stvResult.error = "Password reset token is invalid or has expired";
+            console.log("error: " + stvResult.error);
+            res.render('resetinvalid');
+        }
+        console.log('reset-token')
+        res.render('reset');
+    });
+});
+
+router.post('/reset/:token', function(req, res, next) {
+    var stvResult = new StvResult();
+    async.waterfall([
+        function(done) {
+            User.findOne({
+                resetPasswordToken: req.params.token,
+                resetPasswordExpires: {
+                    $gt: Date.now()
+                }
+            }, function(err, user) {
+                console.log(user.email);
+                if (!user) {
+                    stvResult.error = "Password reset token is invalid or has expired";
+                    console.log("error: " + stvResult.error);
+                    res.render('resetinvalid');
+                }
+                var encPassword = crypto.createHash('sha1').update(req.body.password).digest('hex');
+                user.password = encPassword;
+                user.resetPasswordToken = undefined;
+                user.resetPasswordExpires = undefined;
+                console.log('reset-token-post')
+
+                user.save(function(err) {
+                    done(err, user);
+                });
+            });
+        },
+        function(user, done) {
+            mail.send({
+                to: user.email,
+                subject: 'Your password has been changed',
+                text: 'Hello,\n\n' +
+                    'This is a confirmation that the password for your account ' + user.email + ' has just been changed.\n'
+            }, function(error, info) {
+                if (error) {
+                    stvResult.error = error
+                    console.log(error);
+                    done(err);
+                }
+                console.log('Message sent: ' + info.response);
+            });
+            res.render('resetcomplete');
+        }
+    ], function(err) {
+        if (err) {
+            console.log(err)
+            return next(err);
+        }
+    });
+});
+
 
 module.exports = router;

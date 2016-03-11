@@ -55,10 +55,11 @@ if (cluster.isMaster) {
     var swagger = require('swagger-express');
     var cors = require('cors');
     var bodyParser = require('body-parser');
-
+    
     // Create a new Express application
     var app = express();
     app.use(cors());
+
 
     app.use(bodyParser.urlencoded({
         extended: true
@@ -99,6 +100,10 @@ if (cluster.isMaster) {
     app.use('/users', userRoute);
     app.use('/files', fileRoute);
     app.use('/jobs', jobRoute);
+
+    // Views set
+    app.set('views', './views');
+    app.set('view engine', 'jade');
 
     app.get('/', function(req, res) {
         console.log(req.params);

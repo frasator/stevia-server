@@ -1,0 +1,6 @@
+{
+    "mail": "example@example.es",
+    "password": "examplepass",
+    "host": "smtp.example.com",
+    "port": 587
+}
