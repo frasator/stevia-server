@@ -153,7 +153,6 @@ router.get('/:email/logout', function(req, res, next) {
 
 // info user
 router.get('/:email/info', function(req, res, next) {
-    console.log('info');
     var stvResult = new StvResult();
     var email = req.params.email;
     var sid = req.query.sid;
@@ -165,7 +164,6 @@ router.get('/:email/info', function(req, res, next) {
         'email': req.params.email,
         'sessions.id': sid
     }, function(err, user) {
-        console.log(user);
         if (!user) {
             stvResult.error = "User does not exist";
             console.log("error: " + stvResult.error);
