@@ -59,24 +59,6 @@ router.post('/create', function(req, res, next) {
     var stvResult = new StvResult();
 
     var jobConfig = req.body;
-    var name = req.query.name;
-    var description = req.query.description;
-    var tool = req.query.tool;
-    var execution = req.query.execution;
-
-    var job = new Job({
-        name: name,
-        description: description,
-        tool: jobConfig.tool,
-        execution: jobConfig.execution,
-        executable: jobConfig.executable,
-        options: jobConfig.options,
-        status: 'QUEUED'
-    });
-    job.qId = job.tool + '-' + job.execution + '-' + job._id;
-
-    job.createJobFolder(name, req._parent, req._user);
-    var realOutPath = (config.steviaDir + config.usersPath + job.folder.path + '/').replace(/ /gi, '\\ ');
 
     var fileIdsFromJobConfig = [];
     for (var name in jobConfig.options) {
@@ -86,82 +68,109 @@ router.post('/create', function(req, res, next) {
         }
     }
 
+    var jobName = req.query.name;
+    var jobDescription = req.query.description;
+
     var fileMap = {};
     File.where('_id').in(fileIdsFromJobConfig).exec(function(err, result) {
-        for (var i = 0; i < result.length; i++) {
-            var file = result[i];
-            fileMap[file._id] = file;
-        }
-        var computedOptions = [],
-            prefix;
-        for (var name in jobConfig.options) {
-            var option = jobConfig.options[name];
-            prefix = '--';
-            if (option.short) {
-                prefix = '-';
+        if (err) {
+            console.log(err);
+            stvResult.error = 'File id provided in options is not valid.';
+            stvResult.end();
+            res._stvres.response.push(stvResult);
+            next();
+        } else {
+
+            var job = new Job({
+                name: jobName,
+                description: jobDescription,
+                tool: jobConfig.tool,
+                execution: jobConfig.execution,
+                executable: jobConfig.executable,
+                options: jobConfig.options,
+                status: 'QUEUED'
+            });
+            job.qId = job.tool + '-' + job.execution + '-' + job._id;
+
+            job.createJobFolder(jobName, req._parent, req._user);
+            var realOutPath = (config.steviaDir + config.usersPath + job.folder.path + '/').replace(/ /gi, '\\ ');
+
+
+            for (var i = 0; i < result.length; i++) {
+                var file = result[i];
+                fileMap[file._id] = file;
             }
-            switch (option.type) {
-                case 'file':
-                    if (option.mode === 'id') {
-                        if (fileMap[option.value] != null) {
+            var computedOptions = [],
+                prefix;
+            for (var name in jobConfig.options) {
+                var option = jobConfig.options[name];
+                prefix = '--';
+                if (option.short) {
+                    prefix = '-';
+                }
+                switch (option.type) {
+                    case 'file':
+                        if (option.mode === 'id') {
+                            if (fileMap[option.value] != null) {
+                                var userspath = config.steviaDir + config.usersPath;
+                                var realPath = userspath + fileMap[option.value].path;
+                                computedOptions.push(prefix + name);
+                                computedOptions.push('"' + realPath.replace(/ /gi, '\\ ') + '"');
+                            }
+                        }
+                        if (option.mode === 'text') {
+                            var filename = name + '.txt';
                             var userspath = config.steviaDir + config.usersPath;
-                            var realPath = userspath + fileMap[option.value].path;
+                            var realPath = userspath + job.folder.path + '/' + filename;
+                            fs.writeFileSync(realPath, option.value);
+
+                            /* Database entry */
+                            var file = File.createFile(filename, job.folder, req._user);
+
                             computedOptions.push(prefix + name);
                             computedOptions.push('"' + realPath.replace(/ /gi, '\\ ') + '"');
                         }
-                    }
-                    if (option.mode === 'text') {
-                        var filename = name + '.txt';
-                        var userspath = config.steviaDir + config.usersPath;
-                        var realPath = userspath + job.folder.path + '/' + filename;
-                        fs.writeFileSync(realPath, option.value);
-
-                        /* Database entry */
-                        var file = File.createFile(filename, job.folder, req._user);
-
+                        break;
+                    case 'text':
                         computedOptions.push(prefix + name);
-                        computedOptions.push('"' + realPath.replace(/ /gi, '\\ ') + '"');
-                    }
-                    break;
-                case 'text':
+                        computedOptions.push('"' + option.value + '"');
+                        break;
+                    case 'flag':
+                        computedOptions.push(prefix + name);
+                        break;
+                }
+                if (option.out === true) {
                     computedOptions.push(prefix + name);
-                    computedOptions.push('"' + option.value + '"');
-                    break;
-                case 'flag':
-                    computedOptions.push(prefix + name);
-                    break;
+                    computedOptions.push('"' + realOutPath + '"');
+                }
             }
-            if (option.out === true) {
-                computedOptions.push(prefix + name);
-                computedOptions.push('"' + realOutPath + '"');
-            }
+
+            var commandLine = config.steviaDir + config.toolPath + jobConfig.tool + '/' + jobConfig.executable + ' ' + computedOptions.join(' ');
+            var command = 'qsub -N "' + job.qId + '" -q ' + config.queue + ' -o ' + realOutPath + ' -e ' + realOutPath + ' -b y ' + commandLine;
+            console.log(command);
+
+
+            exec(command, function(error, stdout, stderr) {
+                // console.log('stdout: ' + stdout);
+                // console.log('stderr: ' + stderr);
+                if (error == null) {
+                    job.commandLine = commandLine;
+                    job.save();
+                    stvResult.results.push(job);
+                    stvResult.end();
+                    res._stvres.response.push(stvResult);
+                } else {
+                    File.delete(job.folder, req._parent, job);
+                    var msg = 'exec error: ' + error;
+                    console.log(msg);
+                    stvResult.error = 'Execution error';
+                    stvResult.end();
+                    res._stvres.response.push(stvResult);
+                }
+                req._user.save();
+                next();
+            });
         }
-
-        var commandLine = config.steviaDir + config.toolPath + jobConfig.tool + '/' + jobConfig.executable + ' ' + computedOptions.join(' ');
-        var command = 'qsub -N "' + job.qId + '" -q ' + config.queue + ' -o ' + realOutPath + ' -e ' + realOutPath + ' -b y ' + commandLine;
-        console.log(command);
-
-
-        exec(command, function(error, stdout, stderr) {
-            // console.log('stdout: ' + stdout);
-            // console.log('stderr: ' + stderr);
-            if (error == null) {
-                job.commandLine = commandLine;
-                job.save();
-                stvResult.results.push(job);
-                stvResult.end();
-                res._stvres.response.push(stvResult);
-            } else {
-                File.delete(job.folder, req._parent, job);
-                var msg = 'exec error: ' + error;
-                console.log(msg);
-                stvResult.error = 'Execution error';
-                stvResult.end();
-                res._stvres.response.push(stvResult);
-            }
-            req._user.save();
-            next();
-        });
     });
 });
 
