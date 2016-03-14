@@ -10,6 +10,10 @@ const Job = mongoose.model('Job');
 const File = mongoose.model('File');
 const xml2js = require('xml2js');
 
+/**/
+const mail = require('./lib/mail/mail.js');
+/**/
+
 var LOCK = false;
 
 if (cluster.isMaster) {
@@ -200,6 +204,7 @@ function checkSGEQacctJob(dbJob, cb) {
                         recordOutputFolder(dbJob.folder, dbJob);
                         dbJob.save();
                         dbJob.user.save();
+                        notifyUser(dbJob.user.email,dbJob.status);
                     }
                 } else if (line.indexOf('exit_status') != -1) {
                     var value = line.trim().split('exit_status')[1].trim();
@@ -208,11 +213,13 @@ function checkSGEQacctJob(dbJob, cb) {
                         recordOutputFolder(dbJob.folder, dbJob);
                         dbJob.save();
                         dbJob.user.save();
+                        notifyUser(dbJob.user.email,dbJob.status);
                     } else if (dbJob.status != "DONE") {
                         dbJob.status = "DONE";
                         recordOutputFolder(dbJob.folder, dbJob);
                         dbJob.save();
                         dbJob.user.save();
+                        notifyUser(dbJob.user.email,dbJob.status);
                     }
                 }
             }
@@ -281,4 +288,17 @@ function recordOutputFolder(folder, dbJob) {
         console.log('recordOutputFolder: ');
         console.log(e);
     }
+}
+
+function notifyUser(email,status){
+  mail.send({
+      to: email,
+      subject: 'FYI',
+      text: 'Your job has finished with the next status: ' + status + '\n'
+  }, function(error, info) {
+      if (error) {
+          console.log(error);
+      }
+      console.log('Message sent: ' + info.response);
+  });
 }
