@@ -217,6 +217,7 @@ FileSchema.statics = {
         if (job != null) {
             job.remove();
         }
+        file.job = null;
 
         file.removeChilds();
         file.remove();
