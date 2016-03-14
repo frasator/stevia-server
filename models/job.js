@@ -4,10 +4,10 @@
  * Module dependencies.
  */
 
- const mongoose = require('mongoose');
- const Schema = mongoose.Schema;
- require('./file.js');
- const File = mongoose.model('File');
+const mongoose = require('mongoose');
+const Schema = mongoose.Schema;
+require('./file.js');
+const File = mongoose.model('File');
 
 
 /**
@@ -15,7 +15,7 @@
  */
 
 const JobSchema = new Schema({
-    qId:{
+    qId: {
         type: String,
         default: '',
     },
@@ -63,6 +63,14 @@ const JobSchema = new Schema({
     attributes: {
         type: Schema.Types.Mixed,
         default: {}
+    },
+    olog: {
+        type: Schema.Types.ObjectId,
+        ref: 'File'
+    },
+    elog: {
+        type: Schema.Types.ObjectId,
+        ref: 'File'
     }
 }, {
     timestamps: {

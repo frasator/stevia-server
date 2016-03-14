@@ -197,21 +197,21 @@ function checkSGEQacctJob(dbJob, cb) {
                     var value = line.trim().split('failed')[1].trim();
                     if (value != '0' && dbJob.status != "QUEUE_ERROR") {
                         dbJob.status = "QUEUE_ERROR";
+                        recordOutputFolder(dbJob.folder, dbJob);
                         dbJob.save();
-                        recordOutputFolder(dbJob.folder);
                         dbJob.user.save();
                     }
                 } else if (line.indexOf('exit_status') != -1) {
                     var value = line.trim().split('exit_status')[1].trim();
                     if (value != '0' && dbJob.status != "EXEC_ERROR") {
                         dbJob.status = "EXEC_ERROR";
+                        recordOutputFolder(dbJob.folder, dbJob);
                         dbJob.save();
-                        recordOutputFolder(dbJob.folder);
                         dbJob.user.save();
                     } else if (dbJob.status != "DONE") {
                         dbJob.status = "DONE";
+                        recordOutputFolder(dbJob.folder, dbJob);
                         dbJob.save();
-                        recordOutputFolder(dbJob.folder);
                         dbJob.user.save();
                     }
                 }
@@ -225,7 +225,7 @@ function checkSGEQacctJob(dbJob, cb) {
     });
 }
 
-function recordOutputFolder(folder) {
+function recordOutputFolder(folder, dbJob) {
     var folderPath = config.steviaDir + config.usersPath + folder.path + '/';
     try {
         var folderStats = fs.statSync(folderPath);
@@ -250,11 +250,32 @@ function recordOutputFolder(folder) {
                 });
                 folder.files.push(file);
                 file.save();
+
+                /* RECORD elog and olog */
+                if (dbJob != null) {
+                    if (file.name.indexOf(dbJob.qId + '.o') != -1) {
+                        dbJob.olog = file;
+                    }
+                    if (file.name.indexOf(dbJob.qId + '.e') != -1) {
+                        dbJob.elog = file;
+                    }
+                }
+                /* */
+
                 if (fileStats.isDirectory()) {
                     recordOutputFolder(file);
                 }
+
             }
             folder.save();
+
+            /* RECORD elog and olog */
+            if (dbJob != null) {
+                for (var i = 0; i < folder.files.length; i++) {
+                }
+                dbJob.save();
+            }
+            /* */
         }
     } catch (e) {
         console.log('recordOutputFolder: ');

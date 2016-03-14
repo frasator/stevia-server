@@ -207,7 +207,36 @@ router.post('/create', function(req, res, next) {
 //     }
 // }
 
-router.delete('/delete', function(req, res) {});
+router.get('/delete', function(req, res, next) {
+    var stvResult = new StvResult();
+    Job.findOne({
+        '_id': req.query.jobId
+    }, function(err, job) {
+        if (!job) {
+            stvResult.error = "File not exist";
+            console.log("error: " + stvResult.error);
+        } else {
+            File.delete(job.folder, job.folder.parent, job);
+            job.user.save();
+        }
+        stvResult.end();
+        res._stvres.response.push(stvResult);
+        next();
+    }).populate({
+        path: 'folder',
+        populate: {
+            path: 'files',
+        }
+    }).populate({
+        path: 'folder',
+        populate: {
+            path: 'parent',
+            populate: {
+                path: 'files'
+            }
+        }
+    }).populate('user');
+});
 
 
 module.exports = router;
