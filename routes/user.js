@@ -181,7 +181,9 @@ router.get('/:email/info', function(req, res, next) {
                         stvResult.end();
                         res._stvres.response.push(stvResult);
                         next();
-                    }).sort({createdAt: -1}).populate('folder');
+                    }).sort({
+                        createdAt: -1
+                    }).populate('folder');
 
                 });
             } else {
@@ -243,7 +245,6 @@ router.get('/reset-password', function(req, res, next) {
     console.log(email)
     async.waterfall([
             function(done) {
-                console.log("waterfall-1");
                 crypto.randomBytes(20, function(err, buf) {
                     var token = buf.toString('hex');
                     console.log(token)
@@ -251,7 +252,6 @@ router.get('/reset-password', function(req, res, next) {
                 });
             },
             function(token, done) {
-                console.log("waterfall-2");
                 User.findOne({
                     'email': email
                 }, function(err, user) {
@@ -261,7 +261,6 @@ router.get('/reset-password', function(req, res, next) {
                         stvResult.end();
                         res._stvres.response.push(stvResult);
                         next();
-                        // return res.redirect('/reset-password');
                     } else {
                         user.resetPasswordToken = token;
                         user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
@@ -273,7 +272,6 @@ router.get('/reset-password', function(req, res, next) {
                 });
             },
             function(token, user, done) {
-                console.log("waterfall-3");
                 mail.send({
                     to: user.email,
                     subject: 'Reset password instructions',
@@ -295,7 +293,6 @@ router.get('/reset-password', function(req, res, next) {
             },
         ],
         function(err) {
-            console.log("waterfall-end");
             if (err) {
                 console.log(err)
                 return next(err);
@@ -327,6 +324,7 @@ router.get('/reset/:token', function(req, res) {
 
 router.post('/reset/:token', function(req, res, next) {
     var stvResult = new StvResult();
+    console.log(req.params.token)
     async.waterfall([
         function(done) {
             User.findOne({
@@ -341,15 +339,22 @@ router.post('/reset/:token', function(req, res, next) {
                     console.log("error: " + stvResult.error);
                     res.render('resetinvalid');
                 }
-                var encPassword = crypto.createHash('sha1').update(req.body.password).digest('hex');
-                user.password = encPassword;
-                user.resetPasswordToken = undefined;
-                user.resetPasswordExpires = undefined;
-                console.log('reset-token-post')
+                if (req.body.password != req.body.confirm) {
+                    stvResult.error = "Password and confirm password are not the same";
+                    console.log("error: " + stvResult.error);
+                    res.render('reset');
+                } else {
+                    console.log('post-reset-invalid')
+                    var encPassword = crypto.createHash('sha1').update(req.body.password).digest('hex');
+                    user.password = encPassword;
+                    user.resetPasswordToken = undefined;
+                    user.resetPasswordExpires = undefined;
+                    console.log('reset-token-post')
 
-                user.save(function(err) {
-                    done(err, user);
-                });
+                    user.save(function(err) {
+                        done(err, user);
+                    });
+                }
             });
         },
         function(user, done) {

@@ -2,6 +2,8 @@ var config = require('../config.json');
 var exec = require('child_process').exec;
 var StvResult = require('../lib/StvResult.js');
 var fs = require('fs');
+var mail = require('../lib/mail/mail.js');
+var mailConfig = require('../lib/mail/mail.json');
 
 var express = require('express');
 var router = express.Router();
@@ -147,7 +149,10 @@ router.post('/create', function(req, res, next) {
 
             var commandLine = config.steviaDir + config.toolPath + jobConfig.tool + '/' + jobConfig.executable + ' ' + computedOptions.join(' ');
             var command = 'qsub -N "' + job.qId + '" -q ' + config.queue + ' -o ' + realOutPath + ' -e ' + realOutPath + ' -b y ' + commandLine;
+
+            console.log('++++++++++++');
             console.log(command);
+            console.log('++++++++++++');
 
 
             exec(command, function(error, stdout, stderr) {
@@ -173,6 +178,44 @@ router.post('/create', function(req, res, next) {
         }
     });
 });
+
+
+//Report error in job
+router.get('/:id/report-error', function(req, res, next) {
+  var id = req.params.id;
+  var stvResult = new StvResult();
+  console.log('--------------');
+  console.log(id);
+  Job.findOne({
+      '_id':id
+  }, function(err, job) {
+      if (!job) {
+          stvResult.error = "User does not exist";
+          console.log("error: " + stvResult.error);
+          stvResult.end();
+          res._stvres.response.push(stvResult);
+          next();
+      } else {
+        mail.send({
+            to: mailConfig.mail,
+            subject: 'Report Job error',
+            text: 'Hello,\n\n' +
+                'The job ' + id + ' from user ' + job.user.email + ' has been an error.\n'
+        }, function(error, info) {
+            if (error) {
+                stvResult.error = error
+                console.log(error);
+            }
+            stvResult.results.push('It has reported the error! Thank you!');
+            stvResult.end();
+            res._stvres.response.push(stvResult);
+            console.log('Message sent: ' + info.response);
+            next();
+        });
+      }
+  }).populate('user');
+});
+
 
 /* input from web */
 // var jobConfig = {
