@@ -89,8 +89,8 @@ JobSchema.methods = {
         var newName = parent.getDuplicatedFileName(name);
         var jobFolder = new File({
             name: newName,
-            user: user,
-            parent: parent,
+            user: user._id,
+            parent: parent._id,
             job: this._id,
             path: parent.path + '/' + newName,
             type: "FOLDER"

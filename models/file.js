@@ -208,11 +208,13 @@ FileSchema.statics = {
         return file;
     },
     delete: function(file, parent, job) {
-        var index = parent.files.indexOf(file._id);
-        if (index != -1) {
-            parent.files.splice(index, 1);
+        if(parent != null){
+            var index = parent.files.indexOf(file._id);
+            if (index != -1) {
+                parent.files.splice(index, 1);
+                parent.save();
+            }
         }
-        parent.save();
 
         if (job != null) {
             job.remove();

@@ -58,6 +58,10 @@ router.get('/create', function(req, res, next) {
         password: pass
     });
 
+    if(email === 'anonymous@anonymous.anonymous'){
+        user.email = 'anonymous___'+user._id;
+    }
+
     user.save(function(err) {
         if (err) {
             stvResult.error = 'User already exists';
@@ -117,7 +121,6 @@ router.get('/:email/login', function(req, res, next) {
                 console.log("error: " + stvResult.error);
             } else {
                 var session = user.login();
-
                 stvResult.results.push(session);
             }
         }
