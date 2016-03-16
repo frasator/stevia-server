@@ -14,11 +14,11 @@ const File = mongoose.model('File');
 const User = mongoose.model('User');
 
 // // middleware that is specific to this router
-router.use(function(req, res, next) {
+router.use(function (req, res, next) {
     var sid = req.query.sid;
     User.findOne({
         'sessions.id': sid
-    }, function(err, user) {
+    }, function (err, user) {
         if (!user) {
             var stvResult = new StvResult();
             stvResult.error = "Authentication error";
@@ -33,7 +33,7 @@ router.use(function(req, res, next) {
     }).select('+password');
 });
 
-router.get('/:fileId/delete', function(req, res, next) {
+router.get('/:fileId/delete', function (req, res, next) {
     var stvResult = new StvResult();
 
     var fileId = req.params.fileId;
@@ -43,7 +43,7 @@ router.get('/:fileId/delete', function(req, res, next) {
 
     File.findOne({
         '_id': fileId
-    }, function(err, file) {
+    }, function (err, file) {
         if (!file) {
             stvResult.error = "File not exist";
             console.log("error: " + stvResult.error);
@@ -59,7 +59,7 @@ router.get('/:fileId/delete', function(req, res, next) {
     }).populate('parent').populate('job');
 });
 
-router.get('/:fileId/list', function(req, res, next) {
+router.get('/:fileId/list', function (req, res, next) {
     var stvResult = new StvResult();
 
     var fileId = req.params.fileId;
@@ -71,7 +71,7 @@ router.get('/:fileId/list', function(req, res, next) {
 
     File.findOne({
         '_id': fileId
-    }, function(err, file) {
+    }, function (err, file) {
         if (!file) {
             stvResult.error = "File not exist";
             console.log("error: " + stvResult.error);
@@ -92,7 +92,41 @@ router.get('/:fileId/list', function(req, res, next) {
     }).populate('job');
 });
 
-router.get('/:fileId/create-folder', function(req, res, next) {
+router.get('/:fileId/files', function (req, res, next) {
+    var stvResult = new StvResult();
+
+    var fileId = req.params.fileId;
+    var sid = req.query.sid;
+
+    stvResult.id = fileId;
+
+    File.findOne({
+        "_id": fileId,
+        "user": req._user._id,
+    }, function (err, file) {
+        if (!file) {
+            stvResult.error = "File not exist";
+            console.log("error: " + stvResult.error);
+            stvResult.end();
+            res._stvres.response.push(stvResult);
+            next();
+        } else {
+            File.find({
+                'user': req._user._id,
+                'path': {
+                    $regex: new RegExp('^' + file.path)
+                }
+            }, function (err, files) {
+                stvResult.results = files;
+                stvResult.end();
+                res._stvres.response.push(stvResult);
+                next();
+            });
+        }
+    });
+});
+
+router.get('/:fileId/create-folder', function (req, res, next) {
     var stvResult = new StvResult();
 
     var fileId = req.params.fileId;
@@ -103,7 +137,7 @@ router.get('/:fileId/create-folder', function(req, res, next) {
 
     File.findOne({
         '_id': fileId
-    }, function(err, parent) {
+    }, function (err, parent) {
         if (!parent) {
             stvResult.error = "File not exist";
             console.log("error: " + stvResult.error);
@@ -125,10 +159,7 @@ router.get('/:fileId/create-folder', function(req, res, next) {
     }).populate("user").populate('files');
 });
 
-
-router.get('/:fileId/content', function(req, res, next) {
-    var stvResult = new StvResult();
-
+router.get('/:fileId/content', function (req, res, next) {
     var fileId = req.params.fileId;
     var sid = req.query.sid;
     var start = 0;
@@ -143,23 +174,13 @@ router.get('/:fileId/content', function(req, res, next) {
         start = s;
     }
 
-    stvResult.id = fileId;
-
     File.findOne({
-        '_id': fileId
-    }, function(err, file) {
+        '_id': fileId,
+        "user": req._user._id
+    }, function (err, file) {
         if (!file) {
-            stvResult.error = "File not exist";
-            console.log("error: " + stvResult.error);
-            stvResult.end();
-            res._stvres.response.push(stvResult);
-            next();
-        } else if (file.user._id.toString() != req._user._id.toString()) {
-            stvResult.error = "Authentication error";
-            console.log("error: " + stvResult.error);
-            stvResult.end();
-            res._stvres.response.push(stvResult);
-            next();
+            console.log("error: " + "File not exist");
+            res.send();
         } else {
             try {
                 var lines = [];
@@ -178,20 +199,38 @@ router.get('/:fileId/content', function(req, res, next) {
                     }
                     lineCount++;
                 });
-                rl.on('close', function() {
-                    stvResult.results.push(lines.join('\n'));
-                    stvResult.end();
-                    res._stvres.response.push(stvResult);
-                    next();
+                rl.on('close', function () {
+                    res.send(lines.join('\n'));
                 });
             } catch (e) {
-                stvResult.error = "Could not read the file.";
-                stvResult.end();
-                res._stvres.response.push(stvResult);
-                next();
+                console.log("error: " + "Could not read the file");
+                res.send();
             }
         }
     }).populate("user").populate('parent');
+});
+
+router.get('/:fileId/download', function (req, res, next) {
+    var fileId = req.params.fileId;
+    var sid = req.query.sid;
+
+    File.findOne({
+        '_id': fileId,
+        "user": req._user._id
+    }, function (err, file) {
+        if (!file) {
+            console.log("error: " + "File not exist");
+            res.send();
+        } else {
+            try {
+                var filePath = (config.steviaDir + config.usersPath + file.path);
+                res.sendFile(filePath);
+            } catch (e) {
+                console.log("error: " + "Could not read the file");
+                res.send();
+            }
+        }
+    });
 });
 
 /******************************/
@@ -200,10 +239,10 @@ router.get('/:fileId/content', function(req, res, next) {
 
 /******************************/
 /******************************/
-router.post('/upload', function(req, res, next) {
+router.post('/upload', function (req, res, next) {
     File.findOne({
         '_id': req.query.parentId
-    }, function(err, parent) {
+    }, function (err, parent) {
         if (!parent) {
             res.json({
                 error: "File not exist"
@@ -217,7 +256,7 @@ router.post('/upload', function(req, res, next) {
             next();
         }
     }).populate('files');
-}, function(req, res, next) {
+}, function (req, res, next) {
     console.log(req.query.name);
     var parent = req._parent;
     var file = parent.hasFile(req.query.name);
@@ -230,7 +269,7 @@ router.post('/upload', function(req, res, next) {
         next();
     }
 
-}, function(req, res, next) {
+}, function (req, res, next) {
     var fields = {};
     var form = new multiparty.Form({
         // Parts for fields are not emitted when autoFields is on, and likewise parts for files are not emitted when autoFiles is on.
@@ -238,16 +277,16 @@ router.post('/upload', function(req, res, next) {
     });
 
     // Fields
-    form.on('field', function(name, value) {
+    form.on('field', function (name, value) {
         // console.log(name + ': ' + value);
         fields[name] = value;
     });
 
     //Files, should be only one;
-    form.on('part', function(part) {
+    form.on('part', function (part) {
         File.findOne({
             '_id': fields.parentId
-        }, function(err, parent) {
+        }, function (err, parent) {
             var path = config.steviaDir + config.usersPath + parent.path + '/';
             var uploadPath = path + fields.name + "_partial";
             try {
@@ -258,13 +297,13 @@ router.post('/upload', function(req, res, next) {
             var filepath = uploadPath + '/' + fields.chunk_id + "_chunk";
             var writeStream = fs.createWriteStream(filepath);
             part.pipe(writeStream);
-            writeStream.on('finish', function() {
+            writeStream.on('finish', function () {
                 var stats = fs.statSync(filepath);
                 console.log('Chunk ' + fields.chunk_id + ' created. Chunk size: ' + stats.size);
 
                 if (fields.last_chunk === 'true') {
                     console.log('Chunk ' + fields.chunk_id + ' is the last');
-                    joinAllChunks(path, uploadPath, fields, parent, function(file) {
+                    joinAllChunks(path, uploadPath, fields, parent, function (file) {
                         res.json({
                             file: file
                         });
@@ -278,17 +317,17 @@ router.post('/upload', function(req, res, next) {
         }).populate("user");
     });
 
-    form.on('close', function() {
+    form.on('close', function () {
         File.findOne({
             '_id': fields.parentId
-        }, function(err, parent) {
+        }, function (err, parent) {
             var path = config.steviaDir + config.usersPath + parent.path + '/';
             var uploadPath = path + fields.name + "_partial";
             if (fields.resume_upload === 'true') {
                 var chunkMap = JSON.parse(fields.chunk_map);
                 var resumeInfo = getResumeFileInfo(uploadPath, chunkMap);
                 if (checkAllIsUploaded(resumeInfo, chunkMap)) {
-                    joinAllChunks(path, uploadPath, fields, parent, function(file) {
+                    joinAllChunks(path, uploadPath, fields, parent, function (file) {
                         res.json({
                             file: file,
                             resumeInfo: resumeInfo
@@ -302,7 +341,7 @@ router.post('/upload', function(req, res, next) {
             }
         }).populate("user");
     });
-    form.on('aborted', function() {
+    form.on('aborted', function () {
         console.log('form parse aborted !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! ');
     });
     form.parse(req);
@@ -329,6 +368,8 @@ function joinAllChunks(path, uploadPath, fields, parent, callback) {
 
     /* Database entry */
     var file = File.createFile(fields.name, parent, parent.user);
+    file.bioformat = fields.bioFormat;
+    file.save();
 
     remove.removeSync(uploadPath);
     console.log('Temporal upload folder ' + uploadPath + ' removed');
@@ -394,6 +435,5 @@ function getSortedChunkList(uploadPath) {
     }
     return files;
 };
-
 
 module.exports = router;
