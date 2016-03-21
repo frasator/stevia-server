@@ -190,7 +190,7 @@ router.get('/:id/report-error', function(req, res, next) {
       '_id':id
   }, function(err, job) {
       if (!job) {
-          stvResult.error = "User does not exist";
+          stvResult.error = "report-error: User does not exist";
           console.log("error: " + stvResult.error);
           stvResult.end();
           res._stvres.response.push(stvResult);

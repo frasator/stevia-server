@@ -114,7 +114,7 @@ router.get('/:email/login', function(req, res, next) {
     }, function(err, user) {
         if (!user) {
             stvResult.error = "User does not exist";
-            console.log("error: " + stvResult.error);
+            console.log("login ws: " + stvResult.error);
         } else {
             if (user.password !== pass) {
                 stvResult.error = "Password incorrect";
@@ -142,7 +142,7 @@ router.get('/:email/logout', function(req, res, next) {
     }, function(err, user) {
         if (!user) {
             stvResult.error = "User does not exist";
-            console.log("error: " + stvResult.error);
+            console.log("logout ws: " + stvResult.error);
         } else {
             user.removeSessionId(sid);
         }
@@ -168,8 +168,9 @@ router.get('/:email/info', function(req, res, next) {
         'sessions.id': sid
     }, function(err, user) {
         if (!user) {
+            console.log(err);
             stvResult.error = "User does not exist";
-            console.log("error: " + stvResult.error);
+            console.log("info ws: " + stvResult.error);
         } else {
             var userObject = user.toObject();
             if (user.updatedAt.getTime() !== updatedAt.getTime()) {
