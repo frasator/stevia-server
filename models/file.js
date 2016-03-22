@@ -11,7 +11,6 @@ const mongoose = require('mongoose');
 // require('./user.js');
 // require('./job.js');
 
-
 const crypto = require('crypto');
 
 const Schema = mongoose.Schema;
@@ -76,10 +75,10 @@ const FileSchema = new Schema({
  */
 
 FileSchema.methods = {
-    addFile: function(file) {
+    addFile: function (file) {
         this.files.push(file);
     },
-    hasFile: function(name) {
+    hasFile: function (name) {
         try {
             var stats = fs.statSync(this.path + '/' + name);
             return null;
@@ -95,7 +94,7 @@ FileSchema.methods = {
             return foundFile;
         }
     },
-    getDuplicatedFileName: function(name) {
+    getDuplicatedFileName: function (name) {
         var suffix = 0;
         var nameToCheck = name;
         while (this.hasFile(nameToCheck) != null) {
@@ -104,7 +103,7 @@ FileSchema.methods = {
         }
         return nameToCheck;
     },
-    removeChilds: function() {
+    removeChilds: function () {
         if (this.files.length == 0) {
             this.remove();
             if (this.job) {
@@ -115,7 +114,7 @@ FileSchema.methods = {
                 var file = this.files[i];
                 var fileObject = mongoose.models["File"].findOne({
                     _id: file
-                }, function(err, fileChild) {
+                }, function (err, fileChild) {
                     fileChild.removeChilds();
                     fileChild.remove();
                     if (fileChild.job) {
@@ -125,7 +124,7 @@ FileSchema.methods = {
             }
         }
     },
-    fsCreateFolder: function(parent) {
+    fsCreateFolder: function (parent) {
         var userspath = config.steviaDir + config.usersPath;
         try {
             var stats = fs.statSync(userspath);
@@ -146,7 +145,7 @@ FileSchema.methods = {
             console.log("File fsCreateFolder: file already exists on file system");
         }
     },
-    fsDelete: function() {
+    fsDelete: function () {
         if (this.path == null || this.path == '') {
             console.log("File fsDelete: file path is null or ''.")
         } else {
@@ -167,13 +166,13 @@ FileSchema.methods = {
  */
 
 FileSchema.statics = {
-    getFile: function(fileId, callback) {
+    getFile: function (fileId, callback) {
         var fid = new ObjectId(fileId);
         return this.findOne({
             "_id": fid
         }).exec(callback);
     },
-    createFolder: function(name, parent, user) {
+    createFolder: function (name, parent, user) {
         var folder = new this({
             name: name,
             user: user._id,
@@ -191,7 +190,7 @@ FileSchema.statics = {
 
         return folder;
     },
-    createFile: function(name, parent, user) {
+    createFile: function (name, parent, user) {
         var file = new this({
             name: name,
             user: user._id,
@@ -207,8 +206,8 @@ FileSchema.statics = {
 
         return file;
     },
-    delete: function(file, parent, job) {
-        if(parent != null){
+    delete: function (file, parent, job) {
+        if (parent != null) {
             var index = parent.files.indexOf(file._id);
             if (index != -1) {
                 parent.files.splice(index, 1);
@@ -226,7 +225,87 @@ FileSchema.statics = {
 
         file.fsDelete();
     },
-    tree: function(folder, userId, cb) {
+    move: function (file, newParent, callback) {
+        var err = null;
+
+        if (file == null) {
+            err = "File not exists";
+            callback(err);
+        }
+        var oldParent = file.parent;
+        if (oldParent == null) {
+            err = "Old parent not exists";
+            callback(err);
+        }
+        if (newParent == null) {
+            err = "New parent not exists";
+            callback(err);
+        }
+        if (oldParent.path == newParent.path) {
+            err = "Old parent and New parent are the same";
+            callback(err);
+        }
+
+        if (newParent.files.indexOf(file._id) != -1) {
+            err = "Destination file already exists";
+            callback(err);
+        } else {
+
+            var fileName = newParent.getDuplicatedFileName(file.name);
+            file.name = fileName;
+        }
+
+        var oldPath = config.steviaDir + config.usersPath + file.path;
+        var newPath = config.steviaDir + config.usersPath + newParent.path + "/" + file.name;
+
+        try {
+            fs.renameSync(oldPath, newPath);
+        } catch (e) {
+            callback(e);
+        }
+
+        console.log("old " + oldPath)
+        console.log("new " + newPath)
+
+        var index = oldParent.files.indexOf(file._id);
+        if (index != -1) {
+            oldParent.files.splice(index, 1);
+            oldParent.save();
+        }
+
+        newParent.files.push(file);
+        newParent.save();
+        var filePath = file.path;
+
+        file.parent = newParent;
+        file.path = newParent.path + "/" + file.name;
+        file.save();
+
+        if (file.type == 'FOLDER') {
+            this.find({
+                'path': {
+                    $regex: new RegExp('^' + filePath)
+                }
+            }, function (err, files) {
+                if (err) {
+                    console.log(err);
+                } else {
+                    var regex = new RegExp('^' + filePath)
+                    for (var i = 0; i < files.length; i++) {
+                        var f = files[i];
+                        f.path = f.path.replace(regex, file.path);
+                        f.save();
+                    }
+
+                    callback(err);
+                }
+            });
+        } else {
+            callback(err);
+        }
+
+    },
+    tree: function (folder, userId, cb) {
         var filePathMap = {};
         filePathMap[folder.path] = folder;
         this.find({
@@ -237,7 +316,7 @@ FileSchema.statics = {
             }
         }, {
             path: 1
-        }, function(err, files) {
+        }, function (err, files) {
             for (var i = 0; i < files.length; i++) {
                 var file = files[i];
                 filePathMap[file.path] = file;

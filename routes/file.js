@@ -233,6 +233,55 @@ router.get('/:fileId/download', function (req, res, next) {
     });
 });
 
+//move files
+router.get('/move', function (req, res, next) {
+    //prueba:: http://localhost:5555/files/move?sid=8oe3ire0k0c0c8skckcw&fileId=56e2b397879c9d4c6085af0b&newFilePath=mermegar@gmail.com/Differential%20signaling%20job
+    var stvResult = new StvResult();
+    var sid = req.query.sid;
+    var fileId = req.query.fileId;
+    var newParentId = req.query.newId;
+    var files = {};
+    files[fileId] = null;
+    files[newParentId] = null;
+    File.find({
+        '_id': {
+            $in: Object.keys(files)
+        },
+        "user": req._user._id
+    }, function (err, files) {
+        if (err) {
+            stvResult.error = "File or New Parent not exist";
+            console.log("error: " + stvResult.error);
+        } else {
+            for (var i = 0; i < files.length; i++) {
+                var f = files[i];
+                files[f._id] = f;
+            }
+            var file = files[fileId];
+            var newParent = files[newParentId];
+            if (file != null && newParent != null) {
+                File.move(file, newParent, function (move) {
+                    if (move == null) {
+                        stvResult.results.push("File moved");
+                    } else {
+                        stvResult.error = move;
+                        console.log("error: " + stvResult.error);
+                    }
+                    stvResult.end();
+                    res._stvres.response.push(stvResult);
+                    next();
+                });
+            } else {
+                stvResult.error = "File or New Parent not exist";
+                console.log("error: " + stvResult.error);
+                stvResult.end();
+                res._stvres.response.push(stvResult);
+                next();
+            }
+        }
+    }).populate('parent');
+});
+
 /******************************/
 /******** Upload file *********/
 /******************************/
