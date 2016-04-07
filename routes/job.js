@@ -95,7 +95,7 @@ router.post('/create', function(req, res, next) {
             job.qId = job.tool + '-' + job.execution + '-' + job._id;
 
             job.createJobFolder(jobName, req._parent, req._user);
-            var realOutPath = (config.steviaDir + config.usersPath + job.folder.path + '/').replace(/ /gi, '\\ ');
+            var realOutPath = (config.steviaDir + config.usersPath + job.folder.path + '/');
 
 
             for (var i = 0; i < result.length; i++) {
@@ -143,7 +143,7 @@ router.post('/create', function(req, res, next) {
                 }
                 if (option.out === true) {
                     computedOptions.push(prefix + name);
-                    computedOptions.push('"' + realOutPath + '"');
+                    computedOptions.push("'" + realOutPath + "'");
                 }
             }
 
