@@ -4,6 +4,7 @@
  * description: All about USER
  */
 var mail = require('../lib/mail/mail.js');
+var mailConfig = require('../lib/mail/mail.json');
 var crypto = require('crypto');
 var express = require('express');
 var router = express.Router();
@@ -382,6 +383,28 @@ router.post('/reset/:token', function(req, res, next) {
             console.log(err)
             return next(err);
         }
+    });
+});
+
+router.post('/feedback', function(req, res, next) {
+    var stvResult = new StvResult();
+    var subject = req.query.subject;
+    var type = req.query.type;
+    var text = req.query.text;
+    mail.send({
+        to: mailConfig.mail,
+        subject: subject,
+        text: 'Type of email: ' + type + '\n'+ text
+    }, function(error, info) {
+        if (error) {
+            stvResult.error = error
+            console.log(error);
+        }
+        stvResult.results.push('It has send your email! Thank you!');
+        stvResult.end();
+        res._stvres.response.push(stvResult);
+        console.log('Message sent: ' + info.response);
+        next();
     });
 });
 
