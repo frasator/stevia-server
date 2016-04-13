@@ -386,11 +386,12 @@ router.post('/reset/:token', function(req, res, next) {
     });
 });
 
-router.post('/feedback', function(req, res, next) {
+router.get('/feedback', function(req, res, next) {
     var stvResult = new StvResult();
     var subject = req.query.subject;
     var type = req.query.type;
     var text = req.query.text;
+    console.log('feedback');
     mail.send({
         to: mailConfig.mail,
         subject: subject,
