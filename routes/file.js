@@ -224,7 +224,7 @@ router.get('/:fileId/download', function (req, res, next) {
         } else {
             try {
                 var filePath = (config.steviaDir + config.usersPath + file.path);
-                res.sendFile(filePath);
+                res.download(filePath);
             } catch (e) {
                 console.log("error: " + "Could not read the file");
                 res.send();
