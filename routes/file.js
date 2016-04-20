@@ -259,17 +259,25 @@ router.get('/move', function (req, res, next) {
             var file = files[fileId];
             var newParent = files[newParentId];
             if (file != null && newParent != null) {
-                File.move(file, newParent, function (move) {
-                    if (move == null) {
-                        stvResult.results.push("File moved");
-                    } else {
-                        stvResult.error = move;
-                        console.log("error: " + stvResult.error);
-                    }
+                if (file.job == null || (file.job != null && file.job.status == "DONE")) {
+                    File.move(file, newParent, function (move) {
+                        if (move == null) {
+                            stvResult.results.push("File moved");
+                        } else {
+                            stvResult.error = move;
+                            console.log("error: " + stvResult.error);
+                        }
+                        stvResult.end();
+                        res._stvres.response.push(stvResult);
+                        next();
+                    });
+                }else{
+                    stvResult.error = "This file is a job folder, move action can not be performed until job status becomes DONE.";
+                    console.log("error: " + stvResult.error);
                     stvResult.end();
                     res._stvres.response.push(stvResult);
                     next();
-                });
+                }
             } else {
                 stvResult.error = "File or New Parent not exist";
                 console.log("error: " + stvResult.error);
@@ -278,7 +286,7 @@ router.get('/move', function (req, res, next) {
                 next();
             }
         }
-    }).populate('parent');
+    }).populate('parent').populate('job');
 });
 
 /******************************/
