@@ -224,7 +224,7 @@ router.get('/:fileId/download', function (req, res, next) {
         } else {
             try {
                 var filePath = (config.steviaDir + config.usersPath + file.path);
-                res.sendFile(filePath);
+                res.download(filePath);
             } catch (e) {
                 console.log("error: " + "Could not read the file");
                 res.send();
@@ -235,7 +235,6 @@ router.get('/:fileId/download', function (req, res, next) {
 
 //move files
 router.get('/move', function (req, res, next) {
-    //prueba:: http://localhost:5555/files/move?sid=8oe3ire0k0c0c8skckcw&fileId=56e2b397879c9d4c6085af0b&newFilePath=mermegar@gmail.com/Differential%20signaling%20job
     var stvResult = new StvResult();
     var sid = req.query.sid;
     var fileId = req.query.fileId;
