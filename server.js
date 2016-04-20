@@ -14,7 +14,7 @@ if (cluster.isMaster) {
     // Code to run if we're in the master process
 
     // Check config directory
-    var stats = fs.stat(config.steviaDir, function(err, stats) {
+    var stats = fs.stat(config.steviaDir, function (err, stats) {
         if (err != null) {
             console.log(err);
         } else {
@@ -34,7 +34,7 @@ if (cluster.isMaster) {
             }
 
             // Listen for dying workers
-            cluster.on('exit', function(worker) {
+            cluster.on('exit', function (worker) {
                 // Replace the dead worker, we're not sentimental
                 console.log('Worker %d died :(', worker.id);
                 cluster.fork();
@@ -42,7 +42,6 @@ if (cluster.isMaster) {
         }
 
     });
-
 
 } else {
     //  Code to run if we're in a worker process
@@ -55,11 +54,10 @@ if (cluster.isMaster) {
     var swagger = require('swagger-express');
     var cors = require('cors');
     var bodyParser = require('body-parser');
-    
+
     // Create a new Express application
     var app = express();
     app.use(cors());
-
 
     app.use(bodyParser.urlencoded({
         extended: true
@@ -78,11 +76,11 @@ if (cluster.isMaster) {
             description: 'DESC'
         },
         apis: ['./routes/user.js'],
-        middleware: function(req, res) {}
+        middleware: function (req, res) {}
     }));
 
     // Preprocess all requests.
-    app.use(function(req, res, next) {
+    app.use(function (req, res, next) {
         res._stvres = new StvResponse({
             queryOptions: req.query
         });
@@ -105,13 +103,13 @@ if (cluster.isMaster) {
     app.set('views', './views');
     app.set('view engine', 'jade');
 
-    app.get('/', function(req, res) {
+    app.get('/', function (req, res) {
         console.log(req.params);
         res.send('I am alive!');
     });
 
     // Postprocess all requests.
-    app.use(function(req, res, next) {
+    app.use(function (req, res, next) {
         res.json(res._stvres);
     });
 
@@ -133,6 +131,9 @@ if (cluster.isMaster) {
                 socketOptions: {
                     keepAlive: 120
                 }
+            },
+            config: {
+                autoIndex: false
             }
         };
         return mongoose.connect(config.mongodb, options).connection;

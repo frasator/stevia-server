@@ -14,11 +14,11 @@ const File = mongoose.model('File');
 const User = mongoose.model('User');
 
 // // middleware that is specific to this router
-router.use(function(req, res, next) {
+router.use(function (req, res, next) {
     var sid = req.query.sid;
     User.findOne({
         'sessions.id': sid
-    }, function(err, user) {
+    }, function (err, user) {
         if (!user) {
             var stvResult = new StvResult();
             stvResult.error = "Authentication error";
@@ -38,12 +38,12 @@ router.use(function(req, res, next) {
     });
 });
 
-router.post('/create', function(req, res, next) {
+router.post('/create', function (req, res, next) {
     var parentId = req.query.outdirId;
     if (parentId != null) {
         File.findOne({
             '_id': parentId
-        }, function(err, parent) {
+        }, function (err, parent) {
             if (!parent) {
                 req._parent = req._user.home;
             } else if (parent.user.toString() != req._user._id.toString()) {
@@ -57,7 +57,7 @@ router.post('/create', function(req, res, next) {
         req._parent = req._user.home;
         next();
     }
-}, function(req, res, next) {
+}, function (req, res, next) {
     var stvResult = new StvResult();
 
     var jobConfig = req.body;
@@ -74,7 +74,7 @@ router.post('/create', function(req, res, next) {
     var jobDescription = req.query.description;
 
     var fileMap = {};
-    File.where('_id').in(fileIdsFromJobConfig).exec(function(err, result) {
+    File.where('_id').in(fileIdsFromJobConfig).exec(function (err, result) {
         if (err) {
             console.log(err);
             stvResult.error = 'File id provided in options is not valid.';
@@ -97,7 +97,6 @@ router.post('/create', function(req, res, next) {
             job.createJobFolder(jobName, req._parent, req._user);
             var realOutPath = (config.steviaDir + config.usersPath + job.folder.path + '/');
 
-
             for (var i = 0; i < result.length; i++) {
                 var file = result[i];
                 fileMap[file._id] = file;
@@ -111,51 +110,57 @@ router.post('/create', function(req, res, next) {
                     prefix = '-';
                 }
                 switch (option.type) {
-                    case 'file':
-                        if (option.mode === 'id') {
-                            if (fileMap[option.value] != null) {
-                                var userspath = config.steviaDir + config.usersPath;
-                                var realPath = userspath + fileMap[option.value].path;
-                                computedOptions.push(prefix + name);
-                                computedOptions.push('"' + realPath.replace(/ /gi, '\\ ') + '"');
-                            }
-                        }
-                        if (option.mode === 'text') {
-                            var filename = name + '.txt';
+                case 'file':
+                    if (option.mode === 'id') {
+                        if (fileMap[option.value] != null) {
                             var userspath = config.steviaDir + config.usersPath;
-                            var realPath = userspath + job.folder.path + '/' + filename;
-                            fs.writeFileSync(realPath, option.value);
-
-                            /* Database entry */
-                            var file = File.createFile(filename, job.folder, req._user);
-
-                            computedOptions.push(prefix + name);
-                            computedOptions.push('"' + realPath.replace(/ /gi, '\\ ') + '"');
+                            var realPath = userspath + fileMap[option.value].path;
+                            computedOptions.push("'" + prefix + name + "'");
+                            computedOptions.push("'" + realPath.replace(/ /gi, '\\ ') + "'");
                         }
-                        break;
-                    case 'text':
-                        computedOptions.push(prefix + name);
-                        computedOptions.push('"' + option.value + '"');
-                        break;
-                    case 'flag':
-                        computedOptions.push(prefix + name);
-                        break;
+                    }
+                    if (option.mode === 'text') {
+                        var filename = name + '.txt';
+                        var userspath = config.steviaDir + config.usersPath;
+                        var realPath = userspath + job.folder.path + '/' + filename;
+                        fs.writeFileSync(realPath, option.value);
+
+                        /* Database entry */
+                        var file = File.createFile(filename, job.folder, req._user);
+
+                        computedOptions.push("'" + prefix + name + "'");
+                        computedOptions.push("'" + realPath.replace(/ /gi, '\\ ') + "'");
+                    }
+                    break;
+                case 'text':
+                    computedOptions.push("'" + prefix + name + "'");
+                    computedOptions.push("'" + option.value + "'");
+                    break;
+                case 'flag':
+                    computedOptions.push("'" + prefix + name + "'");
+                    break;
                 }
                 if (option.out === true) {
-                    computedOptions.push(prefix + name);
+                    computedOptions.push("'" + prefix + name + "'");
                     computedOptions.push("'" + realOutPath + "'");
                 }
             }
 
-            var commandLine = config.steviaDir + config.toolPath + jobConfig.tool + '/' + jobConfig.executable + ' ' + computedOptions.join(' ');
-            var command = 'qsub -N "' + job.qId + '" -q ' + config.queue + ' -o ' + realOutPath + ' -e ' + realOutPath + ' -b y ' + commandLine;
+            var commandLine = "'" + config.steviaDir + config.toolPath + jobConfig.tool + "/" + jobConfig.executable + "' " + computedOptions.join(" ");
+            var commandQsub = realOutPath + ".command.qsub.sh";
+            try {
+                fs.writeFileSync(commandQsub, "#!/bin/bash\n" + commandLine);
+            } catch (e) {
+                //TODO handle error
+            }
+
+            var command = "qsub -N '" + job.qId + "' -q '" + config.queue + "' -o '" + realOutPath + "' -e '" + realOutPath + "' '" + commandQsub+"'";
 
             console.log('++++++++++++');
             console.log(command);
             console.log('++++++++++++');
 
-
-            exec(command, function(error, stdout, stderr) {
+            exec(command, function (error, stdout, stderr) {
                 // console.log('stdout: ' + stdout);
                 // console.log('stderr: ' + stderr);
                 if (error == null) {
@@ -179,43 +184,41 @@ router.post('/create', function(req, res, next) {
     });
 });
 
-
 //Report error in job
-router.get('/:id/report-error', function(req, res, next) {
-  var id = req.params.id;
-  var stvResult = new StvResult();
-  console.log('--------------');
-  console.log(id);
-  Job.findOne({
-      '_id':id
-  }, function(err, job) {
-      if (!job) {
-          stvResult.error = "report-error: User does not exist";
-          console.log("error: " + stvResult.error);
-          stvResult.end();
-          res._stvres.response.push(stvResult);
-          next();
-      } else {
-        mail.send({
-            to: mailConfig.mail,
-            subject: 'Report Job error',
-            text: 'Hello,\n\n' +
-                'The job ' + id + ' from user ' + job.user.email + ' has been an error.\n'
-        }, function(error, info) {
-            if (error) {
-                stvResult.error = error
-                console.log(error);
-            }
-            stvResult.results.push('It has reported the error! Thank you!');
+router.get('/:id/report-error', function (req, res, next) {
+    var id = req.params.id;
+    var stvResult = new StvResult();
+    console.log('--------------');
+    console.log(id);
+    Job.findOne({
+        '_id': id
+    }, function (err, job) {
+        if (!job) {
+            stvResult.error = "report-error: User does not exist";
+            console.log("error: " + stvResult.error);
             stvResult.end();
             res._stvres.response.push(stvResult);
-            console.log('Message sent: ' + info.response);
             next();
-        });
-      }
-  }).populate('user');
+        } else {
+            mail.send({
+                to: mailConfig.mail,
+                subject: 'Report Job error',
+                text: 'Hello,\n\n' +
+                    'The job ' + id + ' from user ' + job.user.email + ' has been an error.\n'
+            }, function (error, info) {
+                if (error) {
+                    stvResult.error = error
+                    console.log(error);
+                }
+                stvResult.results.push('It has reported the error! Thank you!');
+                stvResult.end();
+                res._stvres.response.push(stvResult);
+                console.log('Message sent: ' + info.response);
+                next();
+            });
+        }
+    }).populate('user');
 });
-
 
 /* input from web */
 // var jobConfig = {
@@ -250,11 +253,11 @@ router.get('/:id/report-error', function(req, res, next) {
 //     }
 // }
 
-router.get('/delete', function(req, res, next) {
+router.get('/delete', function (req, res, next) {
     var stvResult = new StvResult();
     Job.findOne({
         '_id': req.query.jobId
-    }, function(err, job) {
+    }, function (err, job) {
         if (!job) {
             stvResult.error = "File not exist";
             console.log("error: " + stvResult.error);
@@ -280,6 +283,5 @@ router.get('/delete', function(req, res, next) {
         }
     }).populate('user');
 });
-
 
 module.exports = router;

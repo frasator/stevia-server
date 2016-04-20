@@ -12,7 +12,6 @@ const File = mongoose.model('File');
 
 const utils = require('../lib/utils.js');
 
-
 const Schema = mongoose.Schema;
 
 /**
@@ -33,11 +32,11 @@ const UserSchema = new Schema({
         select: false
     },
     resetPasswordToken: {
-      type: String,
-      default: ''
+        type: String,
+        default: ''
     },
-    resetPasswordExpires:{
-      type: Date
+    resetPasswordExpires: {
+        type: Date
     },
     diskQuota: {
         type: Number,
@@ -67,12 +66,17 @@ const UserSchema = new Schema({
     }
 });
 
+UserSchema.pre('save', function (next) {
+    this.updatedAt = new Date();
+    next();
+});
+
 /**
  * Methods
  */
 
 UserSchema.methods = {
-    createHomeFolder: function() {
+    createHomeFolder: function () {
         var homeFolder = new File({
             name: this.email,
             user: this._id,
@@ -84,7 +88,7 @@ UserSchema.methods = {
         this.save();
         homeFolder.fsCreateFolder();
     },
-    removeSessionId: function(sessionId) {
+    removeSessionId: function (sessionId) {
 
         var index = -1;
         for (var i = 0; i < this.sessions.length; i++) {
@@ -102,7 +106,7 @@ UserSchema.methods = {
         this.save();
     },
 
-    checkSessionId: function(sessionId) {
+    checkSessionId: function (sessionId) {
 
         for (var i = 0; i < this.sessions.length; i++) {
             var session = this.sessions[i];
@@ -116,7 +120,7 @@ UserSchema.methods = {
     //     this.lastActivity = Date.now();
     //     this.save();
     // },
-    login: function() {
+    login: function () {
 
         var sessionId = utils.generateRandomString();
         var session = {

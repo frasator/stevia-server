@@ -29,7 +29,7 @@ if (cluster.isMaster) {
     }
 
     // Listen for dying workers
-    cluster.on('exit', function(worker) {
+    cluster.on('exit', function (worker) {
         // Replace the dead worker, we're not sentimental
         console.log('Worker %d died :(', worker.id);
         cluster.fork();
@@ -47,11 +47,11 @@ if (cluster.isMaster) {
 
     function listen() {
         console.log('Worker %d running!', cluster.worker.id);
-        var interval = setInterval(function() {
+        var interval = setInterval(function () {
             // console.log('LOCK is: ' + LOCK);
             if (LOCK == false) {
                 LOCK = true;
-                run(function() {
+                run(function () {
                     LOCK = false;
                 });
             }
@@ -64,16 +64,18 @@ if (cluster.isMaster) {
                 socketOptions: {
                     keepAlive: 120
                 }
+            },
+            config: {
+                autoIndex: false
             }
         };
         return mongoose.connect(config.mongodb, options).connection;
     }
 }
 
-
 function run(cb) {
-    getDbJobs(function(dbJobs) {
-        getSGEQstatJobs(function(qJobs) {
+    getDbJobs(function (dbJobs) {
+        getSGEQstatJobs(function (qJobs) {
             var ids = Object.keys(dbJobs);
             var c = ids.length;
             if (c > 0) {
@@ -92,7 +94,7 @@ function run(cb) {
                         }
                     } else {
                         //If not in qstat check on qacct
-                        checkSGEQacctJob(dbJob, function() {
+                        checkSGEQacctJob(dbJob, function () {
                             c--;
                             if (c == 0) {
                                 cb();
@@ -118,7 +120,7 @@ function getDbJobs(cb) {
             populate: {
                 path: 'files'
             }
-        }).exec(function(err, result) {
+        }).exec(function (err, result) {
             for (var i = 0; i < result.length; i++) {
                 var job = result[i];
                 jobs[job.qId] = job;
@@ -129,10 +131,10 @@ function getDbJobs(cb) {
 
 function getSGEQstatJobs(cb) {
     var jobs = {};
-    exec('qstat -xml', function(error, stdout, stderr) {
+    exec('qstat -xml', function (error, stdout, stderr) {
         // console.log('stdout: ' + stdout);
         // console.log('stderr: ' + stderr);
-        xml2js.parseString(stdout, function(err, result) {
+        xml2js.parseString(stdout, function (err, result) {
             if (result != null) {
                 var items = [];
                 var l1 = result.job_info.queue_info[0].job_list;
@@ -162,37 +164,35 @@ function getSGEQstatJobs(cb) {
     });
 }
 
-
 function checkSGEQstatJob(dbJob, qJob) {
     switch (qJob.state) {
-        case 'r':
-            if (dbJob.status != "RUNNING") {
-                dbJob.status = "RUNNING";
-                dbJob.save();
-                dbJob.user.save();
-            }
-            break;
-        case 'qw':
-            if (dbJob.status != "QUEUED") {
-                dbJob.status = "QUEUED";
-                dbJob.save();
-                dbJob.user.save();
-            }
-            break;
-        case 'Eqw':
-            if (dbJob.status != "QUEUE_WAITING_ERROR") {
-                dbJob.status = "QUEUE_WAITING_ERROR";
-                dbJob.save();
-                dbJob.user.save();
-            }
-            break;
+    case 'r':
+        if (dbJob.status != "RUNNING") {
+            dbJob.status = "RUNNING";
+            dbJob.save();
+            dbJob.user.save();
+        }
+        break;
+    case 'qw':
+        if (dbJob.status != "QUEUED") {
+            dbJob.status = "QUEUED";
+            dbJob.save();
+            dbJob.user.save();
+        }
+        break;
+    case 'Eqw':
+        if (dbJob.status != "QUEUE_WAITING_ERROR") {
+            dbJob.status = "QUEUE_WAITING_ERROR";
+            dbJob.save();
+            dbJob.user.save();
+        }
+        break;
     }
 }
 
-
 function checkSGEQacctJob(dbJob, cb) {
     var qId = dbJob.qId;
-    exec("qacct -j " + qId, function(error, stdout, stderr) {
+    exec("qacct -j " + qId, function (error, stdout, stderr) {
         if (error == null) {
             var stdoutLines = stdout.split('\n');
             for (var i = 0; i < stdoutLines.length; i++) {
@@ -204,7 +204,7 @@ function checkSGEQacctJob(dbJob, cb) {
                         recordOutputFolder(dbJob.folder, dbJob);
                         dbJob.save();
                         dbJob.user.save();
-                        notifyUser(dbJob.user.email,dbJob.status);
+                        notifyUser(dbJob.user.email, dbJob.status);
                     }
                 } else if (line.indexOf('exit_status') != -1) {
                     var value = line.trim().split('exit_status')[1].trim();
@@ -213,13 +213,13 @@ function checkSGEQacctJob(dbJob, cb) {
                         recordOutputFolder(dbJob.folder, dbJob);
                         dbJob.save();
                         dbJob.user.save();
-                        notifyUser(dbJob.user.email,dbJob.status);
+                        notifyUser(dbJob.user.email, dbJob.status);
                     } else if (dbJob.status != "DONE") {
                         dbJob.status = "DONE";
                         recordOutputFolder(dbJob.folder, dbJob);
                         dbJob.save();
                         dbJob.user.save();
-                        notifyUser(dbJob.user.email,dbJob.status);
+                        notifyUser(dbJob.user.email, dbJob.status);
                     }
                 }
             }
@@ -278,8 +278,7 @@ function recordOutputFolder(folder, dbJob) {
 
             /* RECORD elog and olog */
             if (dbJob != null) {
-                for (var i = 0; i < folder.files.length; i++) {
-                }
+                for (var i = 0; i < folder.files.length; i++) {}
                 dbJob.save();
             }
             /* */
@@ -290,15 +289,15 @@ function recordOutputFolder(folder, dbJob) {
     }
 }
 
-function notifyUser(email,status){
-  mail.send({
-      to: email,
-      subject: 'FYI',
-      text: 'Your job has finished with the next status: ' + status + '\n'
-  }, function(error, info) {
-      if (error) {
-          console.log(error);
-      }
-      console.log('Message sent: ' + info.response);
-  });
+function notifyUser(email, status) {
+    mail.send({
+        to: email,
+        subject: 'FYI',
+        text: 'Your job has finished with the next status: ' + status + '\n'
+    }, function (error, info) {
+        if (error) {
+            console.log(error);
+        }
+        console.log('Message sent: ' + info.response);
+    });
 }

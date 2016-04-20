@@ -17,7 +17,6 @@ const User = mongoose.model('User');
 const File = mongoose.model('File');
 const Job = mongoose.model('Job');
 
-
 // // middleware that is specific to this router
 // router.use(function timeLog(req, res, next) {
 //     next();
