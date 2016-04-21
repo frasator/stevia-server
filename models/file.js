@@ -231,24 +231,36 @@ FileSchema.statics = {
         if (file == null) {
             err = "File not exists";
             callback(err);
+            return;
         }
         var oldParent = file.parent;
         if (oldParent == null) {
             err = "Old parent not exists";
             callback(err);
+            return;
         }
         if (newParent == null) {
             err = "New parent not exists";
             callback(err);
+            return;
         }
-        if (oldParent.path == newParent.path) {
+
+        if (newParent.path === file.path) {
+            err = "New parent and file are the same";
+            callback(err);
+            return;
+        }
+
+        if (oldParent.path === newParent.path) {
             err = "Old parent and New parent are the same";
             callback(err);
+            return;
         }
 
         if (newParent.files.indexOf(file._id) != -1) {
             err = "Destination file already exists";
             callback(err);
+            return;
         } else {
 
             var fileName = newParent.getDuplicatedFileName(file.name);
@@ -261,11 +273,11 @@ FileSchema.statics = {
         try {
             fs.renameSync(oldPath, newPath);
         } catch (e) {
+            console.log("old " + oldPath)
+            console.log("new " + newPath)
             callback(e);
+            return;
         }
-
-        console.log("old " + oldPath)
-        console.log("new " + newPath)
 
         var index = oldParent.files.indexOf(file._id);
         if (index != -1) {
@@ -286,9 +298,10 @@ FileSchema.statics = {
                 'path': {
                     $regex: new RegExp('^' + filePath)
                 }
-            }, function (err, files) {
-                if (err) {
-                    console.log(err);
+            }, function (error, files) {
+                if (error) {
+                    err = error;
+                    console.log(error);
                 } else {
                     var regex = new RegExp('^' + filePath)
                     for (var i = 0; i < files.length; i++) {
@@ -296,9 +309,8 @@ FileSchema.statics = {
                         f.path = f.path.replace(regex, file.path);
                         f.save();
                     }
-
-                    callback(err);
                 }
+                callback(err);
             });
         } else {
             callback(err);

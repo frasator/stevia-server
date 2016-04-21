@@ -263,15 +263,16 @@ router.get('/move', function (req, res, next) {
                     File.move(file, newParent, function (move) {
                         if (move == null) {
                             stvResult.results.push("File moved");
+                            req._user.save();
                         } else {
                             stvResult.error = move;
-                            console.log("error: " + stvResult.error);
+                            console.log("[" + new Date().toJSON() + "]" + "error: " + stvResult.error);
                         }
                         stvResult.end();
                         res._stvres.response.push(stvResult);
                         next();
                     });
-                }else{
+                } else {
                     stvResult.error = "This file is a job folder, move action can not be performed until job status becomes DONE.";
                     console.log("error: " + stvResult.error);
                     stvResult.end();
