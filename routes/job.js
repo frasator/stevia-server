@@ -3,7 +3,7 @@ var exec = require('child_process').exec;
 var StvResult = require('../lib/StvResult.js');
 var fs = require('fs');
 var mail = require('../lib/mail/mail.js');
-var mailConfig = require('../lib/mail/mail.json');
+var mailConfig = require('../mail.json');
 
 var express = require('express');
 var router = express.Router();

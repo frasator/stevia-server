@@ -4,7 +4,7 @@
  * description: All about USER
  */
 var mail = require('../lib/mail/mail.js');
-var mailConfig = require('../lib/mail/mail.json');
+var mailConfig = require('../mail.json');
 var crypto = require('crypto');
 var express = require('express');
 var router = express.Router();
@@ -45,7 +45,7 @@ const Job = mongoose.model('Job');
  *          required: true
  *          dataType: string
  */
-router.get('/create', function(req, res, next) {
+router.get('/create', function (req, res, next) {
     var stvResult = new StvResult();
 
     var email = req.query.email;
@@ -58,11 +58,11 @@ router.get('/create', function(req, res, next) {
         password: pass
     });
 
-    if(email === 'anonymous@anonymous.anonymous'){
-        user.email = 'anonymous___'+user._id;
+    if (email === 'anonymous@anonymous.anonymous') {
+        user.email = 'anonymous___' + user._id;
     }
 
-    user.save(function(err) {
+    user.save(function (err) {
         if (err) {
             stvResult.error = 'User already exists';
             console.log("error: " + stvResult.error);
@@ -77,7 +77,6 @@ router.get('/create', function(req, res, next) {
         next();
     });
 });
-
 
 /**
  * @swagger
@@ -102,7 +101,7 @@ router.get('/create', function(req, res, next) {
  *          required: true
  *          dataType: string
  */
-router.get('/:email/login', function(req, res, next) {
+router.get('/:email/login', function (req, res, next) {
     var stvResult = new StvResult();
     var email = req.params.email;
     var pass = req.query.password;
@@ -111,7 +110,7 @@ router.get('/:email/login', function(req, res, next) {
 
     User.findOne({
         'email': email
-    }, function(err, user) {
+    }, function (err, user) {
         if (!user) {
             stvResult.error = "User does not exist";
             console.log("login ws: " + stvResult.error);
@@ -131,7 +130,7 @@ router.get('/:email/login', function(req, res, next) {
 });
 
 // logout user
-router.get('/:email/logout', function(req, res, next) {
+router.get('/:email/logout', function (req, res, next) {
     var stvResult = new StvResult();
     var email = req.params.email;
     var sid = req.query.sid;
@@ -139,7 +138,7 @@ router.get('/:email/logout', function(req, res, next) {
     User.findOne({
         'email': email,
         'sessions.id': sid
-    }, function(err, user) {
+    }, function (err, user) {
         if (!user) {
             stvResult.error = "User does not exist";
             console.log("logout ws: " + stvResult.error);
@@ -152,10 +151,8 @@ router.get('/:email/logout', function(req, res, next) {
     });
 });
 
-
-
 // info user
-router.get('/:email/info', function(req, res, next) {
+router.get('/:email/info', function (req, res, next) {
     var stvResult = new StvResult();
     var email = req.params.email;
     var sid = req.query.sid;
@@ -166,7 +163,7 @@ router.get('/:email/info', function(req, res, next) {
     User.findOne({
         'email': req.params.email,
         'sessions.id': sid
-    }, function(err, user) {
+    }, function (err, user) {
         if (!user) {
             console.log(err);
             stvResult.error = "User does not exist";
@@ -174,11 +171,11 @@ router.get('/:email/info', function(req, res, next) {
         } else {
             var userObject = user.toObject();
             if (user.updatedAt.getTime() !== updatedAt.getTime()) {
-                File.tree(user.home, user._id, function(tree) {
+                File.tree(user.home, user._id, function (tree) {
                     userObject.tree = tree;
                     Job.find({
                         user: user._id
-                    }, function(error, jobs) {
+                    }, function (error, jobs) {
                         userObject.jobs = jobs;
                         stvResult.results.push(userObject);
                         stvResult.numTotalResults = 1;
@@ -201,7 +198,6 @@ router.get('/:email/info', function(req, res, next) {
     }).populate('home');
 });
 
-
 //
 // //delete user
 // router.get('/:email/delete', function(req, res) {
@@ -216,7 +212,7 @@ router.get('/:email/info', function(req, res, next) {
 //     });
 // });
 
-router.get('/:email/change-password', function(req, res, next) {
+router.get('/:email/change-password', function (req, res, next) {
     var stvResult = new StvResult();
     var email = req.params.email;
     var password = req.query.password;
@@ -226,7 +222,7 @@ router.get('/:email/change-password', function(req, res, next) {
         'email': email,
         'sessions.id': sid,
         'password': password
-    }, function(err, user) {
+    }, function (err, user) {
         if (!user) {
             stvResult.error = "Authentication error";
             console.log("error: " + stvResult.error);
@@ -240,25 +236,24 @@ router.get('/:email/change-password', function(req, res, next) {
     });
 });
 
-
 //reset pasword
-router.get('/reset-password', function(req, res, next) {
+router.get('/reset-password', function (req, res, next) {
     console.log('reset')
     var stvResult = new StvResult();
     var email = req.query.email;
     console.log(email)
     async.waterfall([
-            function(done) {
-                crypto.randomBytes(20, function(err, buf) {
+            function (done) {
+                crypto.randomBytes(20, function (err, buf) {
                     var token = buf.toString('hex');
                     console.log(token)
                     done(err, token);
                 });
             },
-            function(token, done) {
+            function (token, done) {
                 User.findOne({
                     'email': email
-                }, function(err, user) {
+                }, function (err, user) {
                     if (!user) {
                         stvResult.error = "No account with that email address exists";
                         console.log("error: " + stvResult.error);
@@ -269,13 +264,13 @@ router.get('/reset-password', function(req, res, next) {
                         user.resetPasswordToken = token;
                         user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
 
-                        user.save(function(err) {
+                        user.save(function (err) {
                             done(err, token, user);
                         });
                     }
                 });
             },
-            function(token, user, done) {
+            function (token, user, done) {
                 mail.send({
                     to: user.email,
                     subject: 'Reset password instructions',
@@ -283,7 +278,7 @@ router.get('/reset-password', function(req, res, next) {
                         'Please click on the following link, or paste this into your browser to complete the process:\n\n' +
                         'http://' + req.headers.host + '/users/reset/' + token + '\n\n' +
                         'If you did not request this, please ignore this email and your password will remain unchanged.\n'
-                }, function(err, info) {
+                }, function (err, info) {
                     if (err) {
                         stvResult.error = err
                         console.log(err);
@@ -296,7 +291,7 @@ router.get('/reset-password', function(req, res, next) {
                 });
             },
         ],
-        function(err) {
+        function (err) {
             if (err) {
                 console.log(err)
                 return next(err);
@@ -308,14 +303,14 @@ router.get('/reset-password', function(req, res, next) {
         });
 });
 
-router.get('/reset/:token', function(req, res) {
+router.get('/reset/:token', function (req, res) {
     var stvResult = new StvResult();
     User.findOne({
         resetPasswordToken: req.params.token,
         resetPasswordExpires: {
             $gt: Date.now()
         }
-    }, function(err, user) {
+    }, function (err, user) {
         if (!user) {
             stvResult.error = "Password reset token is invalid or has expired";
             console.log("error: " + stvResult.error);
@@ -326,17 +321,17 @@ router.get('/reset/:token', function(req, res) {
     });
 });
 
-router.post('/reset/:token', function(req, res, next) {
+router.post('/reset/:token', function (req, res, next) {
     var stvResult = new StvResult();
     console.log(req.params.token)
     async.waterfall([
-        function(done) {
+        function (done) {
             User.findOne({
                 resetPasswordToken: req.params.token,
                 resetPasswordExpires: {
                     $gt: Date.now()
                 }
-            }, function(err, user) {
+            }, function (err, user) {
                 console.log(user.email);
                 if (!user) {
                     stvResult.error = "Password reset token is invalid or has expired";
@@ -355,19 +350,19 @@ router.post('/reset/:token', function(req, res, next) {
                     user.resetPasswordExpires = undefined;
                     console.log('reset-token-post')
 
-                    user.save(function(err) {
+                    user.save(function (err) {
                         done(err, user);
                     });
                 }
             });
         },
-        function(user, done) {
+        function (user, done) {
             mail.send({
                 to: user.email,
                 subject: 'Your password has been changed',
                 text: 'Hello,\n\n' +
                     'This is a confirmation that the password for your account ' + user.email + ' has just been changed.\n'
-            }, function(error, info) {
+            }, function (error, info) {
                 if (error) {
                     stvResult.error = error
                     console.log(error);
@@ -377,7 +372,7 @@ router.post('/reset/:token', function(req, res, next) {
             });
             res.render('resetcomplete');
         }
-    ], function(err) {
+    ], function (err) {
         if (err) {
             console.log(err)
             return next(err);
@@ -385,7 +380,7 @@ router.post('/reset/:token', function(req, res, next) {
     });
 });
 
-router.get('/feedback', function(req, res, next) {
+router.get('/feedback', function (req, res, next) {
     var stvResult = new StvResult();
     var subject = req.query.subject;
     var type = req.query.type;
@@ -394,8 +389,8 @@ router.get('/feedback', function(req, res, next) {
     mail.send({
         to: mailConfig.mail,
         subject: subject,
-        text: 'Type of email: ' + type + '\n'+ text
-    }, function(error, info) {
+        text: 'Type of email: ' + type + '\n' + text
+    }, function (error, info) {
         if (error) {
             stvResult.error = error
             console.log(error);
@@ -407,6 +402,5 @@ router.get('/feedback', function(req, res, next) {
         next();
     });
 });
-
 
 module.exports = router;

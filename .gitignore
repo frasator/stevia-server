@@ -2,7 +2,7 @@ build/
 node_modules/
 bower_components/
 npm-debug.log
-lib/mail/mail.json
+mail.json
 
 ## IntelliJ
 *.iml
