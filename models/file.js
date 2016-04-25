@@ -295,6 +295,7 @@ FileSchema.statics = {
 
         if (file.type == 'FOLDER') {
             this.find({
+                'user': file.user,
                 'path': {
                     $regex: new RegExp('^' + filePath)
                 }
@@ -318,6 +319,7 @@ FileSchema.statics = {
 
     },
     tree: function (folder, userId, cb) {
+        var t1 = Date.now();
         var filePathMap = {};
         filePathMap[folder.path] = folder;
         this.find({
@@ -365,6 +367,7 @@ FileSchema.statics = {
                 aux = final;
             }
             // console.log(util.inspect(final, false, null));
+            console.log("Tree time:" + (Date.now() - t1));
             cb(final);
             // console.log('----i---');
             // console.log(util.inspect(index, false, null));

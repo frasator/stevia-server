@@ -42,7 +42,8 @@ router.get('/:fileId/delete', function (req, res, next) {
     stvResult.id = fileId;
 
     File.findOne({
-        '_id': fileId
+        '_id': fileId,
+        'user':req._user._id
     }, function (err, file) {
         if (!file) {
             stvResult.error = "File not exist";
@@ -59,6 +60,7 @@ router.get('/:fileId/delete', function (req, res, next) {
     }).populate('parent').populate('job');
 });
 
+/* Inmediate descendants */
 router.get('/:fileId/list', function (req, res, next) {
     var stvResult = new StvResult();
 
@@ -70,7 +72,8 @@ router.get('/:fileId/list', function (req, res, next) {
     stvResult.id = fileId;
 
     File.findOne({
-        '_id': fileId
+        '_id': fileId,
+        'user':req._user._id
     }, function (err, file) {
         if (!file) {
             stvResult.error = "File not exist";
@@ -92,6 +95,7 @@ router.get('/:fileId/list', function (req, res, next) {
     }).populate('job');
 });
 
+/* Any descendant */
 router.get('/:fileId/files', function (req, res, next) {
     var stvResult = new StvResult();
 
@@ -102,7 +106,7 @@ router.get('/:fileId/files', function (req, res, next) {
 
     File.findOne({
         "_id": fileId,
-        "user": req._user._id,
+        "user": req._user._id
     }, function (err, file) {
         if (!file) {
             stvResult.error = "File not exist";
@@ -136,7 +140,8 @@ router.get('/:fileId/create-folder', function (req, res, next) {
     stvResult.id = fileId;
 
     File.findOne({
-        '_id': fileId
+        '_id': fileId,
+        'user':req._user._id
     }, function (err, parent) {
         if (!parent) {
             stvResult.error = "File not exist";
@@ -298,7 +303,8 @@ router.get('/move', function (req, res, next) {
 /******************************/
 router.post('/upload', function (req, res, next) {
     File.findOne({
-        '_id': req.query.parentId
+        '_id': req.query.parentId,
+        'user':req._user._id
     }, function (err, parent) {
         if (!parent) {
             res.json({

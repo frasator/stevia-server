@@ -166,8 +166,11 @@ router.get('/:email/info', function (req, res, next) {
     }, function (err, user) {
         if (!user) {
             console.log(err);
-            stvResult.error = "User does not exist";
+            stvResult.error = "User does not exist!!";
             console.log("info ws: " + stvResult.error);
+            stvResult.end();
+            res._stvres.response.push(stvResult);
+            next();
         } else {
             var userObject = user.toObject();
             if (user.updatedAt.getTime() !== updatedAt.getTime()) {

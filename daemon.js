@@ -215,10 +215,12 @@ function checkSGEQacctJob(dbJob, cb) {
                         dbJob.user.save();
                         notifyUser(dbJob.user.email, dbJob.status);
                     } else if (dbJob.status != "DONE") {
+                        console.time("time DONE")
                         dbJob.status = "DONE";
                         recordOutputFolder(dbJob.folder, dbJob);
                         dbJob.save();
                         dbJob.user.save();
+                        console.timeEnd("time DONE")
                         notifyUser(dbJob.user.email, dbJob.status);
                     }
                 }
