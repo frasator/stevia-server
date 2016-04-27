@@ -246,39 +246,40 @@ function recordOutputFolder(folder, dbJob) {
             var filesInFolder = fs.readdirSync(folderPath);
             for (var i = 0; i < filesInFolder.length; i++) {
                 var fileName = filesInFolder[i];
-                var filePath = folderPath + fileName;
-                var fileStats = fs.statSync(filePath);
+                if (filesToIgnore[fileName] !== true) {
+                    var filePath = folderPath + fileName;
+                    var fileStats = fs.statSync(filePath);
 
-                /* Database entry */
-                var type = "FILE";
-                if (fileStats.isDirectory()) {
-                    type = "FOLDER";
-                }
-                var file = new File({
-                    name: fileName,
-                    user: folder.user,
-                    parent: folder,
-                    type: type,
-                    path: folder.path + '/' + fileName
-                });
-                folder.files.push(file);
-                file.save();
-
-                /* RECORD elog and olog */
-                if (dbJob != null) {
-                    if (file.name.indexOf(dbJob.qId + '.o') != -1) {
-                        dbJob.olog = file;
+                    /* Database entry */
+                    var type = "FILE";
+                    if (fileStats.isDirectory()) {
+                        type = "FOLDER";
                     }
-                    if (file.name.indexOf(dbJob.qId + '.e') != -1) {
-                        dbJob.elog = file;
+                    var file = new File({
+                        name: fileName,
+                        user: folder.user,
+                        parent: folder,
+                        type: type,
+                        path: folder.path + '/' + fileName
+                    });
+                    folder.files.push(file);
+                    file.save();
+
+                    /* RECORD elog and olog */
+                    if (dbJob != null) {
+                        if (file.name.indexOf(dbJob.qId + '.o') != -1) {
+                            dbJob.olog = file;
+                        }
+                        if (file.name.indexOf(dbJob.qId + '.e') != -1) {
+                            dbJob.elog = file;
+                        }
+                    }
+                    /* */
+
+                    if (fileStats.isDirectory()) {
+                        recordOutputFolder(file);
                     }
                 }
-                /* */
-
-                if (fileStats.isDirectory()) {
-                    recordOutputFolder(file);
-                }
-
             }
             folder.save();
 
