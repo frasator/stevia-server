@@ -234,11 +234,15 @@ function checkSGEQacctJob(dbJob, cb) {
     });
 }
 
+const filesToIgnore = {
+    "bower_components": true
+}
+
 function recordOutputFolder(folder, dbJob) {
     var folderPath = config.steviaDir + config.usersPath + folder.path + '/';
     try {
         var folderStats = fs.statSync(folderPath);
-        if (folderStats.isDirectory()) {
+        if (filesToIgnore[folder.name] !== true && folderStats.isDirectory()) {
             var filesInFolder = fs.readdirSync(folderPath);
             for (var i = 0; i < filesInFolder.length; i++) {
                 var fileName = filesInFolder[i];
