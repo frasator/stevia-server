@@ -116,7 +116,7 @@ router.post('/create', function (req, res, next) {
                             var userspath = config.steviaDir + config.usersPath;
                             var realPath = userspath + fileMap[option.value].path;
                             computedOptions.push("'" + prefix + name + "'");
-                            computedOptions.push("'" + realPath.replace(/ /gi, '\\ ') + "'");
+                            computedOptions.push("'" + realPath + "'");
                         }
                     }
                     if (option.mode === 'text') {
@@ -129,7 +129,12 @@ router.post('/create', function (req, res, next) {
                         var file = File.createFile(filename, job.folder, req._user);
 
                         computedOptions.push("'" + prefix + name + "'");
-                        computedOptions.push("'" + realPath.replace(/ /gi, '\\ ') + "'");
+                        computedOptions.push("'" + realPath + "'");
+                    }
+                    if (option.mode === 'example') {
+                        var realPath = config.steviaDir + config.toolPath + jobConfig.tool + "/examples/" + option.value;
+                        computedOptions.push("'" + prefix + name + "'");
+                        computedOptions.push("'" + realPath + "'");
                     }
                     break;
                 case 'text':
@@ -154,7 +159,7 @@ router.post('/create', function (req, res, next) {
                 //TODO handle error
             }
 
-            var command = "qsub -N '" + job.qId + "' -q '" + config.queue + "' -o '" + realOutPath + "' -e '" + realOutPath + "' '" + commandQsub+"'";
+            var command = "qsub -N '" + job.qId + "' -q '" + config.queue + "' -o '" + realOutPath + "' -e '" + realOutPath + "' '" + commandQsub + "'";
 
             console.log('++++++++++++');
             console.log(command);
