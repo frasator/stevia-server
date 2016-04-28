@@ -267,11 +267,8 @@ function recordOutputFolder(folder, dbJob) {
 
                     /* RECORD elog and olog */
                     if (dbJob != null) {
-                        if (file.name.indexOf(dbJob.qId + '.o') != -1) {
+                        if (file.name == '.out.job') {
                             dbJob.olog = file;
-                        }
-                        if (file.name.indexOf(dbJob.qId + '.e') != -1) {
-                            dbJob.elog = file;
                         }
                     }
                     /* */
