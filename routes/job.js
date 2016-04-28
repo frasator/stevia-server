@@ -160,7 +160,7 @@ router.post('/create', function (req, res, next) {
                 //TODO handle error
             }
 
-            var command = "qsub -j y -N '" + job.qId + "' -q '" + config.queue + "' -o '" + realOutPath + ".out.job" +  "' '" + commandQsub + "'";
+            var command = "qsub -N '" + job.qId + "' -q '" + config.queue + "' -j y -o '" + realOutPath + ".out.job" +  "' '" + commandQsub + "'";
 
             console.log('++++++++++++');
             console.log(command);
