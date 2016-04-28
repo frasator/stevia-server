@@ -9,7 +9,6 @@ const Schema = mongoose.Schema;
 require('./file.js');
 const File = mongoose.model('File');
 
-
 /**
  * File Schema
  */
@@ -67,10 +66,6 @@ const JobSchema = new Schema({
     olog: {
         type: Schema.Types.ObjectId,
         ref: 'File'
-    },
-    elog: {
-        type: Schema.Types.ObjectId,
-        ref: 'File'
     }
 }, {
     timestamps: {
@@ -85,7 +80,7 @@ const JobSchema = new Schema({
  */
 
 JobSchema.methods = {
-    createJobFolder: function(name, parent, user) {
+    createJobFolder: function (name, parent, user) {
         var newName = parent.getDuplicatedFileName(name);
         var jobFolder = new File({
             name: newName,
