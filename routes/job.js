@@ -4,6 +4,7 @@ var StvResult = require('../lib/StvResult.js');
 var fs = require('fs');
 var mail = require('../lib/mail/mail.js');
 var mailConfig = require('../mail.json');
+const util = require('util')
 
 var express = require('express');
 var router = express.Router();
@@ -207,9 +208,9 @@ router.get('/:id/report-error', function (req, res, next) {
         } else {
             mail.send({
                 to: mailConfig.mail,
-                subject: 'Report Job error',
+                subject: 'Job reported ' + job.id,
                 text: 'Hello,\n\n' +
-                    'The job ' + id + ' from user ' + job.user.email + ' has been an error.\n'
+                    'The job ' + id + ' from user ' + job.user.email + ' was reported.\n\n' + util.inspect(job) + '\n'
             }, function (error, info) {
                 if (error) {
                     stvResult.error = error

@@ -204,7 +204,7 @@ function checkSGEQacctJob(dbJob, cb) {
                         recordOutputFolder(dbJob.folder, dbJob);
                         dbJob.save();
                         dbJob.user.save();
-                        notifyUser(dbJob.user.email, dbJob.status);
+                        notifyUser(dbJob.user.email, dbJob.status, dbJob);
                     }
                 } else if (line.indexOf('exit_status') != -1) {
                     var value = line.trim().split('exit_status')[1].trim();
@@ -213,7 +213,7 @@ function checkSGEQacctJob(dbJob, cb) {
                         recordOutputFolder(dbJob.folder, dbJob);
                         dbJob.save();
                         dbJob.user.save();
-                        notifyUser(dbJob.user.email, dbJob.status);
+                        notifyUser(dbJob.user.email, dbJob.status, dbJob);
                     } else if (dbJob.status != "DONE") {
                         console.time("time DONE")
                         dbJob.status = "DONE";
@@ -221,7 +221,7 @@ function checkSGEQacctJob(dbJob, cb) {
                         dbJob.save();
                         dbJob.user.save();
                         console.timeEnd("time DONE")
-                        notifyUser(dbJob.user.email, dbJob.status);
+                        notifyUser(dbJob.user.email, dbJob.status, dbJob);
                     }
                 }
             }
@@ -296,11 +296,11 @@ function recordOutputFolder(folder, dbJob) {
     }
 }
 
-function notifyUser(email, status) {
+function notifyUser(email, status, dbJob) {
     mail.send({
         to: email,
-        subject: 'FYI',
-        text: 'Your job has finished with the next status: ' + status + '\n'
+        subject: 'Job notification',
+        text: 'Your job called ' + dbJob.name + ' has finished with the next status: ' + status + '\n'
     }, function (error, info) {
         if (error) {
             console.log(error);
