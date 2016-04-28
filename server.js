@@ -104,7 +104,8 @@ if (cluster.isMaster) {
     app.set('view engine', 'jade');
 
     app.get('/', function (req, res) {
-        console.log(req.params);
+        var ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+        // console.log(ip);
         res.send('I am alive!');
     });
 
