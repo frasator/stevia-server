@@ -1,6 +1,7 @@
 #!/bin/bash
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 DIR="$( cd "$( dirname "$SCRIPT_DIR" )" && pwd )"
+DIRNAME = "$( dirname "$SCRIPT_DIR" )"
 
-forever -a -l ~/.forever/"$DIR-server.log" --workingDir $DIR start "$DIR/server.js"
-forever -a -l ~/.forever/"$DIR-daemon.log" --workingDir $DIR start "$DIR/daemon.js"
+forever -a -l ~/.forever/"$DIRNAME-server.log" --workingDir $DIR start "$DIR/server.js"
+forever -a -l ~/.forever/"$DIRNAME-daemon.log" --workingDir $DIR start "$DIR/daemon.js"
