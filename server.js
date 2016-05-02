@@ -48,6 +48,7 @@ if (cluster.isMaster) {
     /******************************/
     /****** Server instance *******/
     /******************************/
+    var urlPathPrefix = config.urlPathPrefix || "";
 
     // Includes
     var express = require('express');
@@ -67,7 +68,7 @@ if (cluster.isMaster) {
     app.use(swagger.init(app, {
         apiVersion: '1.0',
         swaggerVersion: '1.0',
-        swaggerURL: '/swagger',
+        swaggerURL: urlPathPrefix + '/swagger',
         // swaggerJSON: '/api-docs.json',
         swaggerUI: './public/swagger/',
         basePath: 'http://localhost:5555',
@@ -94,16 +95,16 @@ if (cluster.isMaster) {
     var jobRoute = require('./routes/job');
 
     // Routes use
-    app.use('/test', testRoute);
-    app.use('/users', userRoute);
-    app.use('/files', fileRoute);
-    app.use('/jobs', jobRoute);
+    app.use(urlPathPrefix + '/test', testRoute);
+    app.use(urlPathPrefix + '/users', userRoute);
+    app.use(urlPathPrefix + '/files', fileRoute);
+    app.use(urlPathPrefix + '/jobs', jobRoute);
 
     // Views set
     app.set('views', './views');
     app.set('view engine', 'jade');
 
-    app.get('/', function (req, res) {
+    app.get(urlPathPrefix + '/', function (req, res) {
         var ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
         // console.log(ip);
         res.send('I am alive!');
