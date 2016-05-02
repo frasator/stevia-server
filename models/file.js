@@ -214,8 +214,7 @@ FileSchema.statics = {
             }
             exec('qdel -f ' + job.qId, function (error, stdout, stderr) {
                 console.log('qdel: Trying to remove the job from queue...');
-                console.log('qdel: '
-                stdout);
+                console.log('qdel: ' + stdout);
                 console.log('qdel: end.');
             });
             job.remove();
