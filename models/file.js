@@ -5,6 +5,7 @@ var util = require('util');
  */
 
 var exec = require('child_process').exec;
+var fs = require('fs');
 var config = require('../config.json');
 var remove = require('remove');
 const mongoose = require('mongoose');
