@@ -4,7 +4,7 @@ var util = require('util');
  * Module dependencies.
  */
 
-var fs = require('fs');
+var exec = require('child_process').exec;
 var config = require('../config.json');
 var remove = require('remove');
 const mongoose = require('mongoose');
@@ -207,6 +207,20 @@ FileSchema.statics = {
         return file;
     },
     delete: function (file, parent, job) {
+        if (job != null) {
+            if (job.status === "RUNING") {
+                console.log("File.delete: this folder can not be deleted because the job associated is RUNING.");
+                return;
+            }
+            exec('qdel -f ' + job.qId, function (error, stdout, stderr) {
+                console.log('qdel: Trying to remove the job from queue...');
+                console.log('qdel: '
+                stdout);
+                console.log('qdel: end.');
+            });
+            job.remove();
+        }
+
         if (parent != null) {
             var index = parent.files.indexOf(file._id);
             if (index != -1) {
@@ -215,9 +229,6 @@ FileSchema.statics = {
             }
         }
 
-        if (job != null) {
-            job.remove();
-        }
         file.job = null;
 
         file.removeChilds();
