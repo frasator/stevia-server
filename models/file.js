@@ -208,8 +208,8 @@ FileSchema.statics = {
     },
     delete: function (file, parent, job) {
         if (job != null) {
-            if (job.status === "RUNING") {
-                console.log("File.delete: this folder can not be deleted because the job associated is RUNING.");
+            if (job.status === "RUNNING") {
+                console.log("File.delete: this folder can not be deleted because the job associated is RUNNING.");
                 return;
             }
             exec('qdel -f ' + job.qId, function (error, stdout, stderr) {
