@@ -43,7 +43,7 @@ router.get('/:fileId/delete', function (req, res, next) {
 
     File.findOne({
         '_id': fileId,
-        'user':req._user._id
+        'user': req._user._id
     }, function (err, file) {
         if (!file) {
             stvResult.error = "File not exist";
@@ -73,7 +73,7 @@ router.get('/:fileId/list', function (req, res, next) {
 
     File.findOne({
         '_id': fileId,
-        'user':req._user._id
+        'user': req._user._id
     }, function (err, file) {
         if (!file) {
             stvResult.error = "File not exist";
@@ -135,13 +135,13 @@ router.get('/:fileId/create-folder', function (req, res, next) {
 
     var fileId = req.params.fileId;
     var sid = req.query.sid;
-    var name = req.query.name;
+    var name = req.query.name.replace(/[^a-zA-Z0-9._\-]/g, "_");
 
     stvResult.id = fileId;
 
     File.findOne({
         '_id': fileId,
-        'user':req._user._id
+        'user': req._user._id
     }, function (err, parent) {
         if (!parent) {
             stvResult.error = "File not exist";
@@ -304,7 +304,7 @@ router.get('/move', function (req, res, next) {
 router.post('/upload', function (req, res, next) {
     File.findOne({
         '_id': req.query.parentId,
-        'user':req._user._id
+        'user': req._user._id
     }, function (err, parent) {
         if (!parent) {
             res.json({
@@ -320,9 +320,10 @@ router.post('/upload', function (req, res, next) {
         }
     }).populate('files');
 }, function (req, res, next) {
-    console.log(req.query.name);
+    var name = req.query.name.replace(/[^a-zA-Z0-9._\-]/g, "_");
+    console.log(name);
     var parent = req._parent;
-    var file = parent.hasFile(req.query.name);
+    var file = parent.hasFile(name);
     if (file != null) {
         res.json({
             exists: true,
@@ -343,6 +344,9 @@ router.post('/upload', function (req, res, next) {
     form.on('field', function (name, value) {
         // console.log(name + ': ' + value);
         fields[name] = value;
+        if (fields["name"] != null) {
+            fields["name"] = fields["name"].replace(/[^a-zA-Z0-9._\-]/g, "_");
+        }
     });
 
     //Files, should be only one;
