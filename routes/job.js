@@ -62,6 +62,8 @@ router.post('/create', function (req, res, next) {
     var stvResult = new StvResult();
 
     var jobConfig = req.body;
+    var tool = jobConfig.tool.replace(/[^a-zA-Z0-9._\-]/g, "_");
+    var executable = jobConfig.executable.replace(/[^a-zA-Z0-9._\-]/g, "_");
 
     var fileIdsFromJobConfig = [];
     for (var name in jobConfig.options) {
@@ -88,9 +90,9 @@ router.post('/create', function (req, res, next) {
             var job = new Job({
                 name: jobName,
                 description: jobDescription,
-                tool: jobConfig.tool,
+                tool: tool,
                 execution: jobConfig.execution,
-                executable: jobConfig.executable,
+                executable: executable,
                 options: jobConfig.options,
                 status: 'QUEUED'
             });
@@ -134,7 +136,7 @@ router.post('/create', function (req, res, next) {
                         computedOptions.push("'" + realPath.replace(/\'/g, "_") + "'");
                     }
                     if (option.mode === 'example') {
-                        var realPath = config.steviaDir + config.toolPath + jobConfig.tool + "/examples/" + option.value;
+                        var realPath = config.steviaDir + config.toolPath + tool + "/examples/" + option.value;
                         computedOptions.push("'" + (prefix + name).replace(/\'/g, "_") + "'");
                         computedOptions.push("'" + realPath.replace(/\'/g, "_") + "'");
                     }
@@ -153,7 +155,7 @@ router.post('/create', function (req, res, next) {
                 }
             }
 
-            var commandLine = "'" + config.steviaDir + config.toolPath + jobConfig.tool + "/" + jobConfig.executable + "' " + computedOptions.join(" ");
+            var commandLine = "'" + config.steviaDir + config.toolPath + tool + "/" + executable + "' " + computedOptions.join(" ");
             var commandQsub = realOutPath + ".command.qsub.sh";
             try {
                 fs.writeFileSync(commandQsub, "#!/bin/bash\n" + commandLine);
