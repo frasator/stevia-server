@@ -71,6 +71,7 @@ router.post('/create', function (req, res, next) {
         }
     }
 
+    var folderName = req.query.name.replace(/[^a-zA-Z0-9._\-]/g, "_");
     var jobName = req.query.name;
     var jobDescription = req.query.description;
 
@@ -95,7 +96,7 @@ router.post('/create', function (req, res, next) {
             });
             job.qId = job.tool + '-' + job.execution + '-' + job._id;
 
-            job.createJobFolder(jobName, req._parent, req._user);
+            job.createJobFolder(folderName, req._parent, req._user);
             var realOutPath = (config.steviaDir + config.usersPath + job.folder.path + '/');
 
             for (var i = 0; i < result.length; i++) {
