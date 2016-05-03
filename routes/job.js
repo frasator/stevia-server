@@ -117,8 +117,8 @@ router.post('/create', function (req, res, next) {
                         if (fileMap[option.value] != null) {
                             var userspath = config.steviaDir + config.usersPath;
                             var realPath = userspath + fileMap[option.value].path;
-                            computedOptions.push("'" + prefix + name + "'");
-                            computedOptions.push("'" + realPath + "'");
+                            computedOptions.push("'" + (prefix + name).replace(/\'/g, "_") + "'");
+                            computedOptions.push("'" + realPath.replace(/\'/g, "_") + "'");
                         }
                     }
                     if (option.mode === 'text') {
@@ -130,26 +130,26 @@ router.post('/create', function (req, res, next) {
                         /* Database entry */
                         var file = File.createFile(filename, job.folder, req._user);
 
-                        computedOptions.push("'" + prefix + name + "'");
-                        computedOptions.push("'" + realPath + "'");
+                        computedOptions.push("'" + (prefix + name).replace(/\'/g, "_") + "'");
+                        computedOptions.push("'" + realPath.replace(/\'/g, "_") + "'");
                     }
                     if (option.mode === 'example') {
                         var realPath = config.steviaDir + config.toolPath + jobConfig.tool + "/examples/" + option.value;
-                        computedOptions.push("'" + prefix + name + "'");
-                        computedOptions.push("'" + realPath + "'");
+                        computedOptions.push("'" + (prefix + name).replace(/\'/g, "_") + "'");
+                        computedOptions.push("'" + realPath.replace(/\'/g, "_") + "'");
                     }
                     break;
                 case 'text':
-                    computedOptions.push("'" + prefix + name + "'");
-                    computedOptions.push("'" + option.value + "'");
+                    computedOptions.push("'" + (prefix + name).replace(/\'/g, "_") + "'");
+                    computedOptions.push("'" + option.value.replace(/\'/g, "_") + "'");
                     break;
                 case 'flag':
-                    computedOptions.push("'" + prefix + name + "'");
+                    computedOptions.push("'" + (prefix + name).replace(/\'/g, "_") + "'");
                     break;
                 }
                 if (option.out === true) {
-                    computedOptions.push("'" + prefix + name + "'");
-                    computedOptions.push("'" + realOutPath + "'");
+                    computedOptions.push("'" + (prefix + name).replace(/\'/g, "_") + "'");
+                    computedOptions.push("'" + realOutPath.replace(/\'/g, "_") + "'");
                 }
             }
 
@@ -161,7 +161,7 @@ router.post('/create', function (req, res, next) {
                 //TODO handle error
             }
 
-            var command = "qsub -N '" + job.qId + "' -q '" + config.queue + "' -j y -o '" + realOutPath + ".out.job" +  "' '" + commandQsub + "'";
+            var command = "qsub -N '" + job.qId + "' -q '" + config.queue + "' -j y -o '" + realOutPath + ".out.job" + "' '" + commandQsub + "'";
 
             console.log('++++++++++++');
             console.log(command);
