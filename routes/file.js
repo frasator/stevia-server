@@ -16,6 +16,7 @@ const User = mongoose.model('User');
 // // middleware that is specific to this router
 router.use(function (req, res, next) {
     var sid = req._sid;
+    console.log(url.parse(req.url).pathname);
     User.findOne({
         'sessions.id': sid
     }, function (err, user) {
@@ -217,7 +218,7 @@ router.get('/:fileId/content', function (req, res, next) {
 
 router.get('/:fileId/download', function (req, res, next) {
     var fileId = req.params.fileId;
-    var sid = req._sid;
+    var sid = req.params.sid;
 
     File.findOne({
         '_id': fileId,
