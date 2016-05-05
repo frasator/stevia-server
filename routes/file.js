@@ -16,7 +16,7 @@ const User = mongoose.model('User');
 // // middleware that is specific to this router
 router.use(function (req, res, next) {
     var sid = req._sid;
-    if (req.url.indexOf('download?') != -1) {
+    if (req.params.sid != null) {
         sid = req.params.sid;
     }
     User.findOne({
