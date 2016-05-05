@@ -13,29 +13,6 @@ const mongoose = require('mongoose');
 const File = mongoose.model('File');
 const User = mongoose.model('User');
 
-router.get('/:fileId/download', function (req, res, next) {
-    var fileId = req.params.fileId;
-    var sid = req.params.fileId;
-
-    File.findOne({
-        '_id': fileId,
-        "user": req._user._id
-    }, function (err, file) {
-        if (!file) {
-            console.log("error: " + "File not exist");
-            res.send();
-        } else {
-            try {
-                var filePath = (config.steviaDir + config.usersPath + file.path);
-                res.download(filePath);
-            } catch (e) {
-                console.log("error: " + "Could not read the file");
-                res.send();
-            }
-        }
-    });
-});
-
 // // middleware that is specific to this router
 router.use(function (req, res, next) {
     var sid = req._sid;
@@ -236,6 +213,29 @@ router.get('/:fileId/content', function (req, res, next) {
             }
         }
     }).populate("user").populate('parent');
+});
+
+router.get('/:fileId/download', function (req, res, next) {
+    var fileId = req.params.fileId;
+    var sid = req._sid;
+
+    File.findOne({
+        '_id': fileId,
+        "user": req._user._id
+    }, function (err, file) {
+        if (!file) {
+            console.log("error: " + "File not exist");
+            res.send();
+        } else {
+            try {
+                var filePath = (config.steviaDir + config.usersPath + file.path);
+                res.download(filePath);
+            } catch (e) {
+                console.log("error: " + "Could not read the file");
+                res.send();
+            }
+        }
+    });
 });
 
 //move files
