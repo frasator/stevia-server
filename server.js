@@ -88,9 +88,9 @@ if (cluster.isMaster) {
         res._stvres = new StvResponse({
             queryOptions: req.query
         });
-        var sid = req.get('Authorization');
+        var authorization = req.get('Authorization');
         if(sid != null){
-            req._sid = req.get('Authorization').split(' ')[1];
+            req._sid = authorization.split('sid ')[1];
         }
         next();
     });
