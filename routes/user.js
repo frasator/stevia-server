@@ -49,7 +49,7 @@ router.get('/create', function (req, res, next) {
     var stvResult = new StvResult();
 
     var email = req.query.email;
-    var pass = req.query.password;
+    var pass = req._sid;
 
     stvResult.id = email;
 
@@ -104,7 +104,7 @@ router.get('/create', function (req, res, next) {
 router.get('/:email/login', function (req, res, next) {
     var stvResult = new StvResult();
     var email = req.params.email;
-    var pass = req.query.password;
+    var pass = req._sid;
 
     stvResult.id = email;
 
@@ -133,7 +133,7 @@ router.get('/:email/login', function (req, res, next) {
 router.get('/:email/logout', function (req, res, next) {
     var stvResult = new StvResult();
     var email = req.params.email;
-    var sid = req.query.sid;
+    var sid = req._sid;
 
     User.findOne({
         'email': email,
@@ -155,7 +155,7 @@ router.get('/:email/logout', function (req, res, next) {
 router.get('/:email/info', function (req, res, next) {
     var stvResult = new StvResult();
     var email = req.params.email;
-    var sid = req.query.sid;
+    var sid = req._sid;
     var updatedAt = (req.query.updatedAt != null) ? new Date(req.query.updatedAt) : new Date();
 
     stvResult.id = email;
@@ -218,9 +218,10 @@ router.get('/:email/info', function (req, res, next) {
 router.get('/:email/change-password', function (req, res, next) {
     var stvResult = new StvResult();
     var email = req.params.email;
-    var password = req.query.password;
-    var npassword = req.query.npassword;
-    var sid = req.query.sid;
+
+    var password = req.get('x-stv-1');
+    var npassword = req.get('x-stv-2');
+    var sid = req._sid;
     User.findOne({
         'email': email,
         'sessions.id': sid,

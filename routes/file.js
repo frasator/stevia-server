@@ -13,9 +13,32 @@ const mongoose = require('mongoose');
 const File = mongoose.model('File');
 const User = mongoose.model('User');
 
+router.get('/:fileId/download', function (req, res, next) {
+    var fileId = req.params.fileId;
+    var sid = req.params.fileId;
+
+    File.findOne({
+        '_id': fileId,
+        "user": req._user._id
+    }, function (err, file) {
+        if (!file) {
+            console.log("error: " + "File not exist");
+            res.send();
+        } else {
+            try {
+                var filePath = (config.steviaDir + config.usersPath + file.path);
+                res.download(filePath);
+            } catch (e) {
+                console.log("error: " + "Could not read the file");
+                res.send();
+            }
+        }
+    });
+});
+
 // // middleware that is specific to this router
 router.use(function (req, res, next) {
-    var sid = req.query.sid;
+    var sid = req._sid;
     User.findOne({
         'sessions.id': sid
     }, function (err, user) {
@@ -37,7 +60,7 @@ router.get('/:fileId/delete', function (req, res, next) {
     var stvResult = new StvResult();
 
     var fileId = req.params.fileId;
-    var sid = req.query.sid;
+    var sid = req._sid;
 
     stvResult.id = fileId;
 
@@ -65,7 +88,7 @@ router.get('/:fileId/list', function (req, res, next) {
     var stvResult = new StvResult();
 
     var fileId = req.params.fileId;
-    var sid = req.query.sid;
+    var sid = req._sid;
     var type = req.query.type;
     var status = req.query.status;
 
@@ -100,7 +123,7 @@ router.get('/:fileId/files', function (req, res, next) {
     var stvResult = new StvResult();
 
     var fileId = req.params.fileId;
-    var sid = req.query.sid;
+    var sid = req._sid;
 
     stvResult.id = fileId;
 
@@ -134,7 +157,7 @@ router.get('/:fileId/create-folder', function (req, res, next) {
     var stvResult = new StvResult();
 
     var fileId = req.params.fileId;
-    var sid = req.query.sid;
+    var sid = req._sid;
     var name = req.query.name.replace(/[^a-zA-Z0-9._\-]/g, "_");
 
     stvResult.id = fileId;
@@ -166,7 +189,7 @@ router.get('/:fileId/create-folder', function (req, res, next) {
 
 router.get('/:fileId/content', function (req, res, next) {
     var fileId = req.params.fileId;
-    var sid = req.query.sid;
+    var sid = req._sid;
     var start = 0;
     var limit = 0;
     var l = parseInt(req.query.limit);
@@ -215,33 +238,10 @@ router.get('/:fileId/content', function (req, res, next) {
     }).populate("user").populate('parent');
 });
 
-router.get('/:fileId/download', function (req, res, next) {
-    var fileId = req.params.fileId;
-    var sid = req.query.sid;
-
-    File.findOne({
-        '_id': fileId,
-        "user": req._user._id
-    }, function (err, file) {
-        if (!file) {
-            console.log("error: " + "File not exist");
-            res.send();
-        } else {
-            try {
-                var filePath = (config.steviaDir + config.usersPath + file.path);
-                res.download(filePath);
-            } catch (e) {
-                console.log("error: " + "Could not read the file");
-                res.send();
-            }
-        }
-    });
-});
-
 //move files
 router.get('/move', function (req, res, next) {
     var stvResult = new StvResult();
-    var sid = req.query.sid;
+    var sid = req._sid;
     var fileId = req.query.fileId;
     var newParentId = req.query.newId;
     var files = {};

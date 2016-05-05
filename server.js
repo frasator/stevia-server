@@ -58,7 +58,10 @@ if (cluster.isMaster) {
 
     // Create a new Express application
     var app = express();
-    app.use(cors());
+    app.use(cors({
+        origin: true,
+        credentials: true
+    }));
 
     app.use(bodyParser.urlencoded({
         extended: true
@@ -85,6 +88,7 @@ if (cluster.isMaster) {
         res._stvres = new StvResponse({
             queryOptions: req.query
         });
+        req._sid = req.get('Authorization').split(' ')[1];
         next();
     });
 
