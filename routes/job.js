@@ -187,7 +187,6 @@ router.post('/create', function (req, res, next) {
                         stvResult.error = 'Execution error';
                         stvResult.end();
                         res._stvres.response.push(stvResult);
-
                         req._user.save();
                         next();
                     });

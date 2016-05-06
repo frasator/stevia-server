@@ -282,6 +282,9 @@ FileSchema.statics = {
             },
         ], function (err, result) {
             console.log('Model File: delete end');
+            if (err != null) {
+                console.log(err);
+            }
             callback();
         });
     },
