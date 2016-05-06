@@ -278,6 +278,7 @@ FileSchema.statics = {
             },
             function (file, cb) {
                 file.fsDelete();
+                cb();
             },
         ], function (err, result) {
             console.log('Model File: delete end');
