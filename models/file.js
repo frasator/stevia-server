@@ -326,6 +326,7 @@ FileSchema.statics = {
         try {
             fs.renameSync(oldPath, newPath);
         } catch (e) {
+            console.log("RenameSync");
             console.log("old " + oldPath)
             console.log("new " + newPath)
             callback(e);
