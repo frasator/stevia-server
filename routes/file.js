@@ -55,12 +55,13 @@ router.get('/:fileId/delete', function (req, res, next) {
             stvResult.error = "Authentication error";
             console.log("error: " + stvResult.error);
         } else {
-            File.delete(file, file.parent, file.job);
+            File.delete(fileId, function () {
+                stvResult.end();
+                res._stvres.response.push(stvResult);
+                next();
+            });
         }
-        stvResult.end();
-        res._stvres.response.push(stvResult);
-        next();
-    }).populate('parent').populate('job');
+    });
 });
 
 /* Inmediate descendants */

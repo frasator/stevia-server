@@ -178,16 +178,20 @@ router.post('/create', function (req, res, next) {
                     stvResult.results.push(job);
                     stvResult.end();
                     res._stvres.response.push(stvResult);
+                    req._user.save();
+                    next();
                 } else {
-                    File.delete(job.folder, req._parent, job);
                     var msg = 'exec error: ' + error;
                     console.log(msg);
-                    stvResult.error = 'Execution error';
-                    stvResult.end();
-                    res._stvres.response.push(stvResult);
+                    File.delete(job.folder._id, function () {
+                        stvResult.error = 'Execution error';
+                        stvResult.end();
+                        res._stvres.response.push(stvResult);
+
+                        req._user.save();
+                        next();
+                    });
                 }
-                req._user.save();
-                next();
             });
         }
     });
@@ -271,26 +275,13 @@ router.get('/delete', function (req, res, next) {
             stvResult.error = "File not exist";
             console.log("error: " + stvResult.error);
         } else {
-            File.delete(job.folder, job.folder.parent, job);
-            job.user.save();
+            File.delete(job.folder, function () {
+                stvResult.end();
+                res._stvres.response.push(stvResult);
+                next();
+            });
         }
-        stvResult.end();
-        res._stvres.response.push(stvResult);
-        next();
-    }).populate({
-        path: 'folder',
-        populate: {
-            path: 'files',
-        }
-    }).populate({
-        path: 'folder',
-        populate: {
-            path: 'parent',
-            populate: {
-                path: 'files'
-            }
-        }
-    }).populate('user');
+    });
 });
 
 module.exports = router;

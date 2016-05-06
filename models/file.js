@@ -9,6 +9,10 @@ var fs = require('fs');
 var config = require('../config.json');
 var remove = require('remove');
 const mongoose = require('mongoose');
+const async = require('async');
+
+// require('./job.js');
+
 // require('./user.js');
 // require('./job.js');
 
@@ -104,27 +108,6 @@ FileSchema.methods = {
         }
         return nameToCheck;
     },
-    removeChilds: function () {
-        if (this.files.length == 0) {
-            this.remove();
-            if (this.job) {
-                this.job.remove();
-            }
-        } else {
-            for (var i = 0; i < this.files.length; i++) {
-                var file = this.files[i];
-                var fileObject = mongoose.models["File"].findOne({
-                    _id: file
-                }, function (err, fileChild) {
-                    fileChild.removeChilds();
-                    fileChild.remove();
-                    if (fileChild.job) {
-                        fileChild.job.remove();
-                    }
-                }).populate('job');
-            }
-        }
-    },
     fsCreateFolder: function (parent) {
         var userspath = config.steviaDir + config.usersPath;
         try {
@@ -207,36 +190,93 @@ FileSchema.statics = {
 
         return file;
     },
-    delete: function (file, parent, job) {
-        if (job != null) {
-            if (job.status == "RUNNING") {
-                console.log("File.delete: this folder can not be deleted because the job associated is RUNNING.");
-                return;
-            }
-            if (job.status != "RUNNING" && job.status != "DONE") {
-                exec('qdel -f ' + job.qId, function (error, stdout, stderr) {
-                    console.log('qdel: Trying to remove the job from queue...');
-                    console.log('qdel: ' + stdout);
-                    console.log('qdel: end.');
+    delete: function (fileId, callback) {
+        async.waterfall([
+            function (cb) {
+                mongoose.models["File"].findOne({
+                    '_id': fileId
+                }, function (err, file) {
+                    cb(null, file);
+                }).populate({
+                    path: 'job'
+                }).populate({
+                    path: 'parent'
+                }).populate('user');
+            },
+            function (file, cb) {
+                if (file.job != null && file.job.status == "RUNNING") {
+                    cb("File.delete: this folder can not be deleted because the job associated is RUNNING.");
+                } else cb(null, file);
+            },
+            function (file, cb) {
+                if (file.job != null && file.job.status != "RUNNING" && file.job.status != "DONE") {
+                    exec('qdel -f ' + file.job.qId, function (error, stdout, stderr) {
+                        console.log('qdel: Trying to remove the job from queue...');
+                        console.log('qdel: ' + stdout);
+                        console.log('qdel: end.');
+                        cb(null, file);
+                    });
+                } else cb(null, file);
+            },
+            function (file, cb) {
+                if (file.parent != null) {
+                    var index = file.parent.files.indexOf(file._id);
+                    if (index != -1) {
+                        file.parent.files.splice(index, 1);
+                        file.parent.save(function () {
+                            cb(null, file);
+                        });
+                    } else cb(null, file);
+                } else cb(null, file);
+            },
+            function (file, cb) {
+                var jobsToRemove = [];
+                mongoose.models["File"].find({
+                    'type': 'FOLDER',
+                    'job': {
+                        $ne: null
+                    },
+                    'path': {
+                        $regex: new RegExp('^' + file.path)
+                    }
+                }, {
+                    job: 1
+                }, function (err, files) {
+                    for (var i = 0; i < files.length; i++) {
+                        var f = files[i];
+                        jobsToRemove.push(f.job);
+                    }
+                    cb(null, file, jobsToRemove);
                 });
-            }
-            job.remove();
-        }
-
-        if (parent != null) {
-            var index = parent.files.indexOf(file._id);
-            if (index != -1) {
-                parent.files.splice(index, 1);
-                parent.save();
-            }
-        }
-
-        file.job = null;
-
-        file.removeChilds();
-        file.remove();
-
-        file.fsDelete();
+            },
+            function (file, jobsToRemove, cb) {
+                console.log('Model File: jobsToRemove');
+                console.log(jobsToRemove);
+                mongoose.models["Job"].remove({
+                    '_id': {
+                        $in: jobsToRemove
+                    },
+                }, function (err) {
+                    cb(null, file);
+                });
+            },
+            function (file, cb) {
+                mongoose.models["File"].remove({
+                    'path': {
+                        $regex: new RegExp('^' + file.path)
+                    }
+                }, function (err) {
+                    cb(null, file);
+                });
+            },
+            function (file, cb) {
+                file.fsDelete();
+                cb();
+            },
+        ], function (err, result) {
+            console.log('Model File: delete end');
+            callback();
+        });
     },
     move: function (file, newParent, callback) {
         var err = null;
