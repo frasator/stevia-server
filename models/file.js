@@ -210,11 +210,13 @@ FileSchema.statics = {
             },
             function (file, cb) {
                 if (file.job != null && file.job.status != "RUNNING" && file.job.status != "DONE") {
-                    exec('qdel -f ' + file.job.qId, function (error, stdout, stderr) {
-                        console.log('qdel: Trying to remove the job from queue...');
-                        console.log('qdel: ' + stdout);
-                        console.log('qdel: end.');
-                        cb(null, file);
+                    file.job.remove(function (err) {
+                        exec('qdel -f ' + file.job.qId, function (error, stdout, stderr) {
+                            console.log('qdel: Trying to remove the job from queue...');
+                            console.log('qdel: ' + stdout);
+                            console.log('qdel: end.');
+                            cb(null, file);
+                        });
                     });
                 } else cb(null, file);
             },
@@ -237,7 +239,7 @@ FileSchema.statics = {
                         $ne: null
                     },
                     'path': {
-                        $regex: new RegExp('^' + file.path)
+                        $regex: new RegExp('^' + file.path + '/')
                     }
                 }, {
                     job: 1
@@ -263,15 +265,19 @@ FileSchema.statics = {
             function (file, cb) {
                 mongoose.models["File"].remove({
                     'path': {
-                        $regex: new RegExp('^' + file.path)
+                        $regex: new RegExp('^' + file.path + '/')
                     }
                 }, function (err) {
                     cb(null, file);
                 });
             },
             function (file, cb) {
+                file.remove(function (err) {
+                    cb(null, file);
+                });
+            },
+            function (file, cb) {
                 file.fsDelete();
-                cb();
             },
         ], function (err, result) {
             console.log('Model File: delete end');
