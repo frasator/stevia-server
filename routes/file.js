@@ -16,9 +16,6 @@ const User = mongoose.model('User');
 // // middleware that is specific to this router
 router.use(function (req, res, next) {
     var sid = req._sid;
-    if (req.query.sid != null) {
-        sid = req.query.sid;
-    }
     User.findOne({
         'sessions.id': sid
     }, function (err, user) {

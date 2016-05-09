@@ -89,8 +89,10 @@ if (cluster.isMaster) {
             queryOptions: req.query
         });
         var authorization = req.get('Authorization');
-        if(authorization != null){
+        if (authorization != null) {
             req._sid = authorization.split('sid ')[1];
+        } else if (req.query.sid != null) {
+            req._sid = req.query.sid;
         }
         next();
     });
