@@ -207,7 +207,7 @@ router.post('/run', function (req, res, next) {
             }
             var command = "qsub -sync y -q '" + config.queue + "' -j y -o '/tmp/" + randStr + ".out.job" + "' '" + commandQsub + "'";
 
-            console.log(commandLine);
+            // console.log(commandLine);
             exec(commandLine, function (error, stdout, stderr) {
                 // console.log('stdout: ' + stdout);
                 // console.log('stderr: ' + stderr);
