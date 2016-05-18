@@ -1,13 +1,14 @@
-var config = require('../config.json');
-var exec = require('child_process').exec;
-var StvResult = require('../lib/StvResult.js');
-var fs = require('fs');
-var mail = require('../lib/mail/mail.js');
-var mailConfig = require('../mail.json');
-const util = require('util')
+const config = require('../config.json');
+const exec = require('child_process').exec;
+const StvResult = require('../lib/StvResult.js');
+const fs = require('fs');
+const mail = require('../lib/mail/mail.js');
+const mailConfig = require('../mail.json');
+const util = require('util');
+const async = require('async');
 
-var express = require('express');
-var router = express.Router();
+const express = require('express');
+const router = express.Router();
 
 const mongoose = require('mongoose');
 const Job = mongoose.model('Job');
@@ -105,55 +106,8 @@ router.post('/create', function (req, res, next) {
                 var file = result[i];
                 fileMap[file._id] = file;
             }
-            var computedOptions = [],
-                prefix;
-            for (var name in jobConfig.options) {
-                var option = jobConfig.options[name];
-                prefix = '--';
-                if (option.short) {
-                    prefix = '-';
-                }
-                switch (option.type) {
-                case 'file':
-                    if (option.mode === 'id') {
-                        if (fileMap[option.value] != null) {
-                            var userspath = config.steviaDir + config.usersPath;
-                            var realPath = userspath + fileMap[option.value].path;
-                            computedOptions.push("'" + (prefix + name).replace(/\'/g, "_") + "'");
-                            computedOptions.push("'" + realPath.replace(/\'/g, "_") + "'");
-                        }
-                    }
-                    if (option.mode === 'text') {
-                        var filename = name + '.txt';
-                        var userspath = config.steviaDir + config.usersPath;
-                        var realPath = userspath + job.folder.path + '/' + filename;
-                        fs.writeFileSync(realPath, option.value);
 
-                        /* Database entry */
-                        var file = File.createFile(filename, job.folder, req._user);
-
-                        computedOptions.push("'" + (prefix + name).replace(/\'/g, "_") + "'");
-                        computedOptions.push("'" + realPath.replace(/\'/g, "_") + "'");
-                    }
-                    if (option.mode === 'example') {
-                        var realPath = config.steviaDir + config.toolPath + tool + "/examples/" + option.value;
-                        computedOptions.push("'" + (prefix + name).replace(/\'/g, "_") + "'");
-                        computedOptions.push("'" + realPath.replace(/\'/g, "_") + "'");
-                    }
-                    break;
-                case 'text':
-                    computedOptions.push("'" + (prefix + name).replace(/\'/g, "_") + "'");
-                    computedOptions.push("'" + option.value.replace(/\'/g, "_") + "'");
-                    break;
-                case 'flag':
-                    computedOptions.push("'" + (prefix + name).replace(/\'/g, "_") + "'");
-                    break;
-                }
-                if (option.out === true) {
-                    computedOptions.push("'" + (prefix + name).replace(/\'/g, "_") + "'");
-                    computedOptions.push("'" + realOutPath.replace(/\'/g, "_") + "'");
-                }
-            }
+            var computedOptions = computeOptions(jobConfig, job.folder, req._user);
 
             var commandLine = "'" + config.steviaDir + config.toolPath + tool + "/" + executable + "' " + computedOptions.join(" ");
             var commandQsub = realOutPath + ".command.qsub.sh";
@@ -194,6 +148,85 @@ router.post('/create', function (req, res, next) {
             });
         }
     });
+});
+
+router.post('/run', function (req, res, next) {
+    var stvResult = new StvResult();
+    var folderId = req.query.workingdirId;
+    async.waterfall([
+        function (cb) {
+            File.findOne({
+                '_id': folderId
+            }, function (err, folder) {
+                if (err) {
+                    cb(err);
+                } else if (folder.user.toString() != req._user._id.toString()) {
+                    cb("Authentication error");
+                } else {
+                    cb(null, folder)
+                }
+            }).populate('files');
+        },
+        function (folder, cb) {
+            var jobConfig = req.body;
+
+            var fileIdsFromJobConfig = [];
+            for (var name in jobConfig.options) {
+                var option = jobConfig.options[name];
+                if (option.type === 'file' && option.mode === 'id') {
+                    fileIdsFromJobConfig.push(option.value);
+                }
+            }
+            var fileMap = {};
+            File.find({
+                '_id': {
+                    $in: fileIdsFromJobConfig
+                },
+            }, function (err, files) {
+                for (var i = 0; i < files.length; i++) {
+                    var file = files[i];
+                    fileMap[file._id] = file;
+                }
+                cb(null, jobConfig, fileMap, folder);
+            }).populate('files');
+        },
+        function (jobConfig, fileMap, folder, cb) {
+            var tool = jobConfig.tool.replace(/[^a-zA-Z0-9._\-]/g, "_");
+            var executable = jobConfig.executable.replace(/[^a-zA-Z0-9._\-]/g, "_");
+
+            var computedOptions = computeOptions(jobConfig, folder, req._user, false);
+
+            var commandLine = "'" + config.steviaDir + config.toolPath + tool + "/" + executable + "' " + computedOptions.join(" ");
+
+            var randStr = Date.now() + Math.random().toString().replace('0.', '');
+            var commandQsub = "/tmp/" + "stv-tmp-cmd-" + randStr + ".qsub-sync.sh";
+            try {
+                fs.writeFileSync(commandQsub, "#!/bin/bash\n" + commandLine);
+            } catch (e) {
+                //TODO handle error
+            }
+            var command = "qsub -sync y -q '" + config.queue + "' -j y -o '/tmp/" + randStr + ".out.job" + "' '" + commandQsub + "'";
+
+            console.log(commandLine);
+            exec(commandLine, function (error, stdout, stderr) {
+                // console.log('stdout: ' + stdout);
+                // console.log('stderr: ' + stderr);
+                if (error != null) {
+                    cb(error);
+                } else {
+                    cb(null)
+                }
+            });
+        },
+    ], function (err) {
+        if (err) {
+            stvResult.error = err;
+        }
+        stvResult.end();
+        res._stvres.response.push(stvResult);
+        next();
+    });
+
 });
 
 //Report error in job
@@ -282,5 +315,64 @@ router.get('/delete', function (req, res, next) {
         }
     });
 });
+
+function computeOptions(jobConfig, folder, user, registerTextFile) {
+    var options = jobConfig.options;
+    var tool = jobConfig.tool.replace(/[^a-zA-Z0-9._\-]/g, "_");
+
+    var computedOptions = [],
+        prefix;
+    for (var name in options) {
+        var option = options[name];
+        prefix = '--';
+        if (option.short) {
+            prefix = '-';
+        }
+        switch (option.type) {
+        case 'file':
+            if (option.mode === 'id') {
+                if (fileMap[option.value] != null) {
+                    var userspath = config.steviaDir + config.usersPath;
+                    var realPath = userspath + fileMap[option.value].path;
+                    computedOptions.push("'" + (prefix + name).replace(/\'/g, "_") + "'");
+                    computedOptions.push("'" + realPath.replace(/\'/g, "_") + "'");
+                }
+            }
+            if (option.mode === 'text') {
+                var filename = name + '.txt';
+                var userspath = config.steviaDir + config.usersPath;
+                var realPath = userspath + folder.path + '/' + filename;
+                fs.writeFileSync(realPath, option.value);
+
+                /* Database entry */
+                if (registerTextFile !== false) {
+                    File.createFile(filename, folder, user);
+                }
+
+                computedOptions.push("'" + (prefix + name).replace(/\'/g, "_") + "'");
+                computedOptions.push("'" + realPath.replace(/\'/g, "_") + "'");
+            }
+            if (option.mode === 'example') {
+                var realPath = config.steviaDir + config.toolPath + tool + "/examples/" + option.value;
+                computedOptions.push("'" + (prefix + name).replace(/\'/g, "_") + "'");
+                computedOptions.push("'" + realPath.replace(/\'/g, "_") + "'");
+            }
+            break;
+        case 'text':
+            computedOptions.push("'" + (prefix + name).replace(/\'/g, "_") + "'");
+            computedOptions.push("'" + option.value.replace(/\'/g, "_") + "'");
+            break;
+        case 'flag':
+            computedOptions.push("'" + (prefix + name).replace(/\'/g, "_") + "'");
+            break;
+        }
+        if (option.out === true) {
+            var realOutPath = (config.steviaDir + config.usersPath + folder.path + '/')
+            computedOptions.push("'" + (prefix + name).replace(/\'/g, "_") + "'");
+            computedOptions.push("'" + realOutPath.replace(/\'/g, "_") + "'");
+        }
+    }
+    return computedOptions;
+};
 
 module.exports = router;
