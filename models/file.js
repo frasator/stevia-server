@@ -248,6 +248,9 @@ FileSchema.statics = {
                         var f = files[i];
                         jobsToRemove.push(f.job);
                     }
+                    if (file.job != null) {
+                        jobsToRemove.push(file.job._id);
+                    }
                     cb(null, file, jobsToRemove);
                 });
             },

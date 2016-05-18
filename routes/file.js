@@ -37,7 +37,6 @@ router.get('/:fileId/delete', function (req, res, next) {
     var stvResult = new StvResult();
 
     var fileId = req.params.fileId;
-    var sid = req._sid;
 
     stvResult.id = fileId;
 
@@ -235,6 +234,51 @@ router.get('/:fileId/download', function (req, res, next) {
                 res.send();
             }
         }
+    });
+});
+
+//move files
+router.post('/:fileId/attributes', function (req, res, next) {
+    var stvResult = new StvResult();
+
+    var fileId = req.params.fileId;
+    stvResult.id = fileId;
+
+    File.findOne({
+        '_id': fileId,
+        'user': req._user._id
+    }, function (err, file) {
+        if (!file) {
+            stvResult.error = "File not exist";
+            console.log("error: " + stvResult.error);
+            stvResult.end();
+            res._stvres.response.push(stvResult);
+            next();
+        } else if (file.user.toString() != req._user._id.toString()) {
+            stvResult.error = "Authentication error";
+            console.log("error: " + stvResult.error);
+            stvResult.end();
+            res._stvres.response.push(stvResult);
+            next();
+        } else {
+            var newAttributes = req.body;
+            var obj = {};
+            for (var key in file.attributes) {
+                obj[key] = file.attributes[key];
+            }
+            for (var key in newAttributes) {
+                obj[key] = newAttributes[key];
+            }
+            file.attributes = obj;
+            file.save(function (err) {
+                if (err) console.log(err);
+                stvResult.results.push(file);
+                stvResult.end();
+                res._stvres.response.push(stvResult);
+                next();
+            });
+        }
+
     });
 });
 
