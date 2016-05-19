@@ -1,8 +1,8 @@
-var config = require('./config.json');
+var config = require('../config.json');
 var mongoose = require("mongoose");
-require('./models/user.js');
-require('./models/file.js');
-require('./models/job.js');
+require('../models/user.js');
+require('../models/file.js');
+require('../models/job.js');
 const File = mongoose.model('File');
 const User = mongoose.model('User');
 const Job = mongoose.model('Job');
