@@ -107,7 +107,7 @@ router.post('/create', function (req, res, next) {
                 fileMap[file._id] = file;
             }
 
-            var computedOptions = computeOptions(jobConfig, job.folder, req._user);
+            var computedOptions = computeOptions(jobConfig, fileMap, job.folder, req._user);
 
             var commandLine = "'" + config.steviaDir + config.toolPath + tool + "/" + executable + "' " + computedOptions.join(" ");
             var commandQsub = realOutPath + ".command.qsub.sh";
@@ -194,7 +194,7 @@ router.post('/run', function (req, res, next) {
             var tool = jobConfig.tool.replace(/[^a-zA-Z0-9._\-]/g, "_");
             var executable = jobConfig.executable.replace(/[^a-zA-Z0-9._\-]/g, "_");
 
-            var computedOptions = computeOptions(jobConfig, folder, req._user, false);
+            var computedOptions = computeOptions(jobConfig,fileMap, folder, req._user, false);
 
             var commandLine = "'" + config.steviaDir + config.toolPath + tool + "/" + executable + "' " + computedOptions.join(" ");
 
@@ -316,7 +316,7 @@ router.get('/delete', function (req, res, next) {
     });
 });
 
-function computeOptions(jobConfig, folder, user, registerTextFile) {
+function computeOptions(jobConfig, fileMap, folder, user, registerTextFile) {
     var options = jobConfig.options;
     var tool = jobConfig.tool.replace(/[^a-zA-Z0-9._\-]/g, "_");
 
