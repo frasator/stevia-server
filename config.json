@@ -1,9 +1,0 @@
-{
-    "mongodb": "mongodb://localhost/stevia-server_0_1_0",
-    "httpPort": 5555,
-    "urlPathPrefix": "",
-    "steviaDir": "/opt/stevia/",
-    "toolPath": "tools/",
-    "usersPath": "users/",
-    "queue": "normal.q"
-}
