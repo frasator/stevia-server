@@ -45,11 +45,11 @@ Now all node dependencies should be installed.
 ```bash
 node server.js
 ```
-or by using forever with shorthand scripts from bin directory
+Or by using forever with the shorthand scripts from bin directory
 ```bash
 bin/start.sh
 ```
-Check web services are Running using the following URL on a web browser
+To check if it is running user the following URL on a web browser
 ```bash
 http://localhost:5555
 ```
