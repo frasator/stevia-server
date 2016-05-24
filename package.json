@@ -14,7 +14,7 @@
     "multiparty": "^4.1.2",
     "nodemailer": "^2.3.2",
     "nodemailer-smtp-transport": "^2.4.2",
-    "remove": "^0.1.5",
+    "shelljs": "^0.7.0",
     "swagger-express": "^1.0.5",
     "xml2js": "^0.4.16"
   }

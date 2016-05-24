@@ -7,7 +7,7 @@ var util = require('util');
 var exec = require('child_process').exec;
 var fs = require('fs');
 var config = require('../config.json');
-var remove = require('remove');
+const shell = require('shelljs');
 const mongoose = require('mongoose');
 const async = require('async');
 
@@ -137,7 +137,7 @@ FileSchema.methods = {
             var realPath = userspath + this.path;
             //check exists
             try {
-                remove.removeSync(realPath);
+                shell.rm('-rf', realPath);
             } catch (e) {
                 console.log("File fsDelete: file not exists on file system")
             }

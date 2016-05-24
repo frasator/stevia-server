@@ -3,6 +3,7 @@ node_modules/
 bower_components/
 npm-debug.log
 mail.json
+config.json
 
 ## IntelliJ
 *.iml
