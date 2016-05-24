@@ -228,7 +228,10 @@ router.get('/:fileId/download', function (req, res, next) {
         } else {
             try {
                 var filePath = (config.steviaDir + config.usersPath + file.path);
-                res.download(filePath);
+                res.attachment(filePath);
+                res.sendFile(filePath, {
+                    dotfiles: 'allow'
+                });
             } catch (e) {
                 console.log("error: " + "Could not read the file");
                 res.send();
