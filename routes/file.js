@@ -1,5 +1,6 @@
 var config = require('../config.json');
 var multiparty = require('multiparty');
+var remove = require('remove');
 var exec = require('child_process').exec;
 const fs = require('fs');
 const readline = require('readline');
@@ -11,9 +12,6 @@ var router = express.Router();
 const mongoose = require('mongoose');
 const File = mongoose.model('File');
 const User = mongoose.model('User');
-
-const mime = require('mime');
-const shell = require('shelljs');
 
 // // middleware that is specific to this router
 router.use(function (req, res, next) {
@@ -96,6 +94,35 @@ router.get('/:fileId/list', function (req, res, next) {
         }
     }).populate('job');
 });
+
+/* get file Bean*/
+router.get('/:fileId/files', function (req, res, next) {
+    var stvResult = new StvResult();
+
+    var fileId = req.params.fileId;
+    var sid = req._sid;
+
+    stvResult.id = fileId;
+
+    File.findOne({
+        "_id": fileId,
+        "user": req._user._id
+    }, function (err, file) {
+        if (!file) {
+            stvResult.error = "File not exist";
+            console.log("error: " + stvResult.error);
+            stvResult.end();
+            res._stvres.response.push(stvResult);
+            next();
+        } else {
+          stvResult.results = [file];
+          stvResult.end;
+          res._stvres.response.push(stvResult);
+          next();
+        }
+    });
+});
+
 
 /* Any descendant */
 router.get('/:fileId/files', function (req, res, next) {
@@ -230,10 +257,8 @@ router.get('/:fileId/download', function (req, res, next) {
         } else {
             try {
                 var filePath = (config.steviaDir + config.usersPath + file.path);
-                res.attachment(filePath);
-                res.sendFile(filePath, {
-                    dotfiles: 'allow'
-                });
+                console.log(filePath);
+                res.download(filePath);
             } catch (e) {
                 console.log("error: " + "Could not read the file");
                 res.send();
@@ -482,17 +507,12 @@ function joinAllChunks(path, uploadPath, fields, parent, callback) {
     var stats = fs.statSync(finalFilePath);
     console.log('File ' + finalFilePath + ' created. Final size: ' + stats.size);
 
-    if (mime.lookup(finalFilePath).indexOf('text') != -1) {
-        shell.sed('-i', /\r\n/g, '\n', finalFilePath);
-        shell.sed('-i', /\r/g, '\n', finalFilePath);
-    }
-
     /* Database entry */
     var file = File.createFile(fields.name, parent, parent.user);
     file.bioformat = fields.bioFormat;
     file.save();
 
-    shell.rm('-rf', uploadPath);
+    remove.removeSync(uploadPath);
     console.log('Temporal upload folder ' + uploadPath + ' removed');
     callback(file);
 };
