@@ -210,14 +210,13 @@ FileSchema.statics = {
             },
             function (file, cb) {
                 if (file.job != null && file.job.status != "RUNNING" && file.job.status != "DONE") {
-                    file.job.remove(function (err) {
-                        exec('qdel -f ' + file.job.qId, function (error, stdout, stderr) {
-                            console.log('qdel: Trying to remove the job from queue...');
-                            console.log('qdel: ' + stdout);
-                            console.log('qdel: end.');
-                            cb(null, file);
-                        });
+                    exec('qdel ' + file.job.qId, function (error, stdout, stderr) {
+                        console.log('delete: check RUNNING and qdel 2');
+                        console.log('qdel: Trying to remove the job from queue...');
+                        console.log('qdel: ' + stdout);
+                        console.log('qdel: end.');
                     });
+                    cb(null, file);
                 } else cb(null, file);
             },
             function (file, cb) {
@@ -255,7 +254,6 @@ FileSchema.statics = {
                 });
             },
             function (file, jobsToRemove, cb) {
-                console.log('Model File: jobsToRemove');
                 console.log(jobsToRemove);
                 mongoose.models["Job"].remove({
                     '_id': {
@@ -281,10 +279,10 @@ FileSchema.statics = {
             },
             function (file, cb) {
                 file.fsDelete();
+                file.user.save();
                 cb();
             },
         ], function (err, result) {
-            console.log('Model File: delete end');
             if (err != null) {
                 console.log(err);
             }
