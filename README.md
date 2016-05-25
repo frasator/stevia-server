@@ -1,22 +1,20 @@
 Stevia Server
 =================
 
-### Install Open Grid Scheduler
-Please go to Open Grid Scheduler home page:
-http://gridscheduler.sourceforge.net/
+### Dependencies
+Stevia server needs the following dependencies installed and configured in order to work.
+* SGE
+* Mongo
+* Node
 
-Binary(x64) http://dl.dropbox.com/u/47200624/respin/ge2011.11.tar.gz
+## Installing SGE
+To install Sun Grid Engine check our [installation guide](https://github.com/babelomics/stevia-server/wiki/Installing-Sun-Grid-Engine).
 
-...(TODO)
-
-### Install mongodb
+## Installing Mongo
 Please read mongodb installation tutorial:
 https://docs.mongodb.com/manual/installation/
 
-...(TODO)
-
-
-### Install Node
+## Installing Node
 To install node click [here.](https://nodejs.org/en/download/package-manager/)
 Once installed, node and npm commands will be available
 
@@ -41,6 +39,13 @@ npm install
 ```
 Now all node dependencies should be installed.
 
+### Configuration
+Rename or copy the file **config-example.json** to **config.json**
+Rename or copy the file **mail-example.json** to **mail.json**
+
+Configure according to your settings.
+Note that **steviaDir** must exists.
+
 ### Run the server
 ```bash
 node server.js
@@ -49,7 +54,7 @@ Or by using forever with the shorthand scripts from bin directory
 ```bash
 bin/start.sh
 ```
-To check if it is running user the following URL on a web browser
+To check if it is running use the following URL on a web browser
 ```bash
 http://localhost:5555
 ```
