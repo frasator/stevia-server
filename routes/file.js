@@ -1,6 +1,5 @@
 var config = require('../config.json');
 var multiparty = require('multiparty');
-var remove = require('remove');
 var exec = require('child_process').exec;
 const fs = require('fs');
 const readline = require('readline');
@@ -12,6 +11,9 @@ var router = express.Router();
 const mongoose = require('mongoose');
 const File = mongoose.model('File');
 const User = mongoose.model('User');
+
+const mime = require('mime');
+const shell = require('shelljs');
 
 // // middleware that is specific to this router
 router.use(function (req, res, next) {
@@ -93,6 +95,7 @@ router.get('/:fileId/list', function (req, res, next) {
             path: 'job'
         }
     }).populate('job');
+
 });
 
 /* get file Bean*/
@@ -122,7 +125,6 @@ router.get('/:fileId/files', function (req, res, next) {
         }
     });
 });
-
 
 /* Any descendant */
 router.get('/:fileId/files', function (req, res, next) {
@@ -257,8 +259,10 @@ router.get('/:fileId/download', function (req, res, next) {
         } else {
             try {
                 var filePath = (config.steviaDir + config.usersPath + file.path);
-                console.log(filePath);
-                res.download(filePath);
+                res.attachment(filePath);
+                res.sendFile(filePath, {
+                    dotfiles: 'allow'
+                });
             } catch (e) {
                 console.log("error: " + "Could not read the file");
                 res.send();
@@ -507,12 +511,17 @@ function joinAllChunks(path, uploadPath, fields, parent, callback) {
     var stats = fs.statSync(finalFilePath);
     console.log('File ' + finalFilePath + ' created. Final size: ' + stats.size);
 
+    if (mime.lookup(finalFilePath).indexOf('text') != -1) {
+        shell.sed('-i', /\r\n/g, '\n', finalFilePath);
+        shell.sed('-i', /\r/g, '\n', finalFilePath);
+    }
+
     /* Database entry */
     var file = File.createFile(fields.name, parent, parent.user);
     file.bioformat = fields.bioFormat;
     file.save();
 
-    remove.removeSync(uploadPath);
+    shell.rm('-rf', uploadPath);
     console.log('Temporal upload folder ' + uploadPath + ' removed');
     callback(file);
 };
