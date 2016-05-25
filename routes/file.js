@@ -99,7 +99,7 @@ router.get('/:fileId/list', function (req, res, next) {
 });
 
 /* get file Bean*/
-router.get('/:fileId/files', function (req, res, next) {
+router.get('/:fileId/info', function (req, res, next) {
     var stvResult = new StvResult();
 
     var fileId = req.params.fileId;
