@@ -1,5 +1,5 @@
 var util = require('util');
-
+const path = require('path');
 /**
  * Module dependencies.
  */
@@ -85,7 +85,7 @@ FileSchema.methods = {
     },
     hasFile: function (name) {
         try {
-            var stats = fs.statSync(this.path + '/' + name);
+            var stats = fs.statSync(path.join(this.path, name));
             return null;
         } catch (e) {
             var foundFile = null;
@@ -109,7 +109,7 @@ FileSchema.methods = {
         return nameToCheck;
     },
     fsCreateFolder: function (parent) {
-        var userspath = config.steviaDir + config.usersPath;
+        var userspath = path.join(config.steviaDir, config.usersPath);
         try {
             var stats = fs.statSync(userspath);
         } catch (e) {
@@ -118,10 +118,9 @@ FileSchema.methods = {
 
         var realPath;
         if (parent != undefined) {
-            var parentPath = parent.path + '/';
-            realPath = userspath + parentPath + this.name;
+            realPath = path.join(userspath, parent.path, this.name);
         } else {
-            realPath = userspath + this.name;
+            realPath = path.join(userspath, this.name);
         }
         try {
             fs.mkdirSync(realPath);
@@ -133,8 +132,8 @@ FileSchema.methods = {
         if (this.path == null || this.path == '') {
             console.log("File fsDelete: file path is null or ''.")
         } else {
-            var userspath = config.steviaDir + config.usersPath;
-            var realPath = userspath + this.path;
+            var userspath = path.join(config.steviaDir, config.usersPath);
+            var realPath = path.join(userspath, this.path);
             //check exists
             try {
                 shell.rm('-rf', realPath);
@@ -162,7 +161,7 @@ FileSchema.statics = {
             user: user._id,
             parent: parent._id,
             type: "FOLDER",
-            path: parent.path + '/' + name
+            path: path.join(parent.path, name)
         });
 
         parent.files.push(folder);
@@ -180,7 +179,7 @@ FileSchema.statics = {
             user: user._id,
             parent: parent._id,
             type: "FILE",
-            path: parent.path + '/' + name
+            path: path.join(parent.path, name)
         });
 
         parent.files.push(file);
@@ -331,8 +330,8 @@ FileSchema.statics = {
             file.name = fileName;
         }
 
-        var oldPath = config.steviaDir + config.usersPath + file.path;
-        var newPath = config.steviaDir + config.usersPath + newParent.path + "/" + file.name;
+        var oldPath = path.join(config.steviaDir, config.usersPath, file.path);
+        var newPath = path.join(config.steviaDir, config.usersPath, newParent.path, file.name);
 
         try {
             fs.renameSync(oldPath, newPath);
@@ -355,7 +354,7 @@ FileSchema.statics = {
         var filePath = file.path;
 
         file.parent = newParent;
-        file.path = newParent.path + "/" + file.name;
+        file.path = path.join(newParent.path, file.name);
         file.save();
 
         if (file.type == 'FOLDER') {

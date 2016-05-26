@@ -1,4 +1,4 @@
-'use strict';
+const path = require('path');
 
 /**
  * Module dependencies.
@@ -87,7 +87,7 @@ JobSchema.methods = {
             user: user._id,
             parent: parent._id,
             job: this._id,
-            path: parent.path + '/' + newName,
+            path: path.join(parent.path, newName),
             type: "FOLDER"
         });
         parent.files.push(jobFolder);

@@ -3,7 +3,7 @@ Stevia Server
 
 Stevia server is a backend for user, file and job management, using web services developed in node and express.
 
-In order to get working you need the following dependencies installed and configured
+In order to get it working you need the following dependencies installed and configured.
 
 * SGE
 * Mongo
@@ -23,7 +23,7 @@ Once installed, node and npm commands will be available
 **What is `npm`?** npm stands for [node packaged modules](http://npmjs.org/) is the node dependency manager.
 
 ### Install forever
-Forever is a simple CLI tool for ensuring that a given script runs continuously
+Forever is a simple CLI tool for ensuring that a given script runs continuously.
 More info [here.](https://github.com/foreverjs/forever)
 
 ```bash

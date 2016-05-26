@@ -15,6 +15,8 @@ const User = mongoose.model('User');
 const mime = require('mime');
 const shell = require('shelljs');
 
+const path = require('path');
+
 // // middleware that is specific to this router
 router.use(function (req, res, next) {
     var sid = req._sid;
@@ -118,10 +120,10 @@ router.get('/:fileId/info', function (req, res, next) {
             res._stvres.response.push(stvResult);
             next();
         } else {
-          stvResult.results = [file];
-          stvResult.end;
-          res._stvres.response.push(stvResult);
-          next();
+            stvResult.results = [file];
+            stvResult.end;
+            res._stvres.response.push(stvResult);
+            next();
         }
     });
 });
@@ -222,7 +224,7 @@ router.get('/:fileId/content', function (req, res, next) {
                 var lines = [];
                 var lineCount = 0;
                 var end = start + limit;
-                var filePath = (config.steviaDir + config.usersPath + file.path);
+                var filePath = path.join(config.steviaDir, config.usersPath, file.path);
                 const rl = readline.createInterface({
                     input: fs.createReadStream(filePath)
                 });
@@ -258,7 +260,7 @@ router.get('/:fileId/download', function (req, res, next) {
             res.send();
         } else {
             try {
-                var filePath = (config.steviaDir + config.usersPath + file.path);
+                var filePath = path.join(config.steviaDir, config.usersPath, file.path);
                 res.attachment(filePath);
                 res.sendFile(filePath, {
                     dotfiles: 'allow'
@@ -432,14 +434,14 @@ router.post('/upload', function (req, res, next) {
         File.findOne({
             '_id': fields.parentId
         }, function (err, parent) {
-            var path = config.steviaDir + config.usersPath + parent.path + '/';
-            var uploadPath = path + fields.name + "_partial";
+            var folderPath = path.join(config.steviaDir, config.usersPath, parent.path);
+            var uploadPath = path.join(folderPath, fields.name + "_partial");
             try {
                 fs.mkdirSync(uploadPath);
             } catch (e) {
                 console.log('Upload: ' + uploadPath + ' ' + 'already created');
             }
-            var filepath = uploadPath + '/' + fields.chunk_id + "_chunk";
+            var filepath = path.join(uploadPath, fields.chunk_id + "_chunk");
             var writeStream = fs.createWriteStream(filepath);
             part.pipe(writeStream);
             writeStream.on('finish', function () {
@@ -448,7 +450,7 @@ router.post('/upload', function (req, res, next) {
 
                 if (fields.last_chunk === 'true') {
                     console.log('Chunk ' + fields.chunk_id + ' is the last');
-                    joinAllChunks(path, uploadPath, fields, parent, function (file) {
+                    joinAllChunks(folderPath, uploadPath, fields, parent, function (file) {
                         res.json({
                             file: file
                         });
@@ -466,13 +468,13 @@ router.post('/upload', function (req, res, next) {
         File.findOne({
             '_id': fields.parentId
         }, function (err, parent) {
-            var path = config.steviaDir + config.usersPath + parent.path + '/';
-            var uploadPath = path + fields.name + "_partial";
+            var folderPath = path.join(config.steviaDir, config.usersPath, parent.path);
+            var uploadPath = path.join(folderPath, fields.name + "_partial");
             if (fields.resume_upload === 'true') {
                 var chunkMap = JSON.parse(fields.chunk_map);
                 var resumeInfo = getResumeFileInfo(uploadPath, chunkMap);
                 if (checkAllIsUploaded(resumeInfo, chunkMap)) {
-                    joinAllChunks(path, uploadPath, fields, parent, function (file) {
+                    joinAllChunks(folderPath, uploadPath, fields, parent, function (file) {
                         res.json({
                             file: file,
                             resumeInfo: resumeInfo
@@ -494,16 +496,16 @@ router.post('/upload', function (req, res, next) {
 /******************************/
 /******************************/
 
-function joinAllChunks(path, uploadPath, fields, parent, callback) {
+function joinAllChunks(folderPath, uploadPath, fields, parent, callback) {
     console.log('Joining all chunks...');
-    var finalFilePath = path + fields.name;
+    var finalFilePath = path.join(folderPath , fields.name);
     var files = getSortedChunkList(uploadPath);
     var fd = fs.openSync(finalFilePath, 'w');
     fs.closeSync(fd);
     var fd = fs.openSync(finalFilePath, 'a');
     var c = 0;
     for (var i = 0; i < files.length; i++) {
-        var file = uploadPath + '/' + files[i];
+        var file = path.join(uploadPath, files[i]);
         var data = fs.readFileSync(file);
         fs.appendFileSync(fd, data, null);
     }
@@ -535,7 +537,7 @@ function getResumeFileInfo(uploadPath, chunkMap) {
             var filesInFolder = fs.readdirSync(uploadPath);
             for (var i = 0; i < filesInFolder.length; i++) {
                 var file = filesInFolder[i];
-                var stats = fs.statSync(uploadPath + '/' + file);
+                var stats = fs.statSync(path.join(uploadPath, file));
                 var nameSplit = file.split("_");
                 var chunkId = nameSplit[0];
                 if (stats.size === chunkMap[chunkId].size) {

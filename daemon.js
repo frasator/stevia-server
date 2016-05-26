@@ -1,38 +1,51 @@
+// Internal require
+
+const config = require('./config.json');
+const checkconfig = require('./lib/checkconfig.js');
+const mail = require('./lib/mail/mail.js');
+
 require('./models/job.js');
 require('./models/file.js');
 require('./models/user.js');
-const config = require('./config.json');
+
+// Package require
 const cluster = require('cluster');
 const fs = require('fs');
 const exec = require('child_process').exec;
+const xml2js = require('xml2js');
+const path = require('path');
 const mongoose = require('mongoose');
+
 const Job = mongoose.model('Job');
 const File = mongoose.model('File');
-const xml2js = require('xml2js');
-
-/**/
-const mail = require('./lib/mail/mail.js');
-/**/
 
 var LOCK = false;
 
 if (cluster.isMaster) {
     // Code to run if we're in the master process
+    checkconfig(function (err) {
+        if (err == null) {
 
-    // Count the machine's CPUs
-    // var cpuCount = require('os').cpus().length;
-    var cpuCount = 1;
+            // Count the machine's CPUs
+            // var cpuCount = require('os').cpus().length;
+            var cpuCount = 1;
 
-    // Create a worker for each CPU
-    for (var i = 0; i < cpuCount; i += 1) {
-        cluster.fork();
-    }
+            // Create a worker for each CPU
+            console.log('');
+            console.log('Starting daemon worker...');
+            console.log('===================');
+            for (var i = 0; i < cpuCount; i += 1) {
+                cluster.fork();
+            }
 
-    // Listen for dying workers
-    cluster.on('exit', function (worker) {
-        // Replace the dead worker, we're not sentimental
-        console.log('Worker %d died :(', worker.id);
-        cluster.fork();
+            // Listen for dying workers
+            cluster.on('exit', function (worker) {
+                // Replace the dead worker, we're not sentimental
+                console.log('Worker %d died :(', worker.id);
+                cluster.fork();
+            });
+
+        }
     });
 
 } else {
@@ -239,7 +252,7 @@ const filesToIgnore = {
 }
 
 function recordOutputFolder(folder, dbJob) {
-    var folderPath = config.steviaDir + config.usersPath + folder.path + '/';
+    var folderPath = path.join(config.steviaDir, config.usersPath, folder.path);
     try {
         var folderStats = fs.statSync(folderPath);
         if (filesToIgnore[folder.name] !== true && folderStats.isDirectory()) {
@@ -247,7 +260,7 @@ function recordOutputFolder(folder, dbJob) {
             for (var i = 0; i < filesInFolder.length; i++) {
                 var fileName = filesInFolder[i];
                 if (filesToIgnore[fileName] !== true) {
-                    var filePath = folderPath + fileName;
+                    var filePath = path.join(folderPath, fileName);
                     var fileStats = fs.statSync(filePath);
 
                     /* Database entry */
@@ -260,7 +273,7 @@ function recordOutputFolder(folder, dbJob) {
                         user: folder.user,
                         parent: folder,
                         type: type,
-                        path: folder.path + '/' + fileName
+                        path: path.join(folder.path, fileName)
                     });
                     folder.files.push(file);
                     file.save();

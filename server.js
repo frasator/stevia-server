@@ -1,34 +1,30 @@
-var config = require('./config.json');
-var mongoose = require("mongoose");
+// Internal require
+const config = require('./config.json');
+const checkconfig = require('./lib/checkconfig.js');
+const StvResult = require('./lib/StvResult.js');
+const StvResponse = require('./lib/StvResponse.js');
+
 require('./models/user.js');
 require('./models/file.js');
 require('./models/job.js');
-var StvResult = require('./lib/StvResult.js');
-var StvResponse = require('./lib/StvResponse.js');
-var fs = require('fs');
 
-// Include the cluster module
-var cluster = require('cluster');
+// Package require
+const mongoose = require("mongoose");
+const cluster = require('cluster');
 
 if (cluster.isMaster) {
     // Code to run if we're in the master process
-
-    // Check config directory
-    var stats = fs.stat(config.steviaDir, function (err, stats) {
-        if (err != null) {
-            console.log(err);
-        } else {
-            try {
-                fs.mkdirSync(config.steviaDir + config.toolPath);
-                fs.mkdirSync(config.steviaDir + config.usersPath);
-            } catch (e) {
-
-            }
+    checkconfig(function (err) {
+        if (err == null) {
 
             // Count the machine's CPUs
             var cpuCount = require('os').cpus().length;
 
+
             // Create a worker for each CPU
+            console.log('');
+            console.log('Starting server workers...');
+            console.log('===================');
             for (var i = 0; i < cpuCount; i += 1) {
                 cluster.fork();
             }
@@ -39,8 +35,8 @@ if (cluster.isMaster) {
                 console.log('Worker %d died :(', worker.id);
                 cluster.fork();
             });
-        }
 
+        }
     });
 
 } else {
