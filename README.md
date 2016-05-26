@@ -1,8 +1,10 @@
 Stevia Server
 =================
 
-### Dependencies
-Stevia server needs the following dependencies installed and configured in order to work.
+Stevia server is a backend for user, file and job management, using web services developed in node and express.
+
+In order to get working you need the following dependencies installed and configured
+
 * SGE
 * Mongo
 * Node
