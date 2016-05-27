@@ -94,13 +94,11 @@ if (cluster.isMaster) {
     });
 
     // Routes includes
-    var testRoute = require('./routes/test');
     var userRoute = require('./routes/user');
     var fileRoute = require('./routes/file');
     var jobRoute = require('./routes/job');
 
     // Routes use
-    app.use(urlPathPrefix + '/test', testRoute);
     app.use(urlPathPrefix + '/users', userRoute);
     app.use(urlPathPrefix + '/files', fileRoute);
     app.use(urlPathPrefix + '/jobs', jobRoute);
@@ -111,7 +109,6 @@ if (cluster.isMaster) {
 
     app.get(urlPathPrefix + '/', function (req, res) {
         var ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
-        // console.log(ip);
         res.send('I am alive!');
     });
 
