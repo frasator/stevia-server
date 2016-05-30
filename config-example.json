@@ -3,7 +3,7 @@
     "httpPort": 5555,
     "urlPathPrefix": "",
     "steviaDir": "/opt/stevia/",
-    "toolPath": "tools/",
+    "toolsPath": "tools/",
     "usersPath": "users/",
     "queue": "normal.q"
 }
