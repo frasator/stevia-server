@@ -273,6 +273,26 @@ router.get('/:fileId/download', function (req, res, next) {
     });
 });
 
+router.get('/download-example', function (req, res, next) {
+    var tool = req.query.tool;
+    var file = req.query.file;
+    
+
+
+            try {
+                var filePath = path.join(config.steviaDir, config.toolPath, tool, "examples", file);
+
+                res.attachment(filePath);
+                res.sendFile(filePath, {
+                    dotfiles: 'allow'
+                });
+            } catch (e) {
+                console.log("error: " + "Could not read the file");
+                console.log(e);
+                res.send();
+            }
+});
+
 //move files
 router.post('/:fileId/attributes', function (req, res, next) {
     var stvResult = new StvResult();
