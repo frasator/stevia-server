@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "license": "",
   "repository": "",
+  "scripts": {
+    "test": "mocha"
+  },
   "dependencies": {
     "async": "^1.5.2",
     "body-parser": "^1.15.0",
@@ -17,5 +20,9 @@
     "shelljs": "^0.7.0",
     "swagger-express": "^1.0.5",
     "xml2js": "^0.4.16"
+  },
+  "devDependencies": {
+    "supertest": "^1.2.0",
+    "tape": "^4.5.1"
   }
 }

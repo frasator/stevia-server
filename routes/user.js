@@ -134,7 +134,10 @@ router.get('/:email/logout', function (req, res, next) {
     var stvResult = new StvResult();
     var email = req.params.email;
     var sid = req._sid;
-
+    var logoutOther = false;
+    if (req.query.logoutOther != null) {
+        logoutOther = req.query.logoutOther === 'true';
+    }
     User.findOne({
         'email': email,
         'sessions.id': sid
@@ -143,7 +146,7 @@ router.get('/:email/logout', function (req, res, next) {
             stvResult.error = "User does not exist";
             console.log("logout ws: " + stvResult.error);
         } else {
-            user.removeSessionId(sid);
+            user.removeSessionId(sid, logoutOther);
         }
         stvResult.end();
         res._stvres.response.push(stvResult);
@@ -222,6 +225,7 @@ router.get('/:email/change-password', function (req, res, next) {
     var password = req.get('x-stv-1');
     var npassword = req.get('x-stv-2');
     var sid = req._sid;
+
     User.findOne({
         'email': email,
         'sessions.id': sid,

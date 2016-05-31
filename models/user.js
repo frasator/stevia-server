@@ -88,20 +88,21 @@ UserSchema.methods = {
         this.save();
         homeFolder.fsCreateFolder();
     },
-    removeSessionId: function (sessionId) {
-
-        var index = -1;
-        for (var i = 0; i < this.sessions.length; i++) {
-            var session = this.sessions[i];
-            if (session.id === sessionId) {
-                index = i;
-                break;
-
+    removeSessionId: function (sessionId, logoutOther) {
+        if (logoutOther === true) {
+            this.sessions = [];
+        } else {
+            var index = -1;
+            for (var i = 0; i < this.sessions.length; i++) {
+                var session = this.sessions[i];
+                if (session.id === sessionId) {
+                    index = i;
+                    break;
+                }
             }
-        }
-
-        if (index >= 0) {
-            this.sessions.splice(index, 1);
+            if (index >= 0) {
+                this.sessions.splice(index, 1);
+            }
         }
         this.save();
     },

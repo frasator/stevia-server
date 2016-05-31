@@ -111,7 +111,7 @@ router.post('/create', function (req, res, next) {
 
             var computedOptions = computeOptions(jobConfig, fileMap, job.folder, req._user);
 
-            var commandLine = "'" + path.join(config.steviaDir, config.toolPath, tool, executable) + "' " + computedOptions.join(" ");
+            var commandLine = "'" + path.join(config.steviaDir, config.toolsPath, tool, executable) + "' " + computedOptions.join(" ");
             var commandQsub = path.join(realOutPath, ".command.qsub.sh");
             try {
                 fs.writeFileSync(commandQsub, "#!/bin/bash\n" + commandLine);
@@ -198,7 +198,7 @@ router.post('/run', function (req, res, next) {
 
             var computedOptions = computeOptions(jobConfig, fileMap, folder, req._user, false);
 
-            var commandLine = "'" + path.join(config.steviaDir, config.toolPath, tool, executable) + "' " + computedOptions.join(" ");
+            var commandLine = "'" + path.join(config.steviaDir, config.toolsPath, tool, executable) + "' " + computedOptions.join(" ");
 
             var randStr = Date.now() + Math.random().toString().replace('0.', '');
             var commandQsub = "/tmp/" + "stv-tmp-cmd-" + randStr + ".qsub-sync.sh";
@@ -355,7 +355,7 @@ function computeOptions(jobConfig, fileMap, folder, user, registerTextFile) {
                 computedOptions.push("'" + realPath.replace(/\'/g, "_") + "'");
             }
             if (option.mode === 'example') {
-                var realPath = path.join(config.steviaDir, config.toolPath, tool, "/examples/", option.value);
+                var realPath = path.join(config.steviaDir, config.toolsPath, tool, "/examples/", option.value);
                 computedOptions.push("'" + (prefix + name).replace(/\'/g, "_") + "'");
                 computedOptions.push("'" + realPath.replace(/\'/g, "_") + "'");
             }
