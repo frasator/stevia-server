@@ -344,7 +344,7 @@ function computeOptions(jobConfig, fileMap, folder, user, registerTextFile) {
                 var filename = name + '.txt';
                 var userspath = path.join(config.steviaDir, config.usersPath);
                 var realPath = path.join(userspath, folder.path, filename);;
-                fs.writeFileSync(realPath, option.value);
+                fs.writeFileSync(realPath, option.value.toString());
 
                 /* Database entry */
                 if (registerTextFile !== false) {
@@ -362,7 +362,7 @@ function computeOptions(jobConfig, fileMap, folder, user, registerTextFile) {
             break;
         case 'text':
             computedOptions.push("'" + (prefix + name).replace(/\'/g, "_") + "'");
-            computedOptions.push("'" + option.value.replace(/\'/g, "_") + "'");
+            computedOptions.push("'" + option.value.toString().replace(/\'/g, "_") + "'");
             break;
         case 'flag':
             computedOptions.push("'" + (prefix + name).replace(/\'/g, "_") + "'");
