@@ -8,6 +8,7 @@ const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 require('./file.js');
 const File = mongoose.model('File');
+const async = require('async');
 
 /**
  * File Schema
@@ -80,7 +81,7 @@ const JobSchema = new Schema({
  */
 
 JobSchema.methods = {
-    createJobFolder: function (name, parent, user) {
+    createJobFolder: function (name, parent, user, callback) {
         var newName = parent.getDuplicatedFileName(name);
         var jobFolder = new File({
             name: newName,
@@ -90,15 +91,18 @@ JobSchema.methods = {
             path: path.join(parent.path, newName),
             type: "FOLDER"
         });
-        parent.files.push(jobFolder);
-        jobFolder.save();
-        parent.save();
 
+        parent.files.push(jobFolder);
         this.folder = jobFolder;
         this.user = user;
-        this.save();
+
         jobFolder.fsCreateFolder(parent);
-        user.save();
+
+        async.parallel([
+            this.save, jobFolder.save, parent.save, user.save
+        ], function (err) {
+            callback(err)
+        });
     }
 };
 

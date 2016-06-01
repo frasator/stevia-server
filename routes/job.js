@@ -106,7 +106,15 @@ router.post('/create', function (req, res, next) {
             });
             job.qId = job.tool + '-' + job.execution + '-' + job._id;
 
-            job.createJobFolder(folderName, req._parent, req._user);
+            job.createJobFolder(folderName, req._parent, req._user, function (err) {
+                if (err) {
+                    cb(err)
+                } else {
+                    cb(null, job)
+                }
+            });
+        },
+        function (job, cb) {
             var realOutPath = path.join(config.steviaDir, config.usersPath, job.folder.path);
 
             var computedOptions = computeOptions(jobConfig, fileMap, job.folder, req._user);
@@ -143,7 +151,8 @@ router.post('/create', function (req, res, next) {
                     });
                 }
             });
-        }
+
+        },
     ], function (err) {
         if (err) {
             stvResult.error = err;
