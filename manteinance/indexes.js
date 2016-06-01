@@ -4,6 +4,9 @@ db.getCollection('users').createIndex({
 db.getCollection('users').createIndex({
     resetPasswordToken: 1
 });
+db.getCollection('users').createIndex({
+    sessions: 1
+});
 db.getCollection('files').createIndex({
     user: 1
 });

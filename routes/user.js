@@ -5,13 +5,13 @@
  */
 var mail = require('../lib/mail/mail.js');
 var mailConfig = require('../mail.json');
-var crypto = require('crypto');
-var express = require('express');
-var router = express.Router();
-var utils = require('../lib/utils.js');
-var StvResult = require('../lib/StvResult.js');
+const StvResult = require('../lib/StvResult.js');
+
+const crypto = require('crypto');
 const async = require('async');
 
+const express = require('express');
+const router = express.Router();
 const mongoose = require('mongoose');
 const User = mongoose.model('User');
 const File = mongoose.model('File');
@@ -62,16 +62,30 @@ router.get('/create', function (req, res, next) {
         user.email = 'anonymous___' + user._id;
     }
 
-    user.save(function (err) {
-        if (err) {
-            stvResult.error = 'User already exists';
-            console.log("error: " + stvResult.error);
-        } else {
-            user.createHomeFolder();
-            user.login();
-
-            stvResult.results.push(user);
-        }
+    async.waterfall([
+        function (cb) {
+            user.save(function (err) {
+                if (err != null) {
+                    stvResult.error = 'User already exists';
+                    console.log("error: " + stvResult.error);
+                    cb(stvResult.error);
+                } else {
+                    cb(null);
+                }
+            });
+        },
+        function (cb) {
+            user.createHomeFolder(function () {
+                cb(null);
+            });
+        },
+        function (cb) {
+            user.login(function (session) {
+                stvResult.results.push(user);
+                cb(null);
+            });
+        },
+    ], function (err) {
         stvResult.end();
         res._stvres.response.push(stvResult);
         next();
@@ -108,25 +122,34 @@ router.get('/:email/login', function (req, res, next) {
 
     stvResult.id = email;
 
-    User.findOne({
-        'email': email
-    }, function (err, user) {
-        if (!user) {
-            stvResult.error = "User does not exist";
-            console.log("login ws: " + stvResult.error);
-        } else {
-            if (user.password !== pass) {
-                stvResult.error = "Password incorrect";
-                console.log("error: " + stvResult.error);
-            } else {
-                var session = user.login();
-                stvResult.results.push(session);
-            }
-        }
+    async.waterfall([
+        function (cb) {
+            User.findOne({
+                'email': email
+            }, function (err, user) {
+                if (!user) {
+                    stvResult.error = "User does not exist";
+                    console.log("login ws: " + stvResult.error);
+                    cb(stvResult.error);
+                } else {
+                    if (user.password !== pass) {
+                        stvResult.error = "Password incorrect";
+                        console.log("error: " + stvResult.error);
+                        cb(stvResult.error);
+                    } else {
+                        user.login(function (session) {
+                            stvResult.results.push(session);
+                            cb(null);
+                        });
+                    }
+                }
+            }).select('+password');
+        },
+    ], function (err) {
         stvResult.end();
         res._stvres.response.push(stvResult);
         next();
-    }).select('+password');
+    });
 });
 
 // logout user
@@ -138,16 +161,24 @@ router.get('/:email/logout', function (req, res, next) {
     if (req.query.logoutOther != null) {
         logoutOther = req.query.logoutOther === 'true';
     }
-    User.findOne({
-        'email': email,
-        'sessions.id': sid
-    }, function (err, user) {
-        if (!user) {
-            stvResult.error = "User does not exist";
-            console.log("logout ws: " + stvResult.error);
-        } else {
-            user.removeSessionId(sid, logoutOther);
-        }
+    async.waterfall([
+        function (cb) {
+            User.findOne({
+                'email': email,
+                'sessions.id': sid
+            }, function (err, user) {
+                if (!user) {
+                    stvResult.error = "User does not exist";
+                    console.log("logout ws: " + stvResult.error);
+                    cb(stvResult.error);
+                } else {
+                    user.removeSessionId(sid, logoutOther, function () {
+                        cb(null);
+                    });
+                }
+            });
+        },
+    ], function (err) {
         stvResult.end();
         res._stvres.response.push(stvResult);
         next();
@@ -163,45 +194,46 @@ router.get('/:email/info', function (req, res, next) {
 
     stvResult.id = email;
 
-    User.findOne({
-        'email': req.params.email,
-        'sessions.id': sid
-    }, function (err, user) {
-        if (!user) {
-            console.log(err);
-            stvResult.error = "User does not exist!!";
-            console.log("info ws: " + stvResult.error);
-            stvResult.end();
-            res._stvres.response.push(stvResult);
-            next();
-        } else {
-            var userObject = user.toObject();
-            if (user.updatedAt.getTime() !== updatedAt.getTime()) {
-                File.tree(user.home, user._id, function (tree) {
-                    userObject.tree = tree;
-                    Job.find({
-                        user: user._id
-                    }, function (error, jobs) {
-                        userObject.jobs = jobs;
-                        stvResult.results.push(userObject);
-                        stvResult.numTotalResults = 1;
-                        stvResult.end();
-                        res._stvres.response.push(stvResult);
-                        next();
-                    }).sort({
-                        createdAt: -1
-                    }).populate('folder');
+    async.waterfall([
+        function (cb) {
+            User.findOne({
+                'email': req.params.email,
+                'sessions.id': sid
+            }, function (err, user) {
+                if (!user) {
+                    stvResult.error = "User does not exist!!";
+                    console.log("info ws: " + stvResult.error);
+                    cb(stvResult.error);
+                } else {
+                    var userObject = user.toObject();
+                    if (user.updatedAt.getTime() !== updatedAt.getTime()) {
+                        File.tree(user.home, user._id, function (tree) {
+                            userObject.tree = tree;
+                            Job.find({
+                                user: user._id
+                            }, function (error, jobs) {
+                                userObject.jobs = jobs;
+                                stvResult.results.push(userObject);
+                                stvResult.numTotalResults = 1;
+                                cb(null);
+                            }).sort({
+                                createdAt: -1
+                            }).populate('folder');
 
-                });
-            } else {
-                stvResult.numTotalResults = 0;
-                stvResult.end();
-                res._stvres.response.push(stvResult);
-                next();
-            }
+                        });
+                    } else {
+                        stvResult.numTotalResults = 0;
+                        cb(null);
+                    }
+                }
+            }).populate('home');
+        },
+    ], function (err) {
+        stvResult.end();
+        res._stvres.response.push(stvResult);
+        next();
+    });
 
-        }
-    }).populate('home');
 });
 
 //
@@ -226,17 +258,89 @@ router.get('/:email/change-password', function (req, res, next) {
     var npassword = req.get('x-stv-2');
     var sid = req._sid;
 
-    User.findOne({
-        'email': email,
-        'sessions.id': sid,
-        'password': password
-    }, function (err, user) {
-        if (!user) {
-            stvResult.error = "Authentication error";
-            console.log("error: " + stvResult.error);
-        } else {
-            user.password = npassword;
-            user.save();
+    async.waterfall([
+        function (cb) {
+            User.findOne({
+                'email': email,
+                'sessions.id': sid,
+                'password': password
+            }, function (err, user) {
+                if (!user) {
+                    stvResult.error = "Authentication error";
+                    console.log("error: " + stvResult.error);
+                    cb(stvResult.error);
+                } else {
+                    user.password = npassword;
+                    user.save(function (err) {
+                        cb(null);
+                    });
+                }
+            });
+        }
+    ], function (err) {
+        stvResult.end();
+        res._stvres.response.push(stvResult);
+        next();
+    });
+
+});
+
+//reset pasword
+router.get('/reset-password', function (req, res, next) {
+    console.log('reset');
+    var stvResult = new StvResult();
+    var email = req.query.email;
+    console.log(email);
+
+    async.waterfall([
+        function (cb) {
+            crypto.randomBytes(20, function (err, buf) {
+                var token = buf.toString('hex');
+                console.log(token);
+                cb(err, token);
+            });
+        },
+        function (token, cb) {
+            User.findOne({
+                'email': email
+            }, function (err, user) {
+                if (!user) {
+                    stvResult.error = "No account with that email address exists";
+                    console.log("error: " + stvResult.error);
+                    cb(stvResult.error);
+                } else {
+                    user.resetPasswordToken = token;
+                    user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
+
+                    user.save(function (err) {
+                        cb(err, token, user);
+                    });
+                }
+            });
+        },
+        function (token, user, cb) {
+            mail.send({
+                to: user.email,
+                subject: 'Reset password instructions',
+                text: 'You are receiving this because you (or someone else) have requested the reset of the password for your account.\n\n' +
+                    'Please click on the following link, or paste this into your browser to complete the process:\n\n' +
+                    'http://' + req.headers.host + '/users/reset/' + token + '\n\n' +
+                    'If you did not request this, please ignore this email and your password will remain unchanged.\n'
+            }, function (err, info) {
+                if (err) {
+                    stvResult.error = err
+                    console.log("error: " + stvResult.error);
+                    cb(err);
+                } else {
+                    stvResult.results.push('An e-mail has been sent to ' + user.email + ' with further instructions.');
+                    console.log('Message sent: ' + info.response);
+                    cb(null);
+                }
+            });
+        },
+    ], function (err) {
+        if (err) {
+            console.log(err)
         }
         stvResult.end();
         res._stvres.response.push(stvResult);
@@ -244,75 +348,9 @@ router.get('/:email/change-password', function (req, res, next) {
     });
 });
 
-//reset pasword
-router.get('/reset-password', function (req, res, next) {
-    console.log('reset')
-    var stvResult = new StvResult();
-    var email = req.query.email;
-    console.log(email)
-    async.waterfall([
-            function (done) {
-                crypto.randomBytes(20, function (err, buf) {
-                    var token = buf.toString('hex');
-                    console.log(token)
-                    done(err, token);
-                });
-            },
-            function (token, done) {
-                User.findOne({
-                    'email': email
-                }, function (err, user) {
-                    if (!user) {
-                        stvResult.error = "No account with that email address exists";
-                        console.log("error: " + stvResult.error);
-                        stvResult.end();
-                        res._stvres.response.push(stvResult);
-                        next();
-                    } else {
-                        user.resetPasswordToken = token;
-                        user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
-
-                        user.save(function (err) {
-                            done(err, token, user);
-                        });
-                    }
-                });
-            },
-            function (token, user, done) {
-                mail.send({
-                    to: user.email,
-                    subject: 'Reset password instructions',
-                    text: 'You are receiving this because you (or someone else) have requested the reset of the password for your account.\n\n' +
-                        'Please click on the following link, or paste this into your browser to complete the process:\n\n' +
-                        'http://' + req.headers.host + '/users/reset/' + token + '\n\n' +
-                        'If you did not request this, please ignore this email and your password will remain unchanged.\n'
-                }, function (err, info) {
-                    if (err) {
-                        stvResult.error = err
-                        console.log(err);
-                        done(err, 'done');
-                    } else {
-                        stvResult.results.push('An e-mail has been sent to ' + user.email + ' with further instructions.');
-                        console.log('Message sent: ' + info.response);
-                        done(err, 'done');
-                    }
-                });
-            },
-        ],
-        function (err) {
-            if (err) {
-                console.log(err)
-                return next(err);
-            } else {
-                stvResult.end();
-                res._stvres.response.push(stvResult);
-                next();
-            }
-        });
-});
-
 router.get('/reset/:token', function (req, res) {
     var stvResult = new StvResult();
+
     User.findOne({
         resetPasswordToken: req.params.token,
         resetPasswordExpires: {
@@ -323,17 +361,20 @@ router.get('/reset/:token', function (req, res) {
             stvResult.error = "Password reset token is invalid or has expired";
             console.log("error: " + stvResult.error);
             res.render('resetinvalid');
+        } else {
+            console.log('reset-token')
+            res.render('reset');
         }
-        console.log('reset-token')
-        res.render('reset');
     });
 });
 
 router.post('/reset/:token', function (req, res, next) {
     var stvResult = new StvResult();
+
     console.log(req.params.token)
+
     async.waterfall([
-        function (done) {
+        function (cb) {
             User.findOne({
                 resetPasswordToken: req.params.token,
                 resetPasswordExpires: {
@@ -359,12 +400,12 @@ router.post('/reset/:token', function (req, res, next) {
                     console.log('reset-token-post')
 
                     user.save(function (err) {
-                        done(err, user);
+                        cb(err, user);
                     });
                 }
             });
         },
-        function (user, done) {
+        function (user, cb) {
             mail.send({
                 to: user.email,
                 subject: 'Your password has been changed',
@@ -374,7 +415,7 @@ router.post('/reset/:token', function (req, res, next) {
                 if (error) {
                     stvResult.error = error
                     console.log(error);
-                    done(err);
+                    cb(err);
                 }
                 console.log('Message sent: ' + info.response);
             });
@@ -383,8 +424,10 @@ router.post('/reset/:token', function (req, res, next) {
     ], function (err) {
         if (err) {
             console.log(err)
-            return next(err);
         }
+        stvResult.end();
+        res._stvres.response.push(stvResult);
+        next();
     });
 });
 

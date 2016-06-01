@@ -10,7 +10,7 @@ var config = require('../config.json');
 const shell = require('shelljs');
 const mongoose = require('mongoose');
 const async = require('async');
-
+const mime = require('mime');
 // require('./job.js');
 
 // require('./user.js');
@@ -75,6 +75,12 @@ const FileSchema = new Schema({
     }
 });
 
+FileSchema.pre('save', function (next) {
+    if (this.type == 'FILE') {
+        this.format = mime.lookup(this.name);
+    }
+    next();
+});
 /**
  * Methods
  */
@@ -155,7 +161,7 @@ FileSchema.statics = {
             "_id": fid
         }).exec(callback);
     },
-    createFolder: function (name, parent, user) {
+    createFolder: function (name, parent, user, callback) {
         var folder = new this({
             name: name,
             user: user._id,
@@ -165,13 +171,15 @@ FileSchema.statics = {
         });
 
         parent.files.push(folder);
-        folder.save();
-        parent.save();
-        user.save();
 
-        folder.fsCreateFolder(parent);
-
-        return folder;
+        folder.save(function (err) {
+            parent.save(function (err) {
+                user.save(function (err) {
+                    folder.fsCreateFolder(parent);
+                    callback(folder);
+                });
+            });
+        });
     },
     createFile: function (name, parent, user) {
         var file = new this({
@@ -253,7 +261,7 @@ FileSchema.statics = {
                 });
             },
             function (file, jobsToRemove, cb) {
-                console.log(jobsToRemove);
+                // console.log(jobsToRemove);
                 mongoose.models["Job"].remove({
                     '_id': {
                         $in: jobsToRemove
@@ -343,44 +351,59 @@ FileSchema.statics = {
             return;
         }
 
-        var index = oldParent.files.indexOf(file._id);
-        if (index != -1) {
-            oldParent.files.splice(index, 1);
-            oldParent.save();
-        }
-
-        newParent.files.push(file);
-        newParent.save();
-        var filePath = file.path;
-
-        file.parent = newParent;
-        file.path = path.join(newParent.path, file.name);
-        file.save();
-
-        if (file.type == 'FOLDER') {
-            this.find({
-                'user': file.user,
-                'path': {
-                    $regex: new RegExp('^' + filePath)
-                }
-            }, function (error, files) {
-                if (error) {
-                    err = error;
-                    console.log(error);
+        var oldFilePath = file.path;
+        async.waterfall([
+            function (cb) {
+                var index = oldParent.files.indexOf(file._id);
+                if (index != -1) {
+                    oldParent.files.splice(index, 1);
+                    oldParent.save(function (err) {
+                        cb(null)
+                    });
                 } else {
-                    var regex = new RegExp('^' + filePath)
-                    for (var i = 0; i < files.length; i++) {
-                        var f = files[i];
-                        f.path = f.path.replace(regex, file.path);
-                        f.save();
-                    }
+                    cb(null);
                 }
-                callback(err);
-            });
-        } else {
-            callback(err);
-        }
-
+            },
+            function (cb) {
+                newParent.files.push(file);
+                newParent.save(function (err) {
+                    cb(null);
+                });
+            },
+            function (cb) {
+                file.parent = newParent;
+                file.path = path.join(newParent.path, file.name);
+                file.save(function (err) {
+                    cb(null);
+                });
+            },
+            function (cb) {
+                if (file.type == 'FOLDER') {
+                    mongoose.models["File"].find({
+                        'user': file.user,
+                        'path': {
+                            $regex: new RegExp('^' + oldFilePath)
+                        }
+                    }, function (error, files) {
+                        if (error) {
+                            cb(error)
+                        } else {
+                            async.mapLimit(files, 10, function (f, next) {
+                                f.path = f.path.replace(new RegExp('^' + oldFilePath), file.path);
+                                f.save(next);
+                            }, function (error) {
+                                cb(error);
+                            });
+                        }
+                    });
+                } else {
+                    cb(null);
+                }
+            },
+        ], function (error) {
+            var err = error;
+            callback(err)
+        });
     },
     tree: function (folder, userId, cb) {
         var t1 = Date.now();

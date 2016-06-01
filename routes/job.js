@@ -1,21 +1,20 @@
-const config = require('../config.json');
-const exec = require('child_process').exec;
-const StvResult = require('../lib/StvResult.js');
-const fs = require('fs');
+var config = require('../config.json');
 const mail = require('../lib/mail/mail.js');
 const mailConfig = require('../mail.json');
-const util = require('util');
+const StvResult = require('../lib/StvResult.js');
+
 const async = require('async');
+const exec = require('child_process').exec;
+const fs = require('fs');
+const util = require('util');
+const path = require('path');
 
 const express = require('express');
 const router = express.Router();
-
 const mongoose = require('mongoose');
 const Job = mongoose.model('Job');
 const File = mongoose.model('File');
 const User = mongoose.model('User');
-
-const path = require('path');
 
 // // middleware that is specific to this router
 router.use(function (req, res, next) {
@@ -81,15 +80,21 @@ router.post('/create', function (req, res, next) {
     var jobDescription = req.query.description;
 
     var fileMap = {};
-    File.where('_id').in(fileIdsFromJobConfig).exec(function (err, result) {
-        if (err) {
-            console.log(err);
-            stvResult.error = 'File id provided in options is not valid.';
-            stvResult.end();
-            res._stvres.response.push(stvResult);
-            next();
-        } else {
-
+    async.waterfall([
+        function (cb) {
+            File.where('_id').in(fileIdsFromJobConfig).exec(function (err, result) {
+                if (err) {
+                    cb('File id provided in options is not valid.');
+                } else {
+                    for (var i = 0; i < result.length; i++) {
+                        var file = result[i];
+                        fileMap[file._id] = file;
+                    }
+                    cb(null);
+                }
+            });
+        },
+        function (cb) {
             var job = new Job({
                 name: jobName,
                 description: jobDescription,
@@ -104,51 +109,50 @@ router.post('/create', function (req, res, next) {
             job.createJobFolder(folderName, req._parent, req._user);
             var realOutPath = path.join(config.steviaDir, config.usersPath, job.folder.path);
 
-            for (var i = 0; i < result.length; i++) {
-                var file = result[i];
-                fileMap[file._id] = file;
-            }
-
             var computedOptions = computeOptions(jobConfig, fileMap, job.folder, req._user);
 
             var commandLine = "'" + path.join(config.steviaDir, config.toolsPath, tool, executable) + "' " + computedOptions.join(" ");
             var commandQsub = path.join(realOutPath, ".command.qsub.sh");
-            try {
-                fs.writeFileSync(commandQsub, "#!/bin/bash\n" + commandLine);
-            } catch (e) {
-                //TODO handle error
-            }
 
-            var command = "qsub -N '" + job.qId + "' -q '" + config.queue + "' -j y -o '" + path.join(realOutPath, ".out.job") + "' '" + commandQsub + "'";
-
-            console.log('++++++++++++');
-            console.log(command);
-            console.log('++++++++++++');
-
-            exec(command, function (error, stdout, stderr) {
-                // console.log('stdout: ' + stdout);
-                // console.log('stderr: ' + stderr);
-                if (error == null) {
-                    job.commandLine = commandLine;
-                    job.save();
-                    stvResult.results.push(job);
-                    stvResult.end();
-                    res._stvres.response.push(stvResult);
-                    req._user.save();
-                    next();
+            fs.writeFile(commandQsub, "#!/bin/bash\n" + commandLine, function (err) {
+                if (err) {
+                    cb('Could not create ' + commandQsub);
                 } else {
-                    var msg = 'exec error: ' + error;
-                    console.log(msg);
-                    File.delete(job.folder._id, function () {
-                        stvResult.error = 'Execution error';
-                        stvResult.end();
-                        res._stvres.response.push(stvResult);
-                        req._user.save();
-                        next();
+                    var command = "qsub -N '" + job.qId + "' -q '" + config.queue + "' -j y -o '" + path.join(realOutPath, ".out.job") + "' '" + commandQsub + "'";
+
+                    console.log('++++++++++++');
+                    console.log(command);
+                    console.log('++++++++++++');
+
+                    exec(command, function (error, stdout, stderr) {
+                        if (error) {
+                            File.delete(job.folder._id, function () {
+                                req._user.save(function () {
+                                    cb(error);
+                                });
+                            });
+                        } else {
+                            job.commandLine = commandLine;
+                            job.save(function () {
+                                req._user.save(function () {
+                                    stvResult.results.push(job);
+                                    cb(null);
+                                });
+                            });
+                        }
                     });
                 }
             });
         }
+    ], function (err) {
+        if (err) {
+            stvResult.error = err;
+            console.log("Error in ws: " + req.originalUrl);
+            console.log(err);
+        }
+        stvResult.end();
+        res._stvres.response.push(stvResult);
+        next();
     });
 });
 
@@ -237,34 +241,71 @@ router.get('/:id/report-error', function (req, res, next) {
     var stvResult = new StvResult();
     console.log('--------------');
     console.log(id);
-    Job.findOne({
-        '_id': id
-    }, function (err, job) {
-        if (!job) {
-            stvResult.error = "report-error: User does not exist";
-            console.log("error: " + stvResult.error);
-            stvResult.end();
-            res._stvres.response.push(stvResult);
-            next();
-        } else {
-            mail.send({
-                to: mailConfig.mail,
-                subject: 'Job reported ' + job.id,
-                text: 'Hello,\n\n' +
-                    'The job ' + id + ' from user ' + job.user.email + ' was reported.\n\n' + util.inspect(job) + '\n'
-            }, function (error, info) {
-                if (error) {
-                    stvResult.error = error
-                    console.log(error);
+
+    async.waterfall([
+        function (cb) {
+            Job.findOne({
+                '_id': id
+            }, function (err, job) {
+                if (!job) {
+                    cb("report-error: User does not exist")
+                } else {
+                    mail.send({
+                        to: mailConfig.mail,
+                        subject: 'Job reported ' + job.id,
+                        text: 'Hello,\n\n' +
+                            'The job ' + id + ' from user ' + job.user.email + ' was reported.\n\n' + util.inspect(job) + '\n'
+                    }, function (error, info) {
+                        if (error) {
+                            cb(error)
+                        } else {
+                            stvResult.results.push('It has reported the error! Thank you!');
+                            console.log('Message sent: ' + info.response);
+                            cb(null);
+                        }
+                    });
                 }
-                stvResult.results.push('It has reported the error! Thank you!');
-                stvResult.end();
-                res._stvres.response.push(stvResult);
-                console.log('Message sent: ' + info.response);
-                next();
+            }).populate('user');
+        }
+    ], function (err) {
+        if (err) {
+            stvResult.error = err;
+            console.log("Error in ws: " + req.originalUrl);
+            console.log(err);
+        }
+        stvResult.end();
+        res._stvres.response.push(stvResult);
+        next();
+    });
+});
+
+router.get('/delete', function (req, res, next) {
+    var stvResult = new StvResult();
+
+    async.waterfall([
+        function (cb) {
+            Job.findOne({
+                '_id': req.query.jobId
+            }, function (err, job) {
+                if (!job) {
+                    cb("File not exist");
+                } else {
+                    File.delete(job.folder, function () {
+                        cb(null);
+                    });
+                }
             });
         }
-    }).populate('user');
+    ], function (err) {
+        if (err) {
+            stvResult.error = err;
+            console.log("Error in ws: " + req.originalUrl);
+            console.log(err);
+        }
+        stvResult.end();
+        res._stvres.response.push(stvResult);
+        next();
+    });
 });
 
 /* input from web */
@@ -299,24 +340,6 @@ router.get('/:id/report-error', function (req, res, next) {
 //         }
 //     }
 // }
-
-router.get('/delete', function (req, res, next) {
-    var stvResult = new StvResult();
-    Job.findOne({
-        '_id': req.query.jobId
-    }, function (err, job) {
-        if (!job) {
-            stvResult.error = "File not exist";
-            console.log("error: " + stvResult.error);
-        } else {
-            File.delete(job.folder, function () {
-                stvResult.end();
-                res._stvres.response.push(stvResult);
-                next();
-            });
-        }
-    });
-});
 
 function computeOptions(jobConfig, fileMap, folder, user, registerTextFile) {
     var options = jobConfig.options;

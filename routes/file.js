@@ -1,21 +1,21 @@
 var config = require('../config.json');
-var multiparty = require('multiparty');
-var exec = require('child_process').exec;
+const StvResult = require('../lib/StvResult.js');
+
 const fs = require('fs');
+const exec = require('child_process').exec;
+const path = require('path');
+
+const multiparty = require('multiparty');
 const readline = require('readline');
-var StvResult = require('../lib/StvResult.js');
-
-var express = require('express');
-var router = express.Router();
-
-const mongoose = require('mongoose');
-const File = mongoose.model('File');
-const User = mongoose.model('User');
-
 const mime = require('mime');
 const shell = require('shelljs');
+const async = require('async');
 
-const path = require('path');
+const express = require('express');
+const router = express.Router();
+const mongoose = require('mongoose');
+const User = mongoose.model('User');
+const File = mongoose.model('File');
 
 // // middleware that is specific to this router
 router.use(function (req, res, next) {
@@ -44,23 +44,32 @@ router.get('/:fileId/delete', function (req, res, next) {
 
     stvResult.id = fileId;
 
-    File.findOne({
-        '_id': fileId,
-        'user': req._user._id
-    }, function (err, file) {
-        if (!file) {
-            stvResult.error = "File not exist";
-            console.log("error: " + stvResult.error);
-        } else if (file.user.toString() != req._user._id.toString()) {
-            stvResult.error = "Authentication error";
-            console.log("error: " + stvResult.error);
-        } else {
-            File.delete(fileId, function () {
-                stvResult.end();
-                res._stvres.response.push(stvResult);
-                next();
+    async.waterfall([
+        function (cb) {
+            File.findOne({
+                '_id': fileId,
+                'user': req._user._id
+            }, function (err, file) {
+                if (!file) {
+                    cb("File not exist");
+                } else if (file.user.toString() != req._user._id.toString()) {
+                    cb("Authentication error");
+                } else {
+                    File.delete(file._id, function (err) {
+                        cb(null);
+                    });
+                }
             });
         }
+    ], function (err) {
+        if (err) {
+            stvResult.error = err;
+            console.log("Error in ws: " + req.originalUrl);
+            console.log(err);
+        }
+        stvResult.end();
+        res._stvres.response.push(stvResult);
+        next();
     });
 });
 
@@ -75,28 +84,37 @@ router.get('/:fileId/list', function (req, res, next) {
 
     stvResult.id = fileId;
 
-    File.findOne({
-        '_id': fileId,
-        'user': req._user._id
-    }, function (err, file) {
-        if (!file) {
-            stvResult.error = "File not exist";
-            console.log("error: " + stvResult.error);
-        } else if (file.user.toString() != req._user._id.toString()) {
-            stvResult.error = "Authentication error";
-            console.log("error: " + stvResult.error);
-        } else {
-            stvResult.results.push(file);
+    async.waterfall([
+        function (cb) {
+            File.findOne({
+                '_id': fileId,
+                'user': req._user._id
+            }, function (err, file) {
+                if (!file) {
+                    cb("File not exist");
+                } else if (file.user.toString() != req._user._id.toString()) {
+                    cb("Authentication error");
+                } else {
+                    stvResult.results.push(file);
+                    cb(null);
+                }
+            }).populate({
+                path: 'files',
+                populate: {
+                    path: 'job'
+                }
+            }).populate('job');
+        }
+    ], function (err) {
+        if (err) {
+            stvResult.error = err;
+            console.log("Error in ws: " + req.originalUrl);
+            console.log(err);
         }
         stvResult.end();
         res._stvres.response.push(stvResult);
         next();
-    }).populate({
-        path: 'files',
-        populate: {
-            path: 'job'
-        }
-    }).populate('job');
+    });
 
 });
 
@@ -109,22 +127,29 @@ router.get('/:fileId/info', function (req, res, next) {
 
     stvResult.id = fileId;
 
-    File.findOne({
-        "_id": fileId,
-        "user": req._user._id
-    }, function (err, file) {
-        if (!file) {
-            stvResult.error = "File not exist";
-            console.log("error: " + stvResult.error);
-            stvResult.end();
-            res._stvres.response.push(stvResult);
-            next();
-        } else {
-            stvResult.results = [file];
-            stvResult.end;
-            res._stvres.response.push(stvResult);
-            next();
+    async.waterfall([
+        function (cb) {
+            File.findOne({
+                "_id": fileId,
+                "user": req._user._id
+            }, function (err, file) {
+                if (!file) {
+                    cb("File not exist");
+                } else {
+                    stvResult.results = [file];
+                    cb(null);
+                }
+            });
         }
+    ], function (err) {
+        if (err) {
+            stvResult.error = err;
+            console.log("Error in ws: " + req.originalUrl);
+            console.log(err);
+        }
+        stvResult.end();
+        res._stvres.response.push(stvResult);
+        next();
     });
 });
 
@@ -137,29 +162,36 @@ router.get('/:fileId/files', function (req, res, next) {
 
     stvResult.id = fileId;
 
-    File.findOne({
-        "_id": fileId,
-        "user": req._user._id
-    }, function (err, file) {
-        if (!file) {
-            stvResult.error = "File not exist";
-            console.log("error: " + stvResult.error);
-            stvResult.end();
-            res._stvres.response.push(stvResult);
-            next();
-        } else {
-            File.find({
-                'user': req._user._id,
-                'path': {
-                    $regex: new RegExp('^' + file.path)
+    async.waterfall([
+        function (cb) {
+            File.findOne({
+                "_id": fileId,
+                "user": req._user._id
+            }, function (err, file) {
+                if (!file) {
+                    cb("File not exist")
+                } else {
+                    File.find({
+                        'user': req._user._id,
+                        'path': {
+                            $regex: new RegExp('^' + file.path)
+                        }
+                    }, function (err, files) {
+                        stvResult.results = files;
+                        cb(null);
+                    });
                 }
-            }, function (err, files) {
-                stvResult.results = files;
-                stvResult.end();
-                res._stvres.response.push(stvResult);
-                next();
             });
         }
+    ], function (err) {
+        if (err) {
+            stvResult.error = err;
+            console.log("Error in ws: " + req.originalUrl);
+            console.log(err);
+        }
+        stvResult.end();
+        res._stvres.response.push(stvResult);
+        next();
     });
 });
 
@@ -172,29 +204,40 @@ router.get('/:fileId/create-folder', function (req, res, next) {
 
     stvResult.id = fileId;
 
-    File.findOne({
-        '_id': fileId,
-        'user': req._user._id
-    }, function (err, parent) {
-        if (!parent) {
-            stvResult.error = "File not exist";
-            console.log("error: " + stvResult.error);
-        } else if (parent.user._id.toString() != req._user._id.toString()) {
-            stvResult.error = "Authentication error";
-            console.log("error: " + stvResult.error);
-        } else {
-            var folder = parent.hasFile(name);
-            if (folder != null) {
-                stvResult.results.push(folder);
-            } else {
-                var folder = File.createFolder(name, parent, req._user);
-                stvResult.results.push(folder);
-            }
+    async.waterfall([
+        function (cb) {
+            File.findOne({
+                '_id': fileId,
+                'user': req._user._id
+            }, function (err, parent) {
+                if (!parent) {
+                    cb("File not exist");
+                } else if (parent.user._id.toString() != req._user._id.toString()) {
+                    cb("Authentication error");
+                } else {
+                    var folder = parent.hasFile(name);
+                    if (folder != null) {
+                        stvResult.results.push(folder);
+                        cb(null);
+                    } else {
+                        File.createFolder(name, parent, req._user, function (folder) {
+                            stvResult.results.push(folder);
+                            cb(null);
+                        });
+                    }
+                }
+            }).populate("user").populate('files');
+        }
+    ], function (err) {
+        if (err) {
+            stvResult.error = err;
+            console.log("Error in ws: " + req.originalUrl);
+            console.log(err);
         }
         stvResult.end();
         res._stvres.response.push(stvResult);
         next();
-    }).populate("user").populate('files');
+    });
 });
 
 router.get('/:fileId/content', function (req, res, next) {
@@ -212,65 +255,86 @@ router.get('/:fileId/content', function (req, res, next) {
         start = s;
     }
 
-    File.findOne({
-        '_id': fileId,
-        "user": req._user._id
-    }, function (err, file) {
-        if (!file) {
-            console.log("error: " + "File not exist");
+    async.waterfall([
+        function (cb) {
+            File.findOne({
+                '_id': fileId,
+                "user": req._user._id
+            }, function (err, file) {
+                if (!file) {
+                    cb("File not exist")
+                } else {
+                    try {
+                        var lines = [];
+                        var lineCount = 0;
+                        var end = start + limit;
+                        var filePath = path.join(config.steviaDir, config.usersPath, file.path);
+                        const rl = readline.createInterface({
+                            input: fs.createReadStream(filePath)
+                        });
+                        rl.on('line', (line) => {
+                            if (lineCount >= start) {
+                                lines.push(line);
+                            }
+                            if (limit > 0 && lineCount > end) {
+                                rl.close()
+                            }
+                            lineCount++;
+                        });
+                        rl.on('close', function () {
+                            cb(null, lines.join('\n'));
+                        });
+                    } catch (e) {
+                        cb("Could not read the file")
+                    }
+                }
+            }).populate("user").populate('parent');
+        }
+    ], function (err, text) {
+        if (err) {
+            console.log("Error in ws: " + req.originalUrl);
+            console.log(err);
             res.send();
         } else {
-            try {
-                var lines = [];
-                var lineCount = 0;
-                var end = start + limit;
-                var filePath = path.join(config.steviaDir, config.usersPath, file.path);
-                const rl = readline.createInterface({
-                    input: fs.createReadStream(filePath)
-                });
-                rl.on('line', (line) => {
-                    if (lineCount >= start) {
-                        lines.push(line);
-                    }
-                    if (limit > 0 && lineCount > end) {
-                        rl.close()
-                    }
-                    lineCount++;
-                });
-                rl.on('close', function () {
-                    res.send(lines.join('\n'));
-                });
-            } catch (e) {
-                console.log("error: " + "Could not read the file");
-                res.send();
-            }
+            res.send(text);
         }
-    }).populate("user").populate('parent');
+    });
 });
 
 router.get('/:fileId/download', function (req, res, next) {
     var fileId = req.params.fileId;
 
-    File.findOne({
-        '_id': fileId,
-        "user": req._user._id
-    }, function (err, file) {
-        if (!file) {
-            console.log("error: " + "File not exist");
+    async.waterfall([
+        function (cb) {
+            File.findOne({
+                '_id': fileId,
+                "user": req._user._id
+            }, function (err, file) {
+                if (!file) {
+                    cb("File not exist");
+                } else {
+                    try {
+                        var filePath = path.join(config.steviaDir, config.usersPath, file.path);
+                        cb(null, filePath);
+                    } catch (e) {
+                        cb("Could not read the file");
+                    }
+                }
+            });
+        }
+    ], function (err, filePath) {
+        if (err) {
+            console.log("Error in ws: " + req.originalUrl);
+            console.log(err);
             res.send();
         } else {
-            try {
-                var filePath = path.join(config.steviaDir, config.usersPath, file.path);
-                res.attachment(filePath);
-                res.sendFile(filePath, {
-                    dotfiles: 'allow'
-                });
-            } catch (e) {
-                console.log("error: " + "Could not read the file");
-                res.send();
-            }
+            res.attachment(filePath);
+            res.sendFile(filePath, {
+                dotfiles: 'allow'
+            });
         }
     });
+
 });
 
 //move files
@@ -280,41 +344,42 @@ router.post('/:fileId/attributes', function (req, res, next) {
     var fileId = req.params.fileId;
     stvResult.id = fileId;
 
-    File.findOne({
-        '_id': fileId,
-        'user': req._user._id
-    }, function (err, file) {
-        if (!file) {
-            stvResult.error = "File not exist";
-            console.log("error: " + stvResult.error);
-            stvResult.end();
-            res._stvres.response.push(stvResult);
-            next();
-        } else if (file.user.toString() != req._user._id.toString()) {
-            stvResult.error = "Authentication error";
-            console.log("error: " + stvResult.error);
-            stvResult.end();
-            res._stvres.response.push(stvResult);
-            next();
-        } else {
-            var newAttributes = req.body;
-            var obj = {};
-            for (var key in file.attributes) {
-                obj[key] = file.attributes[key];
-            }
-            for (var key in newAttributes) {
-                obj[key] = newAttributes[key];
-            }
-            file.attributes = obj;
-            file.save(function (err) {
-                if (err) console.log(err);
-                stvResult.results.push(file);
-                stvResult.end();
-                res._stvres.response.push(stvResult);
-                next();
+    async.waterfall([
+        function (cb) {
+            File.findOne({
+                '_id': fileId,
+                'user': req._user._id
+            }, function (err, file) {
+                if (!file) {
+                    cb("File not exist");
+                } else if (file.user.toString() != req._user._id.toString()) {
+                    cb("Authentication error");
+                } else {
+                    var newAttributes = req.body;
+                    var obj = {};
+                    for (var key in file.attributes) {
+                        obj[key] = file.attributes[key];
+                    }
+                    for (var key in newAttributes) {
+                        obj[key] = newAttributes[key];
+                    }
+                    file.attributes = obj;
+                    file.save(function (err) {
+                        stvResult.results.push(file);
+                        cb(null);
+                    });
+                }
             });
         }
-
+    ], function (err) {
+        if (err) {
+            stvResult.error = err;
+            console.log("Error in ws: " + req.originalUrl);
+            console.log(err);
+        }
+        stvResult.end();
+        res._stvres.response.push(stvResult);
+        next();
     });
 });
 
@@ -327,52 +392,57 @@ router.get('/move', function (req, res, next) {
     var files = {};
     files[fileId] = null;
     files[newParentId] = null;
-    File.find({
-        '_id': {
-            $in: Object.keys(files)
-        },
-        "user": req._user._id
-    }, function (err, files) {
-        if (err) {
-            stvResult.error = "File or New Parent not exist";
-            console.log("error: " + stvResult.error);
-        } else {
-            for (var i = 0; i < files.length; i++) {
-                var f = files[i];
-                files[f._id] = f;
-            }
-            var file = files[fileId];
-            var newParent = files[newParentId];
-            if (file != null && newParent != null) {
-                if (file.job == null || (file.job != null && file.job.status == "DONE")) {
-                    File.move(file, newParent, function (move) {
-                        if (move == null) {
-                            stvResult.results.push("File moved");
-                            req._user.save();
-                        } else {
-                            stvResult.error = move;
-                            console.log("[" + new Date().toJSON() + "]" + "error: " + stvResult.error);
-                        }
-                        stvResult.end();
-                        res._stvres.response.push(stvResult);
-                        next();
-                    });
+
+    async.waterfall([
+        function (cb) {
+            File.find({
+                '_id': {
+                    $in: Object.keys(files)
+                },
+                "user": req._user._id
+            }, function (err, files) {
+                if (err) {
+                    cb("File or New Parent not exist");
                 } else {
-                    stvResult.error = "This file is a job folder, move action can not be performed until job status becomes DONE.";
-                    console.log("error: " + stvResult.error);
-                    stvResult.end();
-                    res._stvres.response.push(stvResult);
-                    next();
+                    for (var i = 0; i < files.length; i++) {
+                        var f = files[i];
+                        files[f._id] = f;
+                    }
+                    var file = files[fileId];
+                    var newParent = files[newParentId];
+
+                    if (file == null) {
+                        cb("File not exist");
+                    } else if (newParent == null) {
+                        cb("New Parent not exist");
+                    } else if (file.job != null && file.job.status == "DONE") {
+                        cb("This is a job folder, move action can not be performed until job status becomes DONE.");
+                    } else {
+                        File.move(file, newParent, function (moveErr) {
+                            if (moveErr != null) {
+                                cb(moveErr);
+                            } else {
+                                stvResult.results.push("File moved");
+                                req._user.save(function(){
+                                    cb(null);
+                                });
+                            }
+                        });
+                    }
                 }
-            } else {
-                stvResult.error = "File or New Parent not exist";
-                console.log("error: " + stvResult.error);
-                stvResult.end();
-                res._stvres.response.push(stvResult);
-                next();
-            }
+            }).populate('parent').populate('job');
         }
-    }).populate('parent').populate('job');
+    ], function (err) {
+        if (err) {
+            stvResult.error = err;
+            console.log("Error in ws: " + req.originalUrl);
+            console.log(err);
+        }
+        stvResult.end();
+        res._stvres.response.push(stvResult);
+        next();
+    });
+
 });
 
 /******************************/
@@ -489,7 +559,7 @@ router.post('/upload', function (req, res, next) {
         }).populate("user");
     });
     form.on('aborted', function () {
-        console.log('form parse aborted !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! ');
+        console.log('File upload: form parse aborted !!!');
     });
     form.parse(req);
 });
@@ -498,7 +568,7 @@ router.post('/upload', function (req, res, next) {
 
 function joinAllChunks(folderPath, uploadPath, fields, parent, callback) {
     console.log('Joining all chunks...');
-    var finalFilePath = path.join(folderPath , fields.name);
+    var finalFilePath = path.join(folderPath, fields.name);
     var files = getSortedChunkList(uploadPath);
     var fd = fs.openSync(finalFilePath, 'w');
     fs.closeSync(fd);
@@ -521,11 +591,12 @@ function joinAllChunks(folderPath, uploadPath, fields, parent, callback) {
     /* Database entry */
     var file = File.createFile(fields.name, parent, parent.user);
     file.bioformat = fields.bioFormat;
-    file.save();
-
     shell.rm('-rf', uploadPath);
     console.log('Temporal upload folder ' + uploadPath + ' removed');
-    callback(file);
+    file.save(function (err) {
+        callback(file);
+    });
+
 };
 
 function getResumeFileInfo(uploadPath, chunkMap) {

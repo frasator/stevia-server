@@ -4,7 +4,7 @@
   "license": "",
   "repository": "",
   "scripts": {
-    "test": "mocha"
+    "test": "tape test/test.js"
   },
   "dependencies": {
     "async": "^1.5.2",
