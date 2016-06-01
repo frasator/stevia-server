@@ -371,22 +371,21 @@ function computeOptions(jobConfig, fileMap, folder, user, registerTextFile) {
                     computedOptions.push("'" + (prefix + name).replace(/\'/g, "_") + "'");
                     computedOptions.push("'" + realPath.replace(/\'/g, "_") + "'");
                 }
-            }
-            if (option.mode === 'text') {
+            } else if (option.mode === 'text') {
                 var filename = name + '.txt';
+                /* Database entry */
+                if (registerTextFile !== false) {
+                    File.createFile(filename, folder, user, function (file) {});
+                }
+
                 var userspath = path.join(config.steviaDir, config.usersPath);
                 var realPath = path.join(userspath, folder.path, filename);;
                 fs.writeFileSync(realPath, option.value.toString());
 
-                /* Database entry */
-                if (registerTextFile !== false) {
-                    File.createFile(filename, folder, user);
-                }
-
                 computedOptions.push("'" + (prefix + name).replace(/\'/g, "_") + "'");
                 computedOptions.push("'" + realPath.replace(/\'/g, "_") + "'");
-            }
-            if (option.mode === 'example') {
+
+            } else if (option.mode === 'example') {
                 var realPath = path.join(config.steviaDir, config.toolsPath, tool, "/examples/", option.value);
                 computedOptions.push("'" + (prefix + name).replace(/\'/g, "_") + "'");
                 computedOptions.push("'" + realPath.replace(/\'/g, "_") + "'");

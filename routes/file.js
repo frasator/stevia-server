@@ -340,21 +340,19 @@ router.get('/:fileId/download', function (req, res, next) {
 router.get('/download-example', function (req, res, next) {
     var tool = req.query.tool;
     var file = req.query.file;
-    
 
+    try {
+        var filePath = path.join(config.steviaDir, config.toolPath, tool, "examples", file);
 
-            try {
-                var filePath = path.join(config.steviaDir, config.toolPath, tool, "examples", file);
-
-                res.attachment(filePath);
-                res.sendFile(filePath, {
-                    dotfiles: 'allow'
-                });
-            } catch (e) {
-                console.log("error: " + "Could not read the file");
-                console.log(e);
-                res.send();
-            }
+        res.attachment(filePath);
+        res.sendFile(filePath, {
+            dotfiles: 'allow'
+        });
+    } catch (e) {
+        console.log("error: " + "Could not read the file");
+        console.log(e);
+        res.send();
+    }
 });
 
 //move files
@@ -443,7 +441,7 @@ router.get('/move', function (req, res, next) {
                                 cb(moveErr);
                             } else {
                                 stvResult.results.push("File moved");
-                                req._user.save(function(){
+                                req._user.save(function () {
                                     cb(null);
                                 });
                             }
@@ -609,12 +607,13 @@ function joinAllChunks(folderPath, uploadPath, fields, parent, callback) {
     }
 
     /* Database entry */
-    var file = File.createFile(fields.name, parent, parent.user);
-    file.bioformat = fields.bioFormat;
-    shell.rm('-rf', uploadPath);
-    console.log('Temporal upload folder ' + uploadPath + ' removed');
-    file.save(function (err) {
-        callback(file);
+    File.createFile(fields.name, parent, parent.user, function (file) {
+        file.bioformat = fields.bioFormat;
+        shell.rm('-rf', uploadPath);
+        console.log('Temporal upload folder ' + uploadPath + ' removed');
+        file.save(function (err) {
+            callback(file);
+        });
     });
 
 };

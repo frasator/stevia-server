@@ -86,9 +86,6 @@ FileSchema.pre('save', function (next) {
  */
 
 FileSchema.methods = {
-    addFile: function (file) {
-        this.files.push(file);
-    },
     hasFile: function (name) {
         try {
             var stats = fs.statSync(path.join(this.path, name));
@@ -181,7 +178,7 @@ FileSchema.statics = {
             });
         });
     },
-    createFile: function (name, parent, user) {
+    createFile: function (name, parent, user, callback) {
         var file = new this({
             name: name,
             user: user._id,
@@ -189,13 +186,13 @@ FileSchema.statics = {
             type: "FILE",
             path: path.join(parent.path, name)
         });
-
         parent.files.push(file);
-        file.save();
-        parent.save();
-        user.save();
 
-        return file;
+        async.parallel([
+            file.save, parent.save, user.save
+        ], function () {
+            callback(file);
+        });
     },
     delete: function (fileId, callback) {
         async.waterfall([
