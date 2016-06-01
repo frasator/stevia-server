@@ -355,7 +355,6 @@ router.get('/download-example', function (req, res, next) {
     }
 });
 
-//move files
 router.post('/:fileId/attributes', function (req, res, next) {
     var stvResult = new StvResult();
 
@@ -433,7 +432,7 @@ router.get('/move', function (req, res, next) {
                         cb("File not exist");
                     } else if (newParent == null) {
                         cb("New Parent not exist");
-                    } else if (file.job != null && file.job.status == "DONE") {
+                    } else if (file.job != null && file.job.status != "DONE") {
                         cb("This is a job folder, move action can not be performed until job status becomes DONE.");
                     } else {
                         File.move(file, newParent, function (moveErr) {
