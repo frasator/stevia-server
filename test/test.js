@@ -287,6 +287,53 @@ test('file create', function (t) {
     }
 });
 
+test('file list - folder', function (t) {
+    request
+        .get('/files/' + HOMEFOLDER_ID + '/list')
+        .set('Authorization', 'sid ' + SID)
+        .expect('Content-Type', /json/)
+        .expect(200)
+        .end(function (err, res) {
+            // console.log(res.body.response[0]);
+            t.error(err, 'No error');
+            t.equal(res.body.response[0].error, undefined);
+            t.equal(res.body.response[0].results[0]._id, HOMEFOLDER_ID);
+            t.ok(Array.isArray(res.body.response[0].results[0].files), 'is Array');
+            t.equal(res.body.response[0].results[0].type, "FOLDER");
+            t.end();
+        });
+});
+
+test('file list - file', function (t) {
+    request
+        .get('/files/' + UPLOADED_FILE_ID + '/list')
+        .set('Authorization', 'sid ' + SID)
+        .expect('Content-Type', /json/)
+        .expect(200)
+        .end(function (err, res) {
+            // console.log(res.body.response[0]);
+            t.error(err, 'No error');
+            t.equal(res.body.response[0].error, undefined);
+            t.equal(res.body.response[0].results[0]._id, UPLOADED_FILE_ID);
+            t.ok(Array.isArray(res.body.response[0].results[0].files), 'is Array');
+            t.equal(res.body.response[0].results[0].type, "FILE");
+            t.end();
+        });
+});
+
+// test('file info', function (t) {
+// });
+// test('file files', function (t) {
+// });
+// test('file create-folder', function (t) {
+// });
+// test('file content', function (t) {
+// });
+// test('file download', function (t) {
+// });
+// test('file download-example', function (t) {
+// });
+
 test('file delete', function (t) {
     request
         .get('/files/' + UPLOADED_FILE_ID + '/delete')

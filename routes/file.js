@@ -240,31 +240,61 @@ router.get('/:fileId/create-folder', function (req, res, next) {
     });
 });
 
-router.get('/content-example', function (req, res, next) {
-    var tool = req.query.tool;
-    var file = req.query.file;
+router.get('/:fileId/content', function (req, res, next) {
+    var fileId = req.params.fileId;
+    var sid = req._sid;
 
-    console.log(req.query);
+    var start = req.query.start;
+    var limit = req.query.limit;
 
+    async.waterfall([
+        function (cb) {
+            File.findOne({
+                '_id': fileId,
+                "user": req._user._id
+            }, function (err, file) {
+                if (!file) {
+                    cb("File not exist")
+                } else {
+                    var filePath = path.join(config.steviaDir, config.usersPath, file.path);
+                    getFileLines(filePath, start, limit, function (err, text) {
+                        if (err) {
+                            cb(err)
+                        } else {
+                            cb(null, text);
+                        }
+                    });
+                }
+            }).populate("user").populate('parent');
+        }
+    ], function (err, text) {
+        if (err) {
+            console.log("Error in ws: " + req.originalUrl);
+            console.log(err);
+            res.send();
+        } else {
+            res.send(text);
+        }
+    });
+});
+
+function getFileLines(filePath, startParam, limitParam, callback) {
     var start = 0;
     var limit = 0;
-    var l = parseInt(req.query.limit);
-    var s = parseInt(req.query.start);
+    var parsedStart = parseInt(startParam);
+    var parsedLimit = parseInt(limitParam);
 
-    if (!isNaN(l) && l > 0) {
-        limit = l;
-    }
-    if (!isNaN(s) && s >= 0) {
+    if (!isNaN(parsedStart) && parsedStart >= 0) {
         start = s;
     }
+    if (!isNaN(parsedLimit) && parsedLimit > 0) {
+        limit = parsedLimit;
+    }
 
+    var lines = [];
+    var lineCount = 0;
+    var end = start + limit;
     try {
-        var lines = [];
-        var lineCount = 0;
-        var end = start + limit;
-        console.log(config.steviaDir + "/" + config.toolsPath + "/" + tool + "/examples/" + file);
-        var filePath = path.join(config.steviaDir, config.toolsPath, tool, "examples", file);
-        console.log(filePath);
         const rl = readline.createInterface({
             input: fs.createReadStream(filePath)
         });
@@ -278,65 +308,30 @@ router.get('/content-example', function (req, res, next) {
             lineCount++;
         });
         rl.on('close', function () {
-            res.send(lines.join('\n'));
+            callback(null, lines.join('\n'));
         });
     } catch (e) {
-        console.log("error: " + "Could not read the file");
-        console.log(e);
-        res.send();
+        callback("Could not read the file");
     }
+};
 
-});
+router.get('/content-example', function (req, res, next) {
+    var tool = req.query.tool;
+    var file = req.query.file;
+    var start = req.query.start;
+    var limit = req.query.limit;
 
-router.get('/:fileId/content', function (req, res, next) {
-    var fileId = req.params.fileId;
-    var sid = req._sid;
-    var start = 0;
-    var limit = 0;
-    var l = parseInt(req.query.limit);
-    var s = parseInt(req.query.start);
-
-    if (!isNaN(l) && l > 0) {
-        limit = l;
-    }
-    if (!isNaN(s) && s >= 0) {
-        start = s;
-    }
+    var filePath = path.join(config.steviaDir, config.toolsPath, tool, "examples", file);
 
     async.waterfall([
         function (cb) {
-            File.findOne({
-                '_id': fileId,
-                "user": req._user._id
-            }, function (err, file) {
-                if (!file) {
-                    cb("File not exist")
+            getFileLines(filePath, start, limit, function (err, text) {
+                if (err) {
+                    cb(err)
                 } else {
-                    try {
-                        var lines = [];
-                        var lineCount = 0;
-                        var end = start + limit;
-                        var filePath = path.join(config.steviaDir, config.usersPath, file.path);
-                        const rl = readline.createInterface({
-                            input: fs.createReadStream(filePath)
-                        });
-                        rl.on('line', (line) => {
-                            if (lineCount >= start) {
-                                lines.push(line);
-                            }
-                            if (limit > 0 && lineCount > end) {
-                                rl.close()
-                            }
-                            lineCount++;
-                        });
-                        rl.on('close', function () {
-                            cb(null, lines.join('\n'));
-                        });
-                    } catch (e) {
-                        cb("Could not read the file")
-                    }
+                    cb(null, text);
                 }
-            }).populate("user").populate('parent');
+            });
         }
     ], function (err, text) {
         if (err) {
@@ -677,7 +672,7 @@ function getResumeFileInfo(uploadPath, chunkMap) {
                 var stats = fs.statSync(path.join(uploadPath, file));
                 var nameSplit = file.split("_");
                 var chunkId = nameSplit[0];
-               if (stats.size === chunkMap[chunkId].size) {
+                if (stats.size === chunkMap[chunkId].size) {
                     info[chunkId] = {
                         size: stats.size
                     };
