@@ -458,11 +458,9 @@ router.get('/move', function (req, res, next) {
     var sid = req._sid;
     var fileId = req.query.fileId;
     var newParentId = req.query.newId;
-    console.log(newParentId);
     var files = {};
     files[fileId] = null;
     files[newParentId] = null;
-    console.log(Object.keys(files));
 
     async.waterfall([
         function (cb) {
@@ -478,7 +476,6 @@ router.get('/move', function (req, res, next) {
                     for (var i = 0; i < files.length; i++) {
                         var f = files[i];
                         files[f._id] = f;
-                        console.log(f.name);
                     }
                     var file = files[fileId];
                     var newParent = files[newParentId];
