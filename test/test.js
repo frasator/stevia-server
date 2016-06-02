@@ -1,7 +1,9 @@
 const config = require('../config.json');
+const checkconfig = require('../lib/checkconfig.js');
 const path = require('path');
 const fs = require('fs');
 const shell = require('shelljs');
+const net = require('net');
 
 const mongoose = require("mongoose");
 require('../models/user.js');
@@ -19,12 +21,22 @@ var USER_ID;
 var SID;
 var HOMEFOLDER_ID;
 var UPLOADED_FILE;
+var USER_EMAIL = "test@test.com";
+
+portInUse(config.httpPort, function (returnValue) {
+    if (returnValue == false) {
+        console.log('');
+        console.log('Server must be started to run tests !!');
+        console.log('Please run bin/start');
+        console.log('-------------------------------------');
+        console.log('');
+        process.exit();
+    }
+});
 
 /* ----- */
 /* USER */
 /* ----- */
-var USER_EMAIL = "test@test.com";
-
 test('user create', function (t) {
     request
         .get('/users/create?email=' + USER_EMAIL)
@@ -428,8 +440,23 @@ test('file content', function (t) {
             });
         });
 });
-// test('file content-example', function (t) {
-// });
+
+test('file content-example', function (t) {
+    request
+        .get('/files/content-example?tool=test-tool&file=test.txt')
+        .set('Authorization', 'sid ' + SID)
+        .expect('Content-Type', /text/)
+        .expect(200)
+        .end(function (err, res) {
+            t.is(err, null);
+            var filePath = path.join(config.steviaDir, config.toolsPath, 'test-tool', 'examples', 'test.txt');
+            t.true(shell.test('-e', filePath), "Check file system file");
+            var stats = fs.statSync(filePath);
+            t.true(stats.size === res.text.length + 1, "Check file size");
+            t.end();
+        });
+});
+
 test('file download', function (t) {
     request
         .get('/files/' + UPLOADED_FILE._id + '/download')
@@ -451,8 +478,24 @@ test('file download', function (t) {
             });
         });
 });
-// test('file download-example', function (t) {
-// });
+
+test('file download-example', function (t) {
+    request
+        .get('/files/download-example?tool=test-tool&file=test.txt')
+        .set('Authorization', 'sid ' + SID)
+        .expect('content-disposition', /attachment/)
+        .expect('content-disposition', /filename/)
+        .expect(200)
+        .end(function (err, res) {
+            t.is(err, null);
+            var filePath = path.join(config.steviaDir, config.toolsPath, 'test-tool', 'examples', 'test.txt');
+            t.true(shell.test('-e', filePath), "Check file system file");
+            var stats = fs.statSync(filePath);
+            t.true(stats.size === res.text.length, "Check file size");
+            t.end();
+        });
+});
+
 test('file add-attribute', function (t) {
     var attributes = {
         foo: 'foo',
@@ -561,6 +604,75 @@ test('folder delete', function (t) {
 });
 
 /* ----- */
+/* JOBS */
+/* ----- */
+var JOB
+test('launch job ', function (t) {
+    var args = {
+        tool: 'test-tool',
+        execution: 'test',
+        executable: 'test.sh',
+        options: {
+            "output-directory": {
+                out: true,
+            },
+            "bar": {
+                type: 'flag'
+            },
+            "file1": {
+                "type": "file",
+                "mode": "example",
+                "value": "test.txt"
+            },
+            "file2": {
+                "type": "file",
+                "mode": "id",
+                "value": UPLOADED_FILE._id
+            },
+            "param1": {
+                "type": "text",
+                "value": "param1_value"
+            }
+        }
+    };
+    request
+        .post('/jobs/create?name=test-job&description=TestingJobWS')
+        .send(args)
+        .set('Authorization', 'sid ' + SID)
+        .expect('Content-Type', /json/)
+        .expect(200)
+        .end(function (err, res) {
+            // console.log(res.body.response[0].results[0])
+            t.is(err, null);
+            t.is(res.body.response[0].error, undefined);
+            var j = res.body.response[0].results[0];
+            JOB = j;
+            t.not(j, null);
+
+            var jobPath = path.join(config.steviaDir, config.usersPath, j.folder.path);
+            t.true(shell.test('-d', jobPath), "Folder exists");
+            t.is('test-job', j.name);
+
+            t.end();
+        });
+});
+test('delete job ', function (t) {
+    request
+        .get('/jobs/delete?jobId=' + JOB._id)
+        .set('Authorization', 'sid ' + SID)
+        .expect('Content-Type', /json/)
+        .expect(200)
+        .end(function (err, res) {
+            t.is(err, null);
+            t.equal(res.body.response[0].error, undefined);
+            getJobById(JOB._id, function (err, job) {
+                t.is(job, null);
+                t.end();
+            });
+        });
+});
+
+/* ----- */
 /* LOGOUT */
 /* ----- */
 test('user logout', function (t) {
@@ -589,8 +701,9 @@ test('delete user', function (t) {
     });
 });
 
+/**************/
 /*HELP METHODS*/
-
+/**************/
 function getFileById(id, callback) {
     var conn = mongoose.connect(config.mongodb, function () {
         File.findOne({
@@ -630,7 +743,7 @@ function getUserById(id, callback) {
     }).connection;
 }
 
-function getJobById(fileId, callback) {
+function getJobById(id, callback) {
     var conn = mongoose.connect(config.mongodb, function () {
         Job.findOne({
                 '_id': id
@@ -641,4 +754,20 @@ function getJobById(fileId, callback) {
                 });
             });
     }).connection;
+}
+
+function portInUse(port, callback) {
+    var server = net.createServer(function (socket) {
+        socket.write('Echo server\r\n');
+        socket.pipe(socket);
+    });
+
+    server.listen(port, '127.0.0.1');
+    server.on('error', function (e) {
+        callback(true);
+    });
+    server.on('listening', function (e) {
+        server.close();
+        callback(false);
+    });
 }
