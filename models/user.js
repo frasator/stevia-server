@@ -6,11 +6,10 @@
 
 const mongoose = require('mongoose');
 require('./file.js');
-// require('./job.js');
-const File = mongoose.model('File');
-// const Job = mongoose.model('Job');
 
-const utils = require('../lib/utils.js');
+const File = mongoose.model('File');
+
+const crypto = require('crypto');
 
 const Schema = mongoose.Schema;
 
@@ -76,21 +75,28 @@ UserSchema.pre('save', function (next) {
  */
 
 UserSchema.methods = {
-    createHomeFolder: function () {
+    createHomeFolder: function (callback) {
+        var user = this;
         var homeFolder = new File({
-            name: this.email,
-            user: this._id,
-            path: this.email,
+            name: user.email,
+            user: user._id,
+            path: user.email,
             type: 'FOLDER'
         });
-        homeFolder.save();
-        this.home = homeFolder;
-        this.save();
-        homeFolder.fsCreateFolder();
+        homeFolder.save(function (err) {
+            user.home = homeFolder;
+            user.save(function (err) {
+                homeFolder.fsCreateFolder();
+                callback();
+            });
+        });
     },
-    removeSessionId: function (sessionId, logoutOther) {
+    removeSessionId: function (sessionId, logoutOther, callback) {
         if (logoutOther === true) {
             this.sessions = [];
+            this.save(function (err) {
+                callback();
+            });
         } else {
             var index = -1;
             for (var i = 0; i < this.sessions.length; i++) {
@@ -103,12 +109,12 @@ UserSchema.methods = {
             if (index >= 0) {
                 this.sessions.splice(index, 1);
             }
+            this.save(function (err) {
+                callback();
+            });
         }
-        this.save();
     },
-
     checkSessionId: function (sessionId) {
-
         for (var i = 0; i < this.sessions.length; i++) {
             var session = this.sessions[i];
             if (session.id === sessionId) {
@@ -117,25 +123,21 @@ UserSchema.methods = {
         }
         return false;
     },
-    // updateLastActivity: function() {
-    //     this.lastActivity = Date.now();
-    //     this.save();
-    // },
-    login: function () {
+    login: function (callback) {
+        var user = this;
+        crypto.randomBytes(20, function (err, buf) {
+            var sessionId = buf.toString('hex');
+            var session = {
+                id: sessionId,
+                date: Date.now()
+            };
 
-        var sessionId = utils.generateRandomString();
-        var session = {
-            id: sessionId,
-            date: Date.now()
-        };
-
-        this.sessions.push(session);
-        this.save();
-
-        return session;
-
+            user.sessions.push(session);
+            user.save(function () {
+                callback(session);
+            });
+        });
     }
-
 };
 
 /**
