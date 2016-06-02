@@ -9,8 +9,8 @@ const Job = mongoose.model('Job');
 
 const shell = require('shelljs');
 
-function runDelete(ids) {
-    var db = mongoose.connect(config.mongodb, function () {
+function runDelete(ids, callback) {
+    var conn = mongoose.connect(config.mongodb, function () {
         User.find({
                 '_id': {
                     $in: ids
@@ -35,28 +35,36 @@ function runDelete(ids) {
                     User.where('_id').in(ids).remove().exec(function () {
                         count--;
                         if (count == 0) {
-                            mongoose.disconnect();
+                            conn.close(function(){
+                                callback();
+                            });
                         }
                     });
                     File.where('user').in(ids).remove().exec(function () {
                         count--;
                         if (count == 0) {
-                            mongoose.disconnect();
+                            conn.close(function(){
+                                callback();
+                            });;
                         }
                     });
                     Job.where('user').in(ids).remove().exec(function () {
                         count--;
                         if (count == 0) {
-                            mongoose.disconnect();
+                            conn.close(function(){
+                                callback();
+                            });
                         }
                     });
                 }else{
                     console.log(err);
-                    mongoose.disconnect();
+                    conn.close(function(){
+                        callback();
+                    });
                 }
 
             }).populate('home');
-    });
+    }).connection;
 };
 
 module.exports = runDelete;

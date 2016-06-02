@@ -7,9 +7,9 @@ const File = mongoose.model('File');
 const User = mongoose.model('User');
 const Job = mongoose.model('Job');
 
-var remove = require('remove');
+const shell = require('shelljs');
 
-var db = mongoose.connect(config.mongodb, function () {
+var conn = mongoose.connect(config.mongodb, function () {
 
     User.find({
             'email': {
@@ -26,7 +26,7 @@ var db = mongoose.connect(config.mongodb, function () {
                 var userspath = config.steviaDir + config.usersPath;
                 var realPath = userspath + user.email;
                 try {
-                    remove.removeSync(realPath);
+                    shell.rm('-rf', realPath);
                 } catch (e) {
                     console.log("File fsDelete: file not exists on file system")
                 }
@@ -43,27 +43,27 @@ var db = mongoose.connect(config.mongodb, function () {
             //     console.log('done');
             // });
             var count = 3;
-            User.where('_id').in(ids).remove().exec(function(){
+            User.where('_id').in(ids).remove().exec(function () {
                 count--;
-                if(count == 0){
-                    mongoose.disconnect();
+                if (count == 0) {
+                    conn.close(function () {});
                 }
             });
-            File.where('user').in(ids).remove().exec(function(){
+            File.where('user').in(ids).remove().exec(function () {
                 count--;
-                if(count == 0){
-                    mongoose.disconnect();
+                if (count == 0) {
+                    conn.close(function () {});
                 }
             });
-            Job.where('user').in(ids).remove().exec(function(){
+            Job.where('user').in(ids).remove().exec(function () {
                 count--;
-                if(count == 0){
-                    mongoose.disconnect();
+                if (count == 0) {
+                    conn.close(function () {});
                 }
             });
 
         }).populate('home');
 
-});
+}).connection;
 
 //

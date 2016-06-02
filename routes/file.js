@@ -358,23 +358,24 @@ router.get('/:fileId/download', function (req, res, next) {
                 } else {
                     try {
                         var filePath = path.join(config.steviaDir, config.usersPath, file.path);
-                        cb(null, filePath);
+                        res.attachment(filePath);
+                        res.sendFile(filePath, {
+                            dotfiles: 'allow'
+                        });
+                        cb(null);
                     } catch (e) {
                         cb("Could not read the file");
                     }
+
+                    cb(null, filePath);
                 }
             });
         }
-    ], function (err, filePath) {
+    ], function (err) {
         if (err) {
             console.log("Error in ws: " + req.originalUrl);
             console.log(err);
             res.send();
-        } else {
-            res.attachment(filePath);
-            res.sendFile(filePath, {
-                dotfiles: 'allow'
-            });
         }
     });
 
@@ -384,21 +385,29 @@ router.get('/download-example', function (req, res, next) {
     var tool = req.query.tool;
     var file = req.query.file;
 
-    try {
-        var filePath = path.join(config.steviaDir, config.toolsPath, tool, "examples", file);
-
-        res.attachment(filePath);
-        res.sendFile(filePath, {
-            dotfiles: 'allow'
-        });
-    } catch (e) {
-        console.log("error: " + "Could not read the file");
-        console.log(e);
-        res.send();
-    }
+    async.waterfall([
+        function (cb) {
+            try {
+                var filePath = path.join(config.steviaDir, config.toolsPath, tool, "examples", file);
+                res.attachment(filePath);
+                res.sendFile(filePath, {
+                    dotfiles: 'allow'
+                });
+                cb(null);
+            } catch (e) {
+                cb("Could not read the file");
+            }
+        }
+    ], function (err) {
+        if (err) {
+            console.log("Error in ws: " + req.originalUrl);
+            console.log(err);
+            res.send();
+        }
+    });
 });
 
-router.post('/:fileId/attributes', function (req, res, next) {
+router.post('/:fileId/add-attribute', function (req, res, next) {
     var stvResult = new StvResult();
 
     var fileId = req.params.fileId;
@@ -449,9 +458,11 @@ router.get('/move', function (req, res, next) {
     var sid = req._sid;
     var fileId = req.query.fileId;
     var newParentId = req.query.newId;
+    console.log(newParentId);
     var files = {};
     files[fileId] = null;
     files[newParentId] = null;
+    console.log(Object.keys(files));
 
     async.waterfall([
         function (cb) {
@@ -467,6 +478,7 @@ router.get('/move', function (req, res, next) {
                     for (var i = 0; i < files.length; i++) {
                         var f = files[i];
                         files[f._id] = f;
+                        console.log(f.name);
                     }
                     var file = files[fileId];
                     var newParent = files[newParentId];

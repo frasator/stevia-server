@@ -18,48 +18,41 @@ var test = require('tape');
 var USER_ID;
 var SID;
 var HOMEFOLDER_ID;
-var UPLOADED_FILE_ID;
+var UPLOADED_FILE;
 
 /* ----- */
 /* USER */
 /* ----- */
+var USER_EMAIL = "test@test.com";
 
 test('user create', function (t) {
     request
-        .get('/users/create?email=test@test.com')
+        .get('/users/create?email=' + USER_EMAIL)
         .set('Authorization', 'sid a94a8fe5ccb19ba61c4c0873d391e987982fbbd3')
         .expect('Content-Type', /json/)
         .expect(200)
         .end(function (err, res) {
             // console.log(res.body.response[0]);
-            t.error(err, 'No error');
+            t.is(err, null);
             // t.equal(res.body.response[0].error, undefined);
-
-            var db = mongoose.connect(config.mongodb, function () {
-                User.findOne({
-                        'email': 'test@test.com'
-                    },
-                    function (err, user) {
-                        mongoose.disconnect();
-                        t.error(err, 'No error');
-                        t.not(user, null);
-                        USER_ID = user._id;
-                        var userPath = path.join(config.steviaDir, config.usersPath, 'test@test.com');
-                        t.true(shell.test('-d', userPath), "Directory exists");
-                        t.end();
-                    }).populate('home');
+            getUserByEmail(USER_EMAIL, function (err, user) {
+                t.isNot(user, null);
+                USER_ID = user._id;
+                var userPath = path.join(config.steviaDir, config.usersPath, USER_EMAIL);
+                t.true(shell.test('-d', userPath), "Directory exists");
+                t.end();
             });
         });
 });
 
 test('user login', function (t) {
     request
-        .get('/users/test@test.com/login')
+        .get('/users/' + USER_EMAIL + '/login')
         .set('Authorization', 'sid a94a8fe5ccb19ba61c4c0873d391e987982fbbd3')
         .expect('Content-Type', /json/)
         .expect(200)
         .end(function (err, res) {
-            t.error(err, 'No error');
+            t.is(err, null);
             t.equal(res.body.response[0].error, undefined);
 
             t.not(res.body.response[0].results[0].id, undefined);
@@ -74,17 +67,17 @@ test('user login', function (t) {
 
 test('user info', function (t) {
     request
-        .get('/users/test@test.com/info')
+        .get('/users/' + USER_EMAIL + '/info')
         .set('Authorization', 'sid ' + SID)
         .expect('Content-Type', /json/)
         .expect(200)
         .end(function (err, res) {
             // console.log(res.body.response[0]);
-            t.error(err, 'No error');
+            t.is(err, null);
             t.equal(res.body.response[0].error, undefined);
 
             t.not(res.body.response[0].results[0].tree, undefined);
-            t.equal(res.body.response[0].results[0].email, 'test@test.com')
+            t.equal(res.body.response[0].results[0].email, USER_EMAIL)
             HOMEFOLDER_ID = res.body.response[0].results[0].home._id;
 
             t.end();
@@ -93,7 +86,7 @@ test('user info', function (t) {
 
 test('user change password', function (t) {
     request
-        .get('/users/test@test.com/change-password')
+        .get('/users/' + USER_EMAIL + '/change-password')
         .set('Authorization', 'sid ' + SID)
         .set('x-stv-1', 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3')
         .set('x-stv-2', 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3')
@@ -101,7 +94,7 @@ test('user change password', function (t) {
         .expect(200)
         .end(function (err, res) {
             // console.log(res.body.response[0]);
-            t.error(err, 'No error');
+            t.is(err, null);
             t.equal(res.body.response[0].error, undefined);
 
             t.end();
@@ -127,21 +120,27 @@ test('file create', function (t) {
         // var percentProgress = Math.round((chunk.id / total) * 100);
         if (chunk.last) {
             // console.log(chunkResponse)
-            UPLOADED_FILE_ID = chunkResponse.file._id;
-            t.comment("file._id: " + UPLOADED_FILE_ID);
+            UPLOADED_FILE = chunkResponse.file;
+            t.comment("file._id: " + UPLOADED_FILE._id);
             var uploadedFilePath = path.join(config.steviaDir, config.usersPath, chunkResponse.file.path);
-            t.true(shell.test('-e', uploadedFilePath), "File exists");
+            t.true(shell.test('-e', uploadedFilePath), "Check file system file");
             var uploadStats = fs.statSync(uploadedFilePath);
-            t.true(stats.size === uploadStats.size, "File size is the same");
+            t.true(stats.size === uploadStats.size, "Check file size");
+            getFileById(UPLOADED_FILE._id, function (err, file) {
+                t.isNot(file, null);
+            });
             t.end();
         }
     };
     var callbackExists = function (file) {
-        UPLOADED_FILE_ID = file._id;
+        UPLOADED_FILE = file;
         var uploadedFilePath = path.join(config.steviaDir, config.usersPath, file.path);
-        t.true(shell.test('-e', uploadedFilePath), "File exists");
+        t.true(shell.test('-e', uploadedFilePath), "Check file system file");
         var uploadStats = fs.statSync(uploadedFilePath);
-        t.true(stats.size === uploadStats.size, "File size is the same");
+        t.true(stats.size === uploadStats.size, "Check file size");
+        getFileById(UPLOADED_FILE._id, function (err, file) {
+            t.isNot(file, null);
+        });
         t.end();
     };
 
@@ -295,7 +294,7 @@ test('file list - folder', function (t) {
         .expect(200)
         .end(function (err, res) {
             // console.log(res.body.response[0]);
-            t.error(err, 'No error');
+            t.is(err, null);
             t.equal(res.body.response[0].error, undefined);
             t.equal(res.body.response[0].results[0]._id, HOMEFOLDER_ID);
             t.ok(Array.isArray(res.body.response[0].results[0].files), 'is Array');
@@ -306,44 +305,256 @@ test('file list - folder', function (t) {
 
 test('file list - file', function (t) {
     request
-        .get('/files/' + UPLOADED_FILE_ID + '/list')
+        .get('/files/' + UPLOADED_FILE._id + '/list')
         .set('Authorization', 'sid ' + SID)
         .expect('Content-Type', /json/)
         .expect(200)
         .end(function (err, res) {
             // console.log(res.body.response[0]);
-            t.error(err, 'No error');
+            t.is(err, null);
             t.equal(res.body.response[0].error, undefined);
-            t.equal(res.body.response[0].results[0]._id, UPLOADED_FILE_ID);
+            t.equal(res.body.response[0].results[0]._id, UPLOADED_FILE._id);
             t.ok(Array.isArray(res.body.response[0].results[0].files), 'is Array');
             t.equal(res.body.response[0].results[0].type, "FILE");
             t.end();
         });
 });
 
-// test('file info', function (t) {
-// });
-// test('file files', function (t) {
-// });
-// test('file create-folder', function (t) {
-// });
-// test('file content', function (t) {
-// });
-// test('file download', function (t) {
-// });
-// test('file download-example', function (t) {
-// });
-
-test('file delete', function (t) {
+test('file info', function (t) {
     request
-        .get('/files/' + UPLOADED_FILE_ID + '/delete')
+        .get('/files/' + UPLOADED_FILE._id + '/info')
         .set('Authorization', 'sid ' + SID)
         .expect('Content-Type', /json/)
         .expect(200)
         .end(function (err, res) {
             // console.log(res.body.response[0]);
-            t.error(err, 'No error');
+            t.is(err, null);
             t.equal(res.body.response[0].error, undefined);
+            t.equal(res.body.response[0].results[0]._id, UPLOADED_FILE._id);
+            t.ok(Array.isArray(res.body.response[0].results[0].files), 'is Array');
+            t.end();
+        });
+});
+test('file files', function (t) {
+    request
+        .get('/files/' + HOMEFOLDER_ID + '/files')
+        .set('Authorization', 'sid ' + SID)
+        .expect('Content-Type', /json/)
+        .expect(200)
+        .end(function (err, res) {
+            // console.log(res.body.response[0]);
+            t.is(err, null);
+            t.equal(res.body.response[0].error, undefined);
+            t.ok(Array.isArray(res.body.response[0].results), 'is Array');
+            for (var i = 0; i < res.body.response[0].results.length; i++) {
+                var f = res.body.response[0].results[i];
+                var filePath = path.join(config.steviaDir, config.usersPath, f.path);
+                t.true(shell.test('-e', filePath), "File exists");
+            }
+            t.end();
+        });
+});
+
+var FOLDER
+test('file create-folder', function (t) {
+    var folderName = "myfolder";
+    request
+        .get('/files/' + HOMEFOLDER_ID + '/create-folder?name=' + folderName)
+        .set('Authorization', 'sid ' + SID)
+        .expect('Content-Type', /json/)
+        .expect(200)
+        .end(function (err, res) {
+            // console.log(res.body.response[0]);
+            t.is(err, null);
+            t.equal(res.body.response[0].error, undefined);
+            var f = res.body.response[0].results[0];
+            t.not(f, null);
+            t.equal(f.name, folderName);
+            var filePath = path.join(config.steviaDir, config.usersPath, f.path);
+            t.true(shell.test('-d', filePath), "Folder exists");
+            FOLDER = f;
+
+            getFileById(FOLDER._id, function (err, file) {
+                t.isNot(file, null);
+                t.end();
+            });
+
+        });
+});
+var FOLDER2
+test('file create-folder2', function (t) {
+    var folderName = "mysubfolder";
+    request
+        .get('/files/' + FOLDER._id + '/create-folder?name=' + folderName)
+        .set('Authorization', 'sid ' + SID)
+        .expect('Content-Type', /json/)
+        .expect(200)
+        .end(function (err, res) {
+            // console.log(res.body.response[0]);
+            t.is(err, null);
+            t.equal(res.body.response[0].error, undefined);
+            var f = res.body.response[0].results[0];
+            t.not(f, null);
+            t.equal(f.name, folderName);
+            var filePath = path.join(config.steviaDir, config.usersPath, f.path);
+            t.true(shell.test('-d', filePath), "Folder exists");
+            FOLDER2 = f;
+
+            getFileById(FOLDER2._id, function (err, file) {
+                t.isNot(file, null);
+                t.end();
+            });
+
+        });
+});
+
+test('file content', function (t) {
+    request
+        .get('/files/' + UPLOADED_FILE._id + '/content')
+        .set('Authorization', 'sid ' + SID)
+        .expect('Content-Type', /text/)
+        .expect(200)
+        .end(function (err, res) {
+            t.is(err, null);
+
+            getFileById(UPLOADED_FILE._id, function (err, file) {
+                t.is(err, null);
+                t.not(file, null);
+                var filePath = path.join(config.steviaDir, config.usersPath, file.path);
+                t.true(shell.test('-e', filePath), "Check file system file");
+                var stats = fs.statSync(filePath);
+                t.true(stats.size === res.text.length + 1, "Check file size");
+                t.end();
+            });
+        });
+});
+// test('file content-example', function (t) {
+// });
+test('file download', function (t) {
+    request
+        .get('/files/' + UPLOADED_FILE._id + '/download')
+        .set('Authorization', 'sid ' + SID)
+        .expect('content-disposition', /attachment/)
+        .expect('content-disposition', /filename/)
+        .expect(200)
+        .end(function (err, res) {
+            t.is(err, null);
+            getFileById(UPLOADED_FILE._id, function (err, file) {
+                t.is(err, null);
+                t.not(file, null);
+                var filePath = path.join(config.steviaDir, config.usersPath, file.path);
+                t.true(shell.test('-e', filePath), "Check file system file");
+                var stats = fs.statSync(filePath);
+                t.true(stats.size === res.text.length, "Check file size");
+                t.end();
+
+            });
+        });
+});
+// test('file download-example', function (t) {
+// });
+test('file add-attribute', function (t) {
+    var attributes = {
+        foo: 'foo',
+        bar: 'bar'
+    };
+    request
+        .post('/files/' + UPLOADED_FILE._id + '/add-attribute')
+        .send(attributes)
+        .set('Authorization', 'sid ' + SID)
+        .expect('Content-Type', /json/)
+        .expect(200)
+        .end(function (err, res) {
+            t.is(err, null);
+            // console.log(res.body.response[0].results[0])
+            var f = res.body.response[0].results[0];
+            t.not(f, null);
+            for (var key in attributes) {
+                t.not(f.attributes[key], null);
+                t.true(JSON.stringify(f.attributes[key]) == JSON.stringify(attributes[key]), 'Check attribute');
+            }
+            t.end();
+        });
+});
+test('file move down', function (t) {
+    var fileId = UPLOADED_FILE._id;
+    var newParentId = FOLDER2._id;
+    request
+        .get('/files/move?fileId=' + fileId + "&newId=" + newParentId)
+        .set('Authorization', 'sid ' + SID)
+        .expect('Content-Type', /json/)
+        .expect(200)
+        .end(function (err, res) {
+            // console.log(res.body.response)
+            var filePath = path.join(config.steviaDir, config.usersPath, FOLDER2.path, UPLOADED_FILE.name);
+            getFileById(fileId, function (err, file) {
+                t.is(err, null);
+                t.not(file, null);
+                var filePathDb = path.join(config.steviaDir, config.usersPath, file.path).toString();
+                t.true(filePath == filePathDb, "Check database path");
+                t.true(shell.test('-e', filePath), "Check file system file");
+                t.end();
+
+            });
+        });
+});
+test('file move up', function (t) {
+    var fileId = FOLDER2._id;
+    var newParentId = HOMEFOLDER_ID;
+    request
+        .get('/files/move?fileId=' + fileId + "&newId=" + newParentId)
+        .set('Authorization', 'sid ' + SID)
+        .expect('Content-Type', /json/)
+        .expect(200)
+        .end(function (err, res) {
+            // console.log(res.body.response)
+            var filePath = path.join(config.steviaDir, config.usersPath, USER_EMAIL, FOLDER2.name);
+            getFileById(fileId, function (err, file) {
+                t.is(err, null);
+                t.not(file, null);
+                var filePathDb = path.join(config.steviaDir, config.usersPath, file.path).toString();
+                t.true(filePath == filePathDb, "Check database path");
+                t.true(shell.test('-e', filePath), "Check file system file");
+                t.end();
+            });
+        });
+});
+
+test('file delete', function (t) {
+    request
+        .get('/files/' + UPLOADED_FILE._id + '/delete')
+        .set('Authorization', 'sid ' + SID)
+        .expect('Content-Type', /json/)
+        .expect(200)
+        .end(function (err, res) {
+            // console.log(res.body.response[0]);
+            t.is(err, null);
+            t.equal(res.body.response[0].error, undefined);
+
+            getFileById(UPLOADED_FILE._id, function (err, file) {
+                t.is(file, null);
+            });
+
+            t.end();
+        });
+});
+test('folder delete', function (t) {
+    var folderName = "myfolder";
+    request
+        .get('/files/' + FOLDER._id + '/delete')
+        .set('Authorization', 'sid ' + SID)
+        .expect('Content-Type', /json/)
+        .expect(200)
+        .end(function (err, res) {
+            // console.log(res.body.response[0]);
+            t.is(err, null);
+            t.equal(res.body.response[0].error, undefined);
+            var filePath = path.join(config.steviaDir, config.usersPath, FOLDER.path);
+            t.false(shell.test('-e', filePath), "Folder not exists");
+
+            getFileById(FOLDER._id, function (err, file) {
+                t.is(file, null);
+            });
 
             t.end();
         });
@@ -354,14 +565,14 @@ test('file delete', function (t) {
 /* ----- */
 test('user logout', function (t) {
     request
-    // .get('/users/test@test.com/logout?logoutOther=true')
-        .get('/users/test@test.com/logout')
+    // .get('/users/'+USER_EMAIL+'/logout?logoutOther=true')
+        .get('/users/' + USER_EMAIL + '/logout')
         .set('Authorization', 'sid ' + SID)
         .expect('Content-Type', /json/)
         .expect(200)
         .end(function (err, res) {
             // console.log(res.body.response[0]);
-            t.error(err, 'No error');
+            t.is(err, null);
             t.equal(res.body.response[0].error, undefined);
 
             t.end();
@@ -370,6 +581,64 @@ test('user logout', function (t) {
 
 test('delete user', function (t) {
     var deleteUser = require('../manteinance/delete-user-module.js');
-    deleteUser(USER_ID);
-    t.end();
+    deleteUser([USER_ID], function () {
+        getUserById(USER_ID, function (err, user) {
+            t.is(user, null);
+            t.end();
+        });
+    });
 });
+
+/*HELP METHODS*/
+
+function getFileById(id, callback) {
+    var conn = mongoose.connect(config.mongodb, function () {
+        File.findOne({
+                '_id': id
+            },
+            function (err, doc) {
+                conn.close(function () {
+                    callback(err, doc);
+                });
+            }).populate('home');
+    }).connection;
+}
+
+function getUserByEmail(query, callback) {
+    var conn = mongoose.connect(config.mongodb, function () {
+        User.findOne({
+                'email': query
+            },
+            function (err, doc) {
+                conn.close(function () {
+                    callback(err, doc);
+                });
+            }).populate('home');
+    }).connection;
+}
+
+function getUserById(id, callback) {
+    var conn = mongoose.connect(config.mongodb, function () {
+        User.findOne({
+                '_id': id
+            },
+            function (err, doc) {
+                conn.close(function () {
+                    callback(err, doc);
+                });
+            });
+    }).connection;
+}
+
+function getJobById(fileId, callback) {
+    var conn = mongoose.connect(config.mongodb, function () {
+        Job.findOne({
+                '_id': id
+            },
+            function (err, doc) {
+                conn.close(function () {
+                    callback(err, doc);
+                });
+            });
+    }).connection;
+}
