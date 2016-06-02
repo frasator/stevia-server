@@ -197,6 +197,54 @@ router.get('/:fileId/create-folder', function (req, res, next) {
     }).populate("user").populate('files');
 });
 
+router.get('/content-example', function (req, res, next) {
+    var tool = req.query.tool;
+    var file = req.query.file;
+
+    console.log(req.query);
+
+    var start = 0;
+    var limit = 0;
+    var l = parseInt(req.query.limit);
+    var s = parseInt(req.query.start);
+
+    if (!isNaN(l) && l > 0) {
+        limit = l;
+    }
+    if (!isNaN(s) && s >= 0) {
+        start = s;
+    }
+
+    try {
+        var lines = [];
+        var lineCount = 0;
+        var end = start + limit;
+        console.log(config.steviaDir + "/" + config.toolsPath + "/" + tool + "/examples/" + file);
+        var filePath = path.join(config.steviaDir, config.toolsPath, tool, "examples", file);
+        console.log(filePath);
+        const rl = readline.createInterface({
+            input: fs.createReadStream(filePath)
+        });
+        rl.on('line', (line) => {
+            if (lineCount >= start) {
+                lines.push(line);
+            }
+            if (limit > 0 && lineCount > end) {
+                rl.close()
+            }
+            lineCount++;
+        });
+        rl.on('close', function () {
+            res.send(lines.join('\n'));
+        });
+    } catch (e) {
+        console.log("error: " + "Could not read the file");
+        console.log(e);
+        res.send();
+    }
+
+});
+
 router.get('/:fileId/content', function (req, res, next) {
     var fileId = req.params.fileId;
     var sid = req._sid;
@@ -276,21 +324,19 @@ router.get('/:fileId/download', function (req, res, next) {
 router.get('/download-example', function (req, res, next) {
     var tool = req.query.tool;
     var file = req.query.file;
-    
 
+    try {
+        var filePath = path.join(config.steviaDir, config.toolsPath, tool, "examples", file);
 
-            try {
-                var filePath = path.join(config.steviaDir, config.toolPath, tool, "examples", file);
-
-                res.attachment(filePath);
-                res.sendFile(filePath, {
-                    dotfiles: 'allow'
-                });
-            } catch (e) {
-                console.log("error: " + "Could not read the file");
-                console.log(e);
-                res.send();
-            }
+        res.attachment(filePath);
+        res.sendFile(filePath, {
+            dotfiles: 'allow'
+        });
+    } catch (e) {
+        console.log("error: " + "Could not read the file");
+        console.log(e);
+        res.send();
+    }
 });
 
 //move files
@@ -518,7 +564,7 @@ router.post('/upload', function (req, res, next) {
 
 function joinAllChunks(folderPath, uploadPath, fields, parent, callback) {
     console.log('Joining all chunks...');
-    var finalFilePath = path.join(folderPath , fields.name);
+    var finalFilePath = path.join(folderPath, fields.name);
     var files = getSortedChunkList(uploadPath);
     var fd = fs.openSync(finalFilePath, 'w');
     fs.closeSync(fd);
