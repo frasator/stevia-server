@@ -2,8 +2,8 @@
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 echo "Stopping..."
-$SCRIPT_DIR/stop.sh
+$SCRIPT_DIR/stop
 
 echo "Starting..."
-$SCRIPT_DIR/start-dev-server.sh
-$SCRIPT_DIR/start-dev-daemon.sh
+$SCRIPT_DIR/start-dev-server
+$SCRIPT_DIR/start-dev-daemon
