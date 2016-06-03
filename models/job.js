@@ -1,14 +1,13 @@
-const path = require('path');
-
-/**
- * Module dependencies.
- */
+const config = require('../config.json');
 
 const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 require('./file.js');
 const File = mongoose.model('File');
+
+const path = require('path');
 const async = require('async');
+const shell = require('shelljs');
 
 /**
  * File Schema
@@ -82,26 +81,16 @@ const JobSchema = new Schema({
 
 JobSchema.methods = {
     createJobFolder: function (name, parent, user, callback) {
-        var newName = parent.getDuplicatedFileName(name);
-        var jobFolder = new File({
-            name: newName,
-            user: user._id,
-            parent: parent._id,
-            job: this._id,
-            path: path.join(parent.path, newName),
-            type: "FOLDER"
-        });
-
-        parent.files.push(jobFolder);
-        this.folder = jobFolder;
-        this.user = user;
-
-        jobFolder.fsCreateFolder(parent);
-
-        async.parallel([
-            this.save, jobFolder.save, parent.save, user.save
-        ], function (err) {
-            callback(err)
+        var job = this;
+        File.createFolder(name, parent, user, function (folder) {
+            folder.job = job._id;
+            job.folder = folder._id;
+            job.user = user._id;
+            async.parallel([
+                folder.save, job.save
+            ], function (err) {
+                callback(err)
+            });
         });
     }
 };

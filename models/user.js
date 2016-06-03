@@ -1,17 +1,15 @@
-'use strict';
-
-/**
- * Module dependencies.
- */
+const config = require('../config.json');
 
 const mongoose = require('mongoose');
+const Schema = mongoose.Schema;
 require('./file.js');
-
 const File = mongoose.model('File');
 
 const crypto = require('crypto');
+const path = require('path');
+const async = require('async');
+const shell = require('shelljs');
 
-const Schema = mongoose.Schema;
 
 /**
  * User Schema
@@ -77,6 +75,11 @@ UserSchema.pre('save', function (next) {
 UserSchema.methods = {
     createHomeFolder: function (callback) {
         var user = this;
+        var fsUserHomePath = path.join(config.steviaDir, config.usersPath, user.email);
+        if (shell.test('-d', fsUserHomePath)) {
+            console.log('User home folder already exists');
+        }
+        shell.mkdir('-p', fsUserHomePath);
         var homeFolder = new File({
             name: user.email,
             user: user._id,
@@ -86,7 +89,6 @@ UserSchema.methods = {
         homeFolder.save(function (err) {
             user.home = homeFolder;
             user.save(function (err) {
-                homeFolder.fsCreateFolder();
                 callback();
             });
         });
