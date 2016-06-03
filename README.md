@@ -54,7 +54,7 @@ node server.js
 ```
 Or by using forever with the shorthand scripts from bin directory
 ```bash
-bin/start.sh
+bin/start
 ```
 To check if it is running use the following URL on a web browser
 ```bash
