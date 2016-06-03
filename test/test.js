@@ -117,7 +117,7 @@ test('user change password', function (t) {
 /* FILES */
 /* ----- */
 
-test('file create', function (t) {
+test('file upload', function (t) {
 
     var filePath = path.join(__dirname, 'test-file.txt');
     // var filePath = './test/Leaf_icon_03.svg.png';
@@ -250,7 +250,7 @@ test('file create', function (t) {
     /**/
 
     // var BYTES_PER_CHUNK = 4 * 1024 * 1024;
-    var BYTES_PER_CHUNK = 5;
+    var BYTES_PER_CHUNK = 10;
     var SIZE = stats.size;
     var NUM_CHUNKS = Math.max(Math.ceil(SIZE / BYTES_PER_CHUNK), 1);
 

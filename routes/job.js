@@ -110,9 +110,16 @@ router.post('/create', function (req, res, next) {
                 if (err) {
                     cb(err)
                 } else {
-                    cb(null, job)
+                    cb(null, job._id)
                 }
             });
+        },
+        function (jobId, cb) {
+            Job.findOne({
+                '_id': jobId
+            }, function (err, job) {
+                cb(null, job);
+            }).populate('folder').populate('user');
         },
         function (job, cb) {
             var realOutPath = path.join(config.steviaDir, config.usersPath, job.folder.path);

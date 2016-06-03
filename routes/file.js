@@ -215,16 +215,10 @@ router.get('/:fileId/create-folder', function (req, res, next) {
                 } else if (parent.user._id.toString() != req._user._id.toString()) {
                     cb("Authentication error");
                 } else {
-                    var folder = parent.hasFile(name);
-                    if (folder != null) {
+                    File.createFolder(name, parent, req._user, function (folder) {
                         stvResult.results.push(folder);
                         cb(null);
-                    } else {
-                        File.createFolder(name, parent, req._user, function (folder) {
-                            stvResult.results.push(folder);
-                            cb(null);
-                        });
-                    }
+                    });
                 }
             }).populate("user").populate('files');
         }
@@ -542,15 +536,21 @@ router.post('/upload', function (req, res, next) {
     var name = req.query.name.replace(/[^a-zA-Z0-9._\-]/g, "_");
     console.log(name);
     var parent = req._parent;
-    var file = parent.hasFile(name);
-    if (file != null) {
-        res.json({
-            exists: true,
-            file: file
-        });
-    } else {
-        next();
-    }
+
+    File.findOne({
+        'user': req._user._id,
+        'path': path.join(req._parent.path, name).toString()
+    }, function (err, file) {
+        if (file != null) {
+            res.json({
+                exists: true,
+                file: file
+            });
+        } else {
+            next();
+        }
+
+    });
 
 }, function (req, res, next) {
     var fields = {};

@@ -1,24 +1,20 @@
-var util = require('util');
-const path = require('path');
-/**
- * Module dependencies.
- */
+const config = require('../config.json');
 
-var exec = require('child_process').exec;
-var fs = require('fs');
-var config = require('../config.json');
-const shell = require('shelljs');
 const mongoose = require('mongoose');
-const async = require('async');
+const Schema = mongoose.Schema;
+const util = require('util');
+const exec = require('child_process').exec;
+const fs = require('fs');
+
 const mime = require('mime');
-// require('./job.js');
-
-// require('./user.js');
-// require('./job.js');
-
+const path = require('path');
+const async = require('async');
+const shell = require('shelljs');
 const crypto = require('crypto');
 
-const Schema = mongoose.Schema;
+// require('./job.js');
+// require('./user.js');
+// require('./job.js');
 
 /**
  * File Schema
@@ -86,51 +82,6 @@ FileSchema.pre('save', function (next) {
  */
 
 FileSchema.methods = {
-    hasFile: function (name) {
-        try {
-            var stats = fs.statSync(path.join(this.path, name));
-            return null;
-        } catch (e) {
-            var foundFile = null;
-            for (var i = 0; i < this.files.length; i++) {
-                var file = this.files[i];
-                if (file.name === name) {
-                    foundFile = file;
-                    break;
-                }
-            }
-            return foundFile;
-        }
-    },
-    getDuplicatedFileName: function (name) {
-        var suffix = 0;
-        var nameToCheck = name;
-        while (this.hasFile(nameToCheck) != null) {
-            suffix++;
-            nameToCheck = name + '-' + suffix;
-        }
-        return nameToCheck;
-    },
-    fsCreateFolder: function (parent) {
-        var userspath = path.join(config.steviaDir, config.usersPath);
-        try {
-            var stats = fs.statSync(userspath);
-        } catch (e) {
-            fs.mkdirSync(userspath);
-        }
-
-        var realPath;
-        if (parent != undefined) {
-            realPath = path.join(userspath, parent.path, this.name);
-        } else {
-            realPath = path.join(userspath, this.name);
-        }
-        try {
-            fs.mkdirSync(realPath);
-        } catch (e) {
-            console.log("File fsCreateFolder: file already exists on file system");
-        }
-    },
     fsDelete: function () {
         if (this.path == null || this.path == '') {
             console.log("File fsDelete: file path is null or ''.")
@@ -158,24 +109,55 @@ FileSchema.statics = {
             "_id": fid
         }).exec(callback);
     },
+    getDuplicatedFileName: function (dbParentPath, name) {
+        var fsParentPath = path.join(config.steviaDir, config.usersPath, dbParentPath);
+        var suffix = 0;
+        var nameToCheck = name;
+        while (shell.test('-e', path.join(fsParentPath, nameToCheck))) {
+            suffix++;
+            nameToCheck = name + '-' + suffix;
+        }
+        return nameToCheck;
+    },
     createFolder: function (name, parent, user, callback) {
+        var fsUsersPath = path.join(config.steviaDir, config.usersPath);
+        try {
+            var stats = fs.statSync(fsUsersPath);
+        } catch (e) {
+            shell.mkdir('-p', fsUsersPath);
+        }
+
+        var dbParentPath;
+        if (parent != undefined) {
+            dbParentPath = parent.path;
+        } else {
+            dbParentPath = user.email;
+        }
+
+        var finalName = this.getDuplicatedFileName(dbParentPath, name);
+        fsFinalPath = path.join(config.steviaDir, config.usersPath, dbParentPath, finalName);
+        dbFinalPath = path.join(dbParentPath, finalName);
+
+        try {
+            shell.mkdir(fsFinalPath);
+        } catch (e) {
+            console.log("File CreateFolder: file already exists on file system");
+        }
+
         var folder = new this({
-            name: name,
+            name: finalName,
             user: user._id,
             parent: parent._id,
             type: "FOLDER",
-            path: path.join(parent.path, name)
+            path: dbFinalPath
         });
 
         parent.files.push(folder);
 
-        folder.save(function (err) {
-            parent.save(function (err) {
-                user.save(function (err) {
-                    folder.fsCreateFolder(parent);
-                    callback(folder);
-                });
-            });
+        async.parallel([
+            folder.save, parent.save, user.save
+        ], function () {
+            callback(folder);
         });
     },
     createFile: function (name, parent, user, callback) {
@@ -331,20 +313,20 @@ FileSchema.statics = {
             return;
         } else {
 
-            var fileName = newParent.getDuplicatedFileName(file.name);
+            var fileName = this.getDuplicatedFileName(newParent.path, file.name);
             file.name = fileName;
         }
 
         var oldPath = path.join(config.steviaDir, config.usersPath, file.path);
         var newPath = path.join(config.steviaDir, config.usersPath, newParent.path, file.name);
-
         try {
             fs.renameSync(oldPath, newPath);
         } catch (e) {
-            console.log("RenameSync");
+            console.log("RenameSync Error");
             console.log("old " + oldPath)
             console.log("new " + newPath)
-            callback(e);
+            callback(e.message);
+            console.log("Move operation canceled.");
             return;
         }
 
