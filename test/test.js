@@ -23,15 +23,25 @@ var HOMEFOLDER_ID;
 var UPLOADED_FILE;
 var USER_EMAIL = "test@test.com";
 
-portInUse(config.httpPort, function (returnValue) {
-    if (returnValue == false) {
-        console.log('');
-        console.log('Server must be started to run tests !!');
-        console.log('Please run bin/start');
-        console.log('-------------------------------------');
-        console.log('');
-        process.exit();
+getUserByEmail(USER_EMAIL, function (err, user) {
+    if (user != null) {
+        var deleteUser = require('../manteinance/delete-user-module.js');
+        deleteUser([user._id], function () {
+
+        });
     }
+
+    portInUse(config.httpPort, function (returnValue) {
+        if (returnValue == false) {
+            console.log('');
+            console.log('Server must be started to run tests !!');
+            console.log('Please run bin/start');
+            console.log('-------------------------------------');
+            console.log('');
+            process.exit();
+        }
+    });
+
 });
 
 /* ----- */
