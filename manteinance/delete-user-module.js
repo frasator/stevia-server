@@ -8,6 +8,8 @@ const User = mongoose.model('User');
 const Job = mongoose.model('Job');
 
 const shell = require('shelljs');
+const path = require('path');
+
 
 function runDelete(ids, callback) {
     var conn = mongoose.connect(config.mongodb, function () {
@@ -22,8 +24,7 @@ function runDelete(ids, callback) {
                     for (var i = 0; i < users.length; i++) {
                         var user = users[i];
 
-                        var userspath = config.steviaDir + config.usersPath;
-                        var realPath = userspath + user.email;
+                        var realPath = path.join(config.steviaDir, config.usersPath, user.email);
                         try {
                             shell.rm('-rf', realPath);
                         } catch (e) {

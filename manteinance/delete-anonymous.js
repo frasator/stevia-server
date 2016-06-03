@@ -23,8 +23,7 @@ var conn = mongoose.connect(config.mongodb, function () {
                 var user = users[i];
                 ids.push(user._id);
 
-                var userspath = config.steviaDir + config.usersPath;
-                var realPath = userspath + user.email;
+                var realPath = path.join(config.steviaDir, config.usersPath, user.email);
                 try {
                     shell.rm('-rf', realPath);
                 } catch (e) {
