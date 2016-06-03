@@ -24,6 +24,7 @@ var UPLOADED_FILE;
 var USER_EMAIL = "test@test.com";
 
 portInUse(config.httpPort, function (returnValue) {
+
     if (returnValue == false) {
         console.log('');
         console.log('Server must be started to run tests !!');
@@ -44,7 +45,7 @@ test('delete user', function (t) {
                     t.end();
                 });
             });
-        }else{
+        } else {
             t.end();
         }
     });
@@ -55,7 +56,7 @@ test('delete user', function (t) {
 /* ----- */
 test('user create', function (t) {
     request
-        .get('/users/create?email=' + USER_EMAIL)
+        .get(config.urlPathPrefix + '/users/create?email=' + USER_EMAIL)
         .set('Authorization', 'sid a94a8fe5ccb19ba61c4c0873d391e987982fbbd3')
         .expect('Content-Type', /json/)
         .expect(200)
@@ -75,7 +76,7 @@ test('user create', function (t) {
 
 test('user login', function (t) {
     request
-        .get('/users/' + USER_EMAIL + '/login')
+        .get(config.urlPathPrefix + '/users/' + USER_EMAIL + '/login')
         .set('Authorization', 'sid a94a8fe5ccb19ba61c4c0873d391e987982fbbd3')
         .expect('Content-Type', /json/)
         .expect(200)
@@ -95,7 +96,7 @@ test('user login', function (t) {
 
 test('user info', function (t) {
     request
-        .get('/users/' + USER_EMAIL + '/info')
+        .get(config.urlPathPrefix + '/users/' + USER_EMAIL + '/info')
         .set('Authorization', 'sid ' + SID)
         .expect('Content-Type', /json/)
         .expect(200)
@@ -114,7 +115,7 @@ test('user info', function (t) {
 
 test('user change password', function (t) {
     request
-        .get('/users/' + USER_EMAIL + '/change-password')
+        .get(config.urlPathPrefix + '/users/' + USER_EMAIL + '/change-password')
         .set('Authorization', 'sid ' + SID)
         .set('x-stv-1', 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3')
         .set('x-stv-2', 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3')
@@ -185,7 +186,7 @@ test('file upload', function (t) {
 
     var getResumeInfo = function (callback) {
         request
-            .post('/files/upload?name=' + name + '&parentId=' + parentId)
+            .post(config.urlPathPrefix + '/files/upload?name=' + name + '&parentId=' + parentId)
             .set('Authorization', 'sid ' + SID)
             .field('resume_upload', resume.toString())
             .field('chunk_map', JSON.stringify(chunkMap))
@@ -197,7 +198,7 @@ test('file upload', function (t) {
             });
     };
     var uploadChunk = function (buffer, bytesRead, chunk, callback) {
-        var requestPost = request.post('/files/upload?name=' + name + '&parentId=' + parentId);
+        var requestPost = request.post(config.urlPathPrefix + '/files/upload?name=' + name + '&parentId=' + parentId);
 
         requestPost
             .set('Authorization', 'sid ' + SID)
@@ -316,7 +317,7 @@ test('file upload', function (t) {
 
 test('file list - folder', function (t) {
     request
-        .get('/files/' + HOMEFOLDER_ID + '/list')
+        .get(config.urlPathPrefix + '/files/' + HOMEFOLDER_ID + '/list')
         .set('Authorization', 'sid ' + SID)
         .expect('Content-Type', /json/)
         .expect(200)
@@ -333,7 +334,7 @@ test('file list - folder', function (t) {
 
 test('file list - file', function (t) {
     request
-        .get('/files/' + UPLOADED_FILE._id + '/list')
+        .get(config.urlPathPrefix + '/files/' + UPLOADED_FILE._id + '/list')
         .set('Authorization', 'sid ' + SID)
         .expect('Content-Type', /json/)
         .expect(200)
@@ -350,7 +351,7 @@ test('file list - file', function (t) {
 
 test('file info', function (t) {
     request
-        .get('/files/' + UPLOADED_FILE._id + '/info')
+        .get(config.urlPathPrefix + '/files/' + UPLOADED_FILE._id + '/info')
         .set('Authorization', 'sid ' + SID)
         .expect('Content-Type', /json/)
         .expect(200)
@@ -365,7 +366,7 @@ test('file info', function (t) {
 });
 test('file files', function (t) {
     request
-        .get('/files/' + HOMEFOLDER_ID + '/files')
+        .get(config.urlPathPrefix + '/files/' + HOMEFOLDER_ID + '/files')
         .set('Authorization', 'sid ' + SID)
         .expect('Content-Type', /json/)
         .expect(200)
@@ -387,7 +388,7 @@ var FOLDER
 test('file create-folder', function (t) {
     var folderName = "myfolder";
     request
-        .get('/files/' + HOMEFOLDER_ID + '/create-folder?name=' + folderName)
+        .get(config.urlPathPrefix + '/files/' + HOMEFOLDER_ID + '/create-folder?name=' + folderName)
         .set('Authorization', 'sid ' + SID)
         .expect('Content-Type', /json/)
         .expect(200)
@@ -413,7 +414,7 @@ var FOLDER2
 test('file create-folder2', function (t) {
     var folderName = "mysubfolder";
     request
-        .get('/files/' + FOLDER._id + '/create-folder?name=' + folderName)
+        .get(config.urlPathPrefix + '/files/' + FOLDER._id + '/create-folder?name=' + folderName)
         .set('Authorization', 'sid ' + SID)
         .expect('Content-Type', /json/)
         .expect(200)
@@ -438,7 +439,7 @@ test('file create-folder2', function (t) {
 
 test('file content', function (t) {
     request
-        .get('/files/' + UPLOADED_FILE._id + '/content')
+        .get(config.urlPathPrefix + '/files/' + UPLOADED_FILE._id + '/content')
         .set('Authorization', 'sid ' + SID)
         .expect('Content-Type', /text/)
         .expect(200)
@@ -459,7 +460,7 @@ test('file content', function (t) {
 
 test('file content-example', function (t) {
     request
-        .get('/files/content-example?tool=test-tool&file=test.txt')
+        .get(config.urlPathPrefix + '/files/content-example?tool=test-tool&file=test.txt')
         .set('Authorization', 'sid ' + SID)
         .expect('Content-Type', /text/)
         .expect(200)
@@ -475,7 +476,7 @@ test('file content-example', function (t) {
 
 test('file download', function (t) {
     request
-        .get('/files/' + UPLOADED_FILE._id + '/download')
+        .get(config.urlPathPrefix + '/files/' + UPLOADED_FILE._id + '/download')
         .set('Authorization', 'sid ' + SID)
         .expect('content-disposition', /attachment/)
         .expect('content-disposition', /filename/)
@@ -497,7 +498,7 @@ test('file download', function (t) {
 
 test('file download-example', function (t) {
     request
-        .get('/files/download-example?tool=test-tool&file=test.txt')
+        .get(config.urlPathPrefix + '/files/download-example?tool=test-tool&file=test.txt')
         .set('Authorization', 'sid ' + SID)
         .expect('content-disposition', /attachment/)
         .expect('content-disposition', /filename/)
@@ -518,7 +519,7 @@ test('file add-attribute', function (t) {
         bar: 'bar'
     };
     request
-        .post('/files/' + UPLOADED_FILE._id + '/add-attribute')
+        .post(config.urlPathPrefix + '/files/' + UPLOADED_FILE._id + '/add-attribute')
         .send(attributes)
         .set('Authorization', 'sid ' + SID)
         .expect('Content-Type', /json/)
@@ -539,7 +540,7 @@ test('file move down', function (t) {
     var fileId = UPLOADED_FILE._id;
     var newParentId = FOLDER2._id;
     request
-        .get('/files/move?fileId=' + fileId + "&newId=" + newParentId)
+        .get(config.urlPathPrefix + '/files/move?fileId=' + fileId + "&newId=" + newParentId)
         .set('Authorization', 'sid ' + SID)
         .expect('Content-Type', /json/)
         .expect(200)
@@ -561,7 +562,7 @@ test('file move up', function (t) {
     var fileId = FOLDER2._id;
     var newParentId = HOMEFOLDER_ID;
     request
-        .get('/files/move?fileId=' + fileId + "&newId=" + newParentId)
+        .get(config.urlPathPrefix + '/files/move?fileId=' + fileId + "&newId=" + newParentId)
         .set('Authorization', 'sid ' + SID)
         .expect('Content-Type', /json/)
         .expect(200)
@@ -581,7 +582,7 @@ test('file move up', function (t) {
 
 test('file delete', function (t) {
     request
-        .get('/files/' + UPLOADED_FILE._id + '/delete')
+        .get(config.urlPathPrefix + '/files/' + UPLOADED_FILE._id + '/delete')
         .set('Authorization', 'sid ' + SID)
         .expect('Content-Type', /json/)
         .expect(200)
@@ -600,7 +601,7 @@ test('file delete', function (t) {
 test('folder delete', function (t) {
     var folderName = "myfolder";
     request
-        .get('/files/' + FOLDER._id + '/delete')
+        .get(config.urlPathPrefix + '/files/' + FOLDER._id + '/delete')
         .set('Authorization', 'sid ' + SID)
         .expect('Content-Type', /json/)
         .expect(200)
@@ -652,7 +653,7 @@ test('launch job ', function (t) {
         }
     };
     request
-        .post('/jobs/create?name=test-job&description=TestingJobWS')
+        .post(config.urlPathPrefix + '/jobs/create?name=test-job&description=TestingJobWS')
         .send(args)
         .set('Authorization', 'sid ' + SID)
         .expect('Content-Type', /json/)
@@ -674,7 +675,7 @@ test('launch job ', function (t) {
 });
 test('delete job ', function (t) {
     request
-        .get('/jobs/delete?jobId=' + JOB._id)
+        .get(config.urlPathPrefix + '/jobs/delete?jobId=' + JOB._id)
         .set('Authorization', 'sid ' + SID)
         .expect('Content-Type', /json/)
         .expect(200)
@@ -693,8 +694,8 @@ test('delete job ', function (t) {
 /* ----- */
 test('user logout', function (t) {
     request
-    // .get('/users/'+USER_EMAIL+'/logout?logoutOther=true')
-        .get('/users/' + USER_EMAIL + '/logout')
+    // .get(config.urlPathPrefix + '/users/'+USER_EMAIL+'/logout?logoutOther=true')
+        .get(config.urlPathPrefix + '/users/' + USER_EMAIL + '/logout')
         .set('Authorization', 'sid ' + SID)
         .expect('Content-Type', /json/)
         .expect(200)
