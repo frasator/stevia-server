@@ -23,25 +23,31 @@ var HOMEFOLDER_ID;
 var UPLOADED_FILE;
 var USER_EMAIL = "test@test.com";
 
-getUserByEmail(USER_EMAIL, function (err, user) {
-    if (user != null) {
-        var deleteUser = require('../manteinance/delete-user-module.js');
-        deleteUser([user._id], function () {
-
-        });
+portInUse(config.httpPort, function (returnValue) {
+    if (returnValue == false) {
+        console.log('');
+        console.log('Server must be started to run tests !!');
+        console.log('Please run bin/start');
+        console.log('-------------------------------------');
+        console.log('');
+        process.exit();
     }
+});
 
-    portInUse(config.httpPort, function (returnValue) {
-        if (returnValue == false) {
-            console.log('');
-            console.log('Server must be started to run tests !!');
-            console.log('Please run bin/start');
-            console.log('-------------------------------------');
-            console.log('');
-            process.exit();
+test('delete user', function (t) {
+    getUserByEmail(USER_EMAIL, function (err, user) {
+        if (user != null) {
+            var deleteUser = require('../manteinance/delete-user-module.js');
+            deleteUser([user._id], function () {
+                getUserByEmail(USER_EMAIL, function (err, user) {
+                    t.is(user, null);
+                    t.end();
+                });
+            });
+        }else{
+            t.end();
         }
     });
-
 });
 
 /* ----- */
