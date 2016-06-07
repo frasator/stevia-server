@@ -279,7 +279,7 @@ function getFileLines(filePath, startParam, limitParam, callback) {
     var parsedLimit = parseInt(limitParam);
 
     if (!isNaN(parsedStart) && parsedStart >= 0) {
-        start = s;
+        start = parsedStart;
     }
     if (!isNaN(parsedLimit) && parsedLimit > 0) {
         limit = parsedLimit;
