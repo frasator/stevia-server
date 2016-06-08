@@ -249,8 +249,9 @@ router.post('/run', function (req, res, next) {
                 } else {
                     cb(null)
                 }
-
-                // shell.rm('-rf', randFolder);
+                if(shell.test('-e', randFolder)){
+                    shell.rm('-rf', randFolder);
+                }
             });
         },
     ], function (err) {
