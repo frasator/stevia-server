@@ -1,6 +1,7 @@
 // Internal require
 const config = require('./config.json');
 const checkconfig = require('./lib/checkconfig.js');
+const status = require('./lib/status.js');
 const StvResult = require('./lib/StvResult.js');
 const StvResponse = require('./lib/StvResponse.js');
 
@@ -109,6 +110,15 @@ if (cluster.isMaster) {
     app.get(urlPathPrefix + '/', function (req, res) {
         var ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
         res.send('I am alive!');
+    });
+
+    /* ************** */
+    /* Cluster status */
+    /* ************** */
+    app.get(urlPathPrefix + '/status', function (req, res) {
+        status(function (statusObj) {
+            res.json(statusObj); // Send results
+        });
     });
 
     // Postprocess all requests.
