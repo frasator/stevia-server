@@ -649,9 +649,7 @@ function joinAllChunks(folderPath, uploadPath, fields, parent, callback) {
         fs.appendFileSync(fd, data, null);
     }
     fs.closeSync(fd);
-    var stats = fs.statSync(finalFilePath);
-    console.log('File ' + finalFilePath + ' created. Final size: ' + stats.size);
-
+    
     if (mime.lookup(finalFilePath).indexOf('text') != -1) {
         shell.sed('-i', /\r\n/g, '\n', finalFilePath);
         shell.sed('-i', /\r/g, '\n', finalFilePath);

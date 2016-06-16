@@ -161,12 +161,20 @@ FileSchema.statics = {
         });
     },
     createFile: function (name, parent, user, callback) {
+        var dbFilePath = path.join(parent.path, name);
+        var fsFilePath = path.join(config.steviaDir, config.usersPath, dbFilePath);
+
+        var stats = fs.statSync(fsFilePath);
+        console.log('File ' + fsFilePath + ' created. Final size: ' + stats.size);
+
         var file = new this({
             name: name,
             user: user._id,
             parent: parent._id,
             type: "FILE",
-            path: path.join(parent.path, name)
+            path: dbFilePath,
+            size: stats.size
+
         });
         parent.files.push(file);
 
