@@ -73,7 +73,13 @@ const FileSchema = new Schema({
 
 FileSchema.pre('save', function (next) {
     if (this.type == 'FILE') {
+        var fsFilePath = path.join(config.steviaDir, config.usersPath, this.path);
+
+        var stats = fs.statSync(fsFilePath);
+        console.log('File ' + fsFilePath + ' created. Final size: ' + stats.size);
+
         this.format = mime.lookup(this.name);
+        this.size = stats.size;
     }
     next();
 });
@@ -162,18 +168,13 @@ FileSchema.statics = {
     },
     createFile: function (name, parent, user, callback) {
         var dbFilePath = path.join(parent.path, name);
-        var fsFilePath = path.join(config.steviaDir, config.usersPath, dbFilePath);
-
-        var stats = fs.statSync(fsFilePath);
-        console.log('File ' + fsFilePath + ' created. Final size: ' + stats.size);
 
         var file = new this({
             name: name,
             user: user._id,
             parent: parent._id,
             type: "FILE",
-            path: dbFilePath,
-            size: stats.size
+            path: dbFilePath
 
         });
         parent.files.push(file);
