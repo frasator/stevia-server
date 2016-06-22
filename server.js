@@ -47,6 +47,7 @@ if (cluster.isMaster) {
     var urlPathPrefix = config.urlPathPrefix || "";
 
     // Includes
+    var compression = require('compression');
     var express = require('express');
     var swagger = require('swagger-express');
     var cors = require('cors');
@@ -54,6 +55,7 @@ if (cluster.isMaster) {
 
     // Create a new Express application
     var app = express();
+    app.use(compression());
     app.use(cors({
         origin: true,
         credentials: true
