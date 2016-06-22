@@ -446,6 +446,59 @@ router.post('/:fileId/add-attribute', function (req, res, next) {
     });
 });
 
+// setHeader
+router.post('/:fileId/set-header', function (req, res, next) {
+    var stvResult = new StvResult();
+
+    var fileId = req.params.fileId;
+    stvResult.id = fileId;
+
+    async.waterfall([
+        function (cb) {
+            File.findOne({
+                '_id': fileId,
+                'user': req._user._id
+            }, function (err, file) {
+                if (!file) {
+                    cb("File not exist");
+                } else if (file.user.toString() != req._user._id.toString()) {
+                    cb("Authentication error");
+                } else {
+
+                    var fileBody = req.body;
+                    var lineSeparator = fileBody.lineSeparator;
+                    var headerSeparator = fileBody.headerSeparator;
+                    var newHeader = fileBody.header;
+
+                    var filePath = path.join(config.steviaDir, config.usersPath, file.path);
+
+                    var newFilePath = filePath +"_new_header";
+
+                    shell.echo(newHeader).to(newFilePath);
+                    shell.echo(lineSeparator).toEnd(newFilePath);
+                    shell.grep("-v", "^" + headerSeparator, filePath).toEnd(newFilePath);
+                    shell.mv(newFilePath, filePath);
+                    console.log(fileBody);
+
+                    file.save(function (err) {
+                        // stvResult.results.push(file);
+                        cb(null);
+                    });
+                }
+            });
+        }
+    ], function (err) {
+        if (err) {
+            stvResult.error = err;
+            console.log("Error in ws: " + req.originalUrl);
+            console.log(err);
+        }
+        stvResult.end();
+        res._stvres.response.push(stvResult);
+        next();
+    });
+});
+
 //move files
 router.get('/move', function (req, res, next) {
     var stvResult = new StvResult();
@@ -649,8 +702,6 @@ function joinAllChunks(folderPath, uploadPath, fields, parent, callback) {
         fs.appendFileSync(fd, data, null);
     }
     fs.closeSync(fd);
-    var stats = fs.statSync(finalFilePath);
-    console.log('File ' + finalFilePath + ' created. Final size: ' + stats.size);
 
     if (mime.lookup(finalFilePath).indexOf('text') != -1) {
         shell.sed('-i', /\r\n/g, '\n', finalFilePath);
