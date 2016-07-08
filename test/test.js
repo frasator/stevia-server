@@ -21,7 +21,7 @@ var USER_ID;
 var SID;
 var HOMEFOLDER_ID;
 var UPLOADED_FILE;
-var USER_EMAIL = "test@test.com";
+var USER_NAME = "test";
 
 portInUse(config.httpPort, function (returnValue) {
 
@@ -36,11 +36,11 @@ portInUse(config.httpPort, function (returnValue) {
 });
 
 test('delete user', function (t) {
-    getUserByEmail(USER_EMAIL, function (err, user) {
+    getUserByName(USER_NAME, function (err, user) {
         if (user != null) {
             var deleteUser = require('../manteinance/delete-user-module.js');
             deleteUser([user._id], function () {
-                getUserByEmail(USER_EMAIL, function (err, user) {
+                getUserByName(USER_NAME, function (err, user) {
                     t.is(user, null);
                     t.end();
                 });
@@ -56,7 +56,7 @@ test('delete user', function (t) {
 /* ----- */
 test('user create', function (t) {
     request
-        .get(config.urlPathPrefix + '/users/create?email=' + USER_EMAIL)
+        .get(config.urlPathPrefix + '/users/create?name=' + USER_NAME)
         .set('Authorization', 'sid a94a8fe5ccb19ba61c4c0873d391e987982fbbd3')
         .expect('Content-Type', /json/)
         .expect(200)
@@ -64,10 +64,10 @@ test('user create', function (t) {
             // console.log(res.body.response[0]);
             t.is(err, null);
             // t.equal(res.body.response[0].error, undefined);
-            getUserByEmail(USER_EMAIL, function (err, user) {
+            getUserByName(USER_NAME, function (err, user) {
                 t.isNot(user, null);
                 USER_ID = user._id;
-                var userPath = path.join(config.steviaDir, config.usersPath, USER_EMAIL);
+                var userPath = path.join(config.steviaDir, config.usersPath, USER_NAME);
                 t.true(shell.test('-d', userPath), "Directory exists");
                 t.end();
             });
@@ -76,7 +76,7 @@ test('user create', function (t) {
 
 test('user login', function (t) {
     request
-        .get(config.urlPathPrefix + '/users/' + USER_EMAIL + '/login')
+        .get(config.urlPathPrefix + '/users/' + USER_NAME + '/login')
         .set('Authorization', 'sid a94a8fe5ccb19ba61c4c0873d391e987982fbbd3')
         .expect('Content-Type', /json/)
         .expect(200)
@@ -96,7 +96,7 @@ test('user login', function (t) {
 
 test('user info', function (t) {
     request
-        .get(config.urlPathPrefix + '/users/' + USER_EMAIL + '/info')
+        .get(config.urlPathPrefix + '/users/' + USER_NAME + '/info')
         .set('Authorization', 'sid ' + SID)
         .expect('Content-Type', /json/)
         .expect(200)
@@ -106,7 +106,7 @@ test('user info', function (t) {
             t.equal(res.body.response[0].error, undefined);
 
             t.not(res.body.response[0].results[0].tree, undefined);
-            t.equal(res.body.response[0].results[0].email, USER_EMAIL)
+            t.equal(res.body.response[0].results[0].name, USER_NAME)
             HOMEFOLDER_ID = res.body.response[0].results[0].home._id;
 
             t.end();
@@ -115,7 +115,7 @@ test('user info', function (t) {
 
 test('user change password', function (t) {
     request
-        .get(config.urlPathPrefix + '/users/' + USER_EMAIL + '/change-password')
+        .get(config.urlPathPrefix + '/users/' + USER_NAME + '/change-password')
         .set('Authorization', 'sid ' + SID)
         .set('x-stv-1', 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3')
         .set('x-stv-2', 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3')
@@ -568,7 +568,7 @@ test('file move up', function (t) {
         .expect(200)
         .end(function (err, res) {
             // console.log(res.body.response)
-            var filePath = path.join(config.steviaDir, config.usersPath, USER_EMAIL, FOLDER2.name);
+            var filePath = path.join(config.steviaDir, config.usersPath, USER_NAME, FOLDER2.name);
             getFileById(fileId, function (err, file) {
                 t.is(err, null);
                 t.not(file, null);
@@ -694,8 +694,8 @@ test('delete job ', function (t) {
 /* ----- */
 test('user logout', function (t) {
     request
-    // .get(config.urlPathPrefix + '/users/'+USER_EMAIL+'/logout?logoutOther=true')
-        .get(config.urlPathPrefix + '/users/' + USER_EMAIL + '/logout')
+    // .get(config.urlPathPrefix + '/users/'+USER_NAME+'/logout?logoutOther=true')
+        .get(config.urlPathPrefix + '/users/' + USER_NAME + '/logout')
         .set('Authorization', 'sid ' + SID)
         .expect('Content-Type', /json/)
         .expect(200)
@@ -734,10 +734,10 @@ function getFileById(id, callback) {
     }).connection;
 }
 
-function getUserByEmail(query, callback) {
+function getUserByName(query, callback) {
     var conn = mongoose.connect(config.mongodb, function () {
         User.findOne({
-                'email': query
+                'name': query
             },
             function (err, doc) {
                 conn.close(function () {

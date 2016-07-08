@@ -10,18 +10,21 @@ const path = require('path');
 const async = require('async');
 const shell = require('shelljs');
 
-
 /**
  * User Schema
  */
 
 const UserSchema = new Schema({
-    email: {
+    name: {
         type: String,
         default: '',
         index: {
             unique: true
         }
+    },
+    email: {
+        type: String,
+        default: ''
     },
     password: {
         type: String,
@@ -75,15 +78,15 @@ UserSchema.pre('save', function (next) {
 UserSchema.methods = {
     createHomeFolder: function (callback) {
         var user = this;
-        var fsUserHomePath = path.join(config.steviaDir, config.usersPath, user.email);
+        var fsUserHomePath = path.join(config.steviaDir, config.usersPath, user.name);
         if (shell.test('-d', fsUserHomePath)) {
             console.log('User home folder already exists');
         }
         shell.mkdir('-p', fsUserHomePath);
         var homeFolder = new File({
-            name: user.email,
+            name: user.name,
             user: user._id,
-            path: user.email,
+            path: user.name,
             type: 'FOLDER'
         });
         homeFolder.save(function (err) {

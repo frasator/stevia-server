@@ -137,7 +137,7 @@ FileSchema.statics = {
         if (parent != undefined) {
             dbParentPath = parent.path;
         } else {
-            dbParentPath = user.email;
+            dbParentPath = user.name;
         }
 
         var finalName = this.getDuplicatedFileName(dbParentPath, name);
