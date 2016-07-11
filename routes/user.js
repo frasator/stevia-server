@@ -204,7 +204,7 @@ router.get('/:name/info', function (req, res, next) {
                 'sessions.id': sid
             }, function (err, user) {
                 if (!user) {
-                    stvResult.error = "User does not exist!!";
+                    stvResult.error = "User does not exist";
                     console.log("info ws: " + stvResult.error);
                     cb(stvResult.error);
                 } else {
@@ -308,7 +308,7 @@ router.get('/reset-password', function (req, res, next) {
                 'name': name
             }, function (err, user) {
                 if (!user) {
-                    stvResult.error = "No account with that name not exists";
+                    stvResult.error = "User not found";
                     console.log("error: " + stvResult.error);
                     cb(stvResult.error);
                 } else {
