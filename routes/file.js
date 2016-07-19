@@ -757,7 +757,9 @@ function joinAllChunks(folderPath, uploadPath, fields, parent, callback) {
     /* Database entry */
     File.createFile(fields.name, parent, parent.user, function (file) {
         file.bioformat = fields.bioFormat;
-        shell.rm('-rf', uploadPath);
+        if (shell.test('-e', uploadPath)) {
+            shell.rm('-rf', uploadPath);
+        }
         console.log('Temporal upload folder ' + uploadPath + ' removed');
         file.save(function (err) {
             callback(file);
