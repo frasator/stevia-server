@@ -34,7 +34,7 @@ router.use(function (req, res, next) {
             req._user = user;
             next();
         }
-    }).select('+password');
+    }).select('+password').populate('home');
 });
 
 router.get('/:fileId/delete', function (req, res, next) {
@@ -140,6 +140,52 @@ router.get('/:fileId/info', function (req, res, next) {
                     cb(null);
                 }
             });
+        }
+    ], function (err) {
+        if (err) {
+            stvResult.error = err;
+            console.log("Error in ws: " + req.originalUrl);
+            console.log(err);
+        }
+        stvResult.end();
+        res._stvres.response.push(stvResult);
+        next();
+    });
+});
+
+/* get file Bean by path*/
+router.get('/path', function (req, res, next) {
+    var stvResult = new StvResult();
+
+    var pathString = req.query.path;
+    var sid = req._sid;
+
+    async.waterfall([
+        function (cb) {
+            if (pathString == null || pathString == '' || pathString == '/') {
+                cb(null, true);
+            } else {
+                pathString = pathString.replace(/\/+$/, '');
+                cb(null, false);
+            }
+        },
+        function (isHome, cb) {
+            if (isHome) {
+                stvResult.results = [req._user.home];
+                cb(null);
+            } else {
+                File.findOne({
+                    'path': path.join(req._user.home.path, pathString),
+                    "user": req._user._id
+                }, function (err, file) {
+                    if (!file) {
+                        cb("File not exist");
+                    } else {
+                        stvResult.results = [file];
+                        cb(null);
+                    }
+                });
+            }
         }
     ], function (err) {
         if (err) {
@@ -472,7 +518,7 @@ router.post('/:fileId/set-header', function (req, res, next) {
 
                     var filePath = path.join(config.steviaDir, config.usersPath, file.path);
 
-                    var newFilePath = filePath +"_new_header";
+                    var newFilePath = filePath + "_new_header";
 
                     shell.echo(newHeader).to(newFilePath);
                     shell.echo(lineSeparator).toEnd(newFilePath);

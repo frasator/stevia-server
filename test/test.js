@@ -364,6 +364,7 @@ test('file info', function (t) {
             t.end();
         });
 });
+
 test('file files', function (t) {
     request
         .get(config.urlPathPrefix + '/files/' + HOMEFOLDER_ID + '/files')
@@ -410,6 +411,52 @@ test('file create-folder', function (t) {
 
         });
 });
+
+test('file path', function (t) {
+    var path = "myfolder";
+    request
+        .get(config.urlPathPrefix + '/files/path?path=' + path)
+        .set('Authorization', 'sid ' + SID)
+        .expect('Content-Type', /json/)
+        .expect(200)
+        .end(function (err, res) {
+            // console.log(res.body.response[0]);
+            t.is(err, null);
+            t.equal(res.body.response[0].error, undefined);
+            t.equal(res.body.response[0].results[0]._id, FOLDER._id);
+            t.end();
+        });
+});
+
+test('file path2', function (t) {
+    request
+        .get(config.urlPathPrefix + '/files/path')
+        .set('Authorization', 'sid ' + SID)
+        .expect('Content-Type', /json/)
+        .expect(200)
+        .end(function (err, res) {
+            // console.log(res.body.response[0]);
+            t.is(err, null);
+            t.equal(res.body.response[0].error, undefined);
+            t.equal(res.body.response[0].results[0]._id, HOMEFOLDER_ID);
+            t.end();
+        });
+});
+
+test('file path3', function (t) {
+    request
+        .get(config.urlPathPrefix + '/files/path?path=/this/path/not/exists/')
+        .set('Authorization', 'sid ' + SID)
+        .expect('Content-Type', /json/)
+        .expect(200)
+        .end(function (err, res) {
+            // console.log(res.body.response[0]);
+            t.is(err, null);
+            t.not(res.body.response[0].error, undefined);
+            t.end();
+        });
+});
+
 var FOLDER2
 test('file create-folder2', function (t) {
     var folderName = "mysubfolder";
