@@ -23,9 +23,11 @@ var conn = mongoose.connect(config.mongodb, function () {
                 var user = users[i];
                 ids.push(user._id);
 
-                var realPath = path.join(config.steviaDir, config.usersPath, user.email);
+                var realPath = path.join(config.steviaDir, config.usersPath, user.name);
                 try {
-                    shell.rm('-rf', realPath);
+                    if (shell.test('-e', realPath)) {
+                        shell.rm('-rf', realPath);
+                    }
                 } catch (e) {
                     console.log("File fsDelete: file not exists on file system")
                 }
