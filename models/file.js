@@ -80,8 +80,16 @@ FileSchema.pre('save', function (next) {
 
         this.format = mime.lookup(this.name);
         this.size = stats.size;
+
+        mongoose.models["User"].findById(this.user, function (err, user) {
+            user.updateDiskUsage(function () {
+                console.log("updateDiskUsage")
+                next();
+            });
+        });
+    } else {
+        next();
     }
-    next();
 });
 /**
  * Methods
@@ -404,7 +412,8 @@ FileSchema.statics = {
                 $regex: new RegExp('^' + folder.path)
             }
         }, {
-            path: 1
+            path: 1,
+            job: 1
         }, function (err, files) {
             for (var i = 0; i < files.length; i++) {
                 var file = files[i];
@@ -416,7 +425,8 @@ FileSchema.statics = {
             index[folder.path] = {
                 _id: folder._id,
                 n: folder.name,
-                f: []
+                f: [],
+                j: folder.job != undefined
             };
             final.push(index[folder.path]);
             for (var i = 0; i < files.length; i++) {
@@ -431,7 +441,8 @@ FileSchema.statics = {
                             var n = {
                                 _id: foundFile._id,
                                 n: part,
-                                f: []
+                                f: [],
+                                j: file.job != undefined
                             };
                             aux.push(n);
                             index[p] = n;

@@ -96,6 +96,67 @@ UserSchema.methods = {
             });
         });
     },
+    updateDiskUsage: function (callback) {
+        var user = this;
+        var totalSize = 0;
+        console.time("updateDiskUsage");
+
+        mongoose.models["File"].aggregate([{
+                $match: {
+                    "user": this._id
+
+                }
+            }, {
+                $group: {
+                    "_id": "user",
+                    totalSize: {
+                        $sum: "$size"
+                    }
+                }
+
+            }],
+            function (err, result) {
+                if (err) {
+                    callback();
+                }
+
+                var totalSize = 0;
+                try {
+                    totalSize = result[0].totalSize;
+                } catch (e) {
+
+                }
+
+                console.log("Total size: " + totalSize);
+                console.log(result);
+
+                user.diskUsage = totalSize;
+                user.save(function () {
+                    console.timeEnd("updateDiskUsage");
+                    callback();
+                });
+
+            });
+        // mongoose.models["File"].find({
+        //     'user': this._id
+        // }, {
+        //     size: 1
+        // }, function (err, files) {
+        //
+        //     for (var i = 0; i < files.length; i++) {
+        //         var file = files[i];
+        //         if (file.size != null) {
+        //             totalSize += file.size;
+        //         }
+        //     }
+        //     user.diskUsage = totalSize;
+        //     user.save(function () {
+        //         console.timeEnd("updateDiskUsage");
+        //         callback();
+        //     });
+        //
+        // });
+    },
     removeSessionId: function (sessionId, logoutOther, callback) {
         if (logoutOther === true) {
             this.sessions = [];
