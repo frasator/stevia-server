@@ -220,9 +220,10 @@ router.get('/:fileId/files', function (req, res, next) {
                     File.find({
                         'user': req._user._id,
                         'path': {
-                            $regex: new RegExp('^' + file.path)
+                            $regex: new RegExp('^' + file.path + '/')
                         }
                     }, function (err, files) {
+                        files.push(file);
                         stvResult.results = files;
                         cb(null);
                     });
