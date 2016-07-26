@@ -378,7 +378,105 @@ FileSchema.statics = {
                     mongoose.models["File"].find({
                         'user': file.user,
                         'path': {
-                            $regex: new RegExp('^' + oldFilePath)
+                            $regex: new RegExp('^' + oldFilePath + '/')
+                        }
+                    }, function (error, files) {
+                        if (error) {
+                            cb(error)
+                        } else {
+                            async.mapLimit(files, 10, function (f, next) {
+                                f.path = f.path.replace(new RegExp('^' + oldFilePath), file.path);
+                                f.save(next);
+                            }, function (error) {
+                                cb(error);
+                            });
+                        }
+                    });
+                } else {
+                    cb(null);
+                }
+            },
+        ], function (error) {
+            var err = error;
+            callback(err)
+        });
+    },
+    rename: function (file, newname, callback) {
+        var err = null;
+
+        if (file == null) {
+            err = "File not exists";
+            callback(err);
+            return;
+        }
+        if (file.user.name == null) {
+            err = "User file must be populated";
+            callback(err);
+            return;
+        }
+        if (file.user.name == file.path) {
+            err = "User's home folder can not be renamed";
+            callback(err);
+            return;
+        }
+        if (file.parent.path == null) {
+            err = "File parent must be populated";
+            callback(err);
+            return;
+        }
+        if (newname == null || newname == '') {
+            err = "New name is empty";
+            callback(err);
+            return;
+        }
+
+        var oldPath = path.join(config.steviaDir, config.usersPath, file.path);
+        var newPath = path.join(config.steviaDir, config.usersPath, file.parent.path, newname);
+
+        if (shell.test('-e', newPath)) {
+            err = "Already exists a file with that name on the file system";
+            callback(err);
+            return;
+        }
+
+        try {
+            fs.renameSync(oldPath, newPath);
+        } catch (e) {
+            console.log("RenameSync Error");
+            console.log("old " + oldPath)
+            console.log("new " + newPath)
+            callback(e.message);
+            console.log("Rename operation canceled.");
+            return;
+        }
+
+        var oldFilePath = file.path;
+        async.waterfall([
+            function (cb) {
+                mongoose.models["File"].findOne({
+                    'path': path.join(file.parent.path, newname),
+                    'user': file.user
+                }, function (err, checkFile) {
+                    if (!checkFile) {
+                        cb(null);
+                    } else {
+                        cb('File already exists with that name on the database');
+                    }
+                });
+            },
+            function (cb) {
+                file.name = newname;
+                file.path = path.join(file.parent.path, newname);
+                file.save(function (err) {
+                    cb(null);
+                });
+            },
+            function (cb) {
+                if (file.type == 'FOLDER') {
+                    mongoose.models["File"].find({
+                        'user': file.user,
+                        'path': {
+                            $regex: new RegExp('^' + oldFilePath + '/')
                         }
                     }, function (error, files) {
                         if (error) {
@@ -409,7 +507,7 @@ FileSchema.statics = {
             'user': userId,
             'type': 'FOLDER',
             'path': {
-                $regex: new RegExp('^' + folder.path)
+                $regex: new RegExp('^' + folder.path + '/')
             }
         }, {
             path: 1,
