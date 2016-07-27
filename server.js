@@ -49,12 +49,65 @@ if (cluster.isMaster) {
     // Includes
     var compression = require('compression');
     var express = require('express');
+    var morgan = require('morgan');
+    var fs = require('fs');
+    var path = require('path');
     var swagger = require('swagger-express');
     var cors = require('cors');
     var bodyParser = require('body-parser');
 
+    var logDirectory = path.join(__dirname, 'logs');
+
+    // custom morgan tokens
+
+    morgan.token('app', function getApp(req) {
+        var app = req.get('x-stv-app');
+        if (app == undefined) {
+            app = "-";
+        }
+        return app;
+    });
+
+    morgan.token('user', function getUser(req) {
+        var user = req.get('x-stv-user');
+        if (user == undefined) {
+            user = "-";
+        }
+        return user;
+    });
+
+    morgan.token('api', function getApi(req) {
+        var api = req.get('x-stv-api');
+        if (api == undefined) {
+            api = "-";
+        }
+        return api;
+    });
+
+    morgan.token('action', function getAction(req) {
+        var action = req.get('x-stv-action');
+        if (action == undefined) {
+            action = "-";
+        }
+        return action;
+    });
+
+    morgan.token('query', function getQuery(req) {
+        return JSON.stringify(req.query);
+    });
+
+    // ensure log directory exists
+    fs.existsSync(logDirectory) || fs.mkdirSync(logDirectory)
+
+    accessLogStream = fs.createWriteStream(path.join(logDirectory, 'access.log'), {
+        flags: 'a'
+    })
+
     // Create a new Express application
     var app = express();
+    app.use(morgan(':remote-addr\t:date[iso]\t:method\t:url\t:status\t:referrer\t:app\t:user\t:api\t:action\t:query\t:response-time', {
+        stream: accessLogStream
+    }))
     app.use(compression());
     app.use(cors({
         origin: true,

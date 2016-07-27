@@ -55,6 +55,7 @@ test('delete user', function (t) {
 /* USER */
 /* ----- */
 test('user create', function (t) {
+	console.log(config.urlPathPrefix + '/users/create?name=' + USER_NAME);
     request
         .get(config.urlPathPrefix + '/users/create?name=' + USER_NAME)
         .set('Authorization', 'sid a94a8fe5ccb19ba61c4c0873d391e987982fbbd3')

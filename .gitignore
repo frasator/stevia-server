@@ -57,3 +57,4 @@ local.properties
 sftp-config.json
 
 .foreverignore
+logs
