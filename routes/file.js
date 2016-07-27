@@ -220,9 +220,10 @@ router.get('/:fileId/files', function (req, res, next) {
                     File.find({
                         'user': req._user._id,
                         'path': {
-                            $regex: new RegExp('^' + file.path)
+                            $regex: new RegExp('^' + file.path + '/')
                         }
                     }, function (err, files) {
+                        files.push(file);
                         stvResult.results = files;
                         cb(null);
                     });
@@ -593,6 +594,49 @@ router.get('/move', function (req, res, next) {
                     }
                 }
             }).populate('parent').populate('job');
+        }
+    ], function (err) {
+        if (err) {
+            stvResult.error = err;
+            console.log("Error in ws: " + req.originalUrl);
+            console.log(err);
+        }
+        stvResult.end();
+        res._stvres.response.push(stvResult);
+        next();
+    });
+
+});
+
+router.get('/:fileId/rename', function (req, res, next) {
+    var stvResult = new StvResult();
+    var fileId = req.params.fileId;
+    var newname = req.query.newname.replace(/[^a-zA-Z0-9._\-]/g, "_");;
+    stvResult.id = fileId;
+
+    async.waterfall([
+        function (cb) {
+            File.findOne({
+                '_id': fileId,
+                'user': req._user._id
+            }, function (err, file) {
+                if (!file) {
+                    cb("File not exist");
+                } else if (file.user._id.toString() != req._user._id.toString()) {
+                    cb("Authentication error");
+                } else {
+                    File.rename(file, newname, function (renameErr) {
+                        if (renameErr != null) {
+                            cb(renameErr);
+                        } else {
+                            stvResult.results.push("File renamed");
+                            req._user.save(function () {
+                                cb(null);
+                            });
+                        }
+                    });
+                }
+            }).populate('parent').populate('user');
         }
     ], function (err) {
         if (err) {

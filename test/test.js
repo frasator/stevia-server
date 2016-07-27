@@ -606,6 +606,51 @@ test('file move down', function (t) {
             });
         });
 });
+
+test('file rename-folder', function (t) {
+    var newName = "theNewSubFolder";
+    request
+        .get(config.urlPathPrefix + '/files/' + FOLDER2._id + '/rename?newname=' + newName)
+        .set('Authorization', 'sid ' + SID)
+        .expect('Content-Type', /json/)
+        .expect(200)
+        .end(function (err, res) {
+            t.is(err, null);
+            t.equal(res.body.response[0].error, undefined);
+            var f = res.body.response[0].results[0];
+            t.not(f, null);
+
+            getFileById(FOLDER2._id, function (err, file) {
+                FOLDER2 = file;
+                t.equal(file.name, newName);
+                var filePath = path.join(config.steviaDir, config.usersPath, file.path);
+                t.true(shell.test('-d', filePath), "Folder exists");
+
+                t.isNot(file, null);
+                t.end();
+            });
+        });
+});
+test('file rename-folder home', function (t) {
+    var newName = "newHome";
+    request
+        .get(config.urlPathPrefix + '/files/' + HOMEFOLDER_ID + '/rename?newname=' + newName)
+        .set('Authorization', 'sid ' + SID)
+        .expect('Content-Type', /json/)
+        .expect(200)
+        .end(function (err, res) {
+            t.is(err, null);
+            t.not(res.body.response[0].error, undefined);
+            var f = res.body.response[0].results[0];
+            t.not(f, null);
+
+            getFileById(HOMEFOLDER_ID, function (err, homeFolder) {
+                t.true(homeFolder.name == USER_NAME, "Home folder not modified");
+                t.end();
+            });
+        });
+});
+
 test('file move up', function (t) {
     var fileId = FOLDER2._id;
     var newParentId = HOMEFOLDER_ID;
@@ -621,6 +666,8 @@ test('file move up', function (t) {
                 t.is(err, null);
                 t.not(file, null);
                 var filePathDb = path.join(config.steviaDir, config.usersPath, file.path).toString();
+                // console.log(filePath)
+                // console.log(filePathDb)
                 t.true(filePath == filePathDb, "Check database path");
                 t.true(shell.test('-e', filePath), "Check file system file");
                 t.end();
