@@ -822,9 +822,8 @@ function getFileById(id, callback) {
                 '_id': id
             },
             function (err, doc) {
-                conn.close(function () {
-                    callback(err, doc);
-                });
+                callback(err, doc);
+                conn.close();
             }).populate('home');
     }).connection;
 }
@@ -835,9 +834,8 @@ function getUserByName(query, callback) {
                 'name': query
             },
             function (err, doc) {
-                conn.close(function () {
-                    callback(err, doc);
-                });
+                callback(err, doc);
+                conn.close();
             }).populate('home');
     }).connection;
 }
@@ -848,9 +846,8 @@ function getUserById(id, callback) {
                 '_id': id
             },
             function (err, doc) {
-                conn.close(function () {
-                    callback(err, doc);
-                });
+                callback(err, doc);
+                conn.close();
             });
     }).connection;
 }
@@ -861,9 +858,8 @@ function getJobById(id, callback) {
                 '_id': id
             },
             function (err, doc) {
-                conn.close(function () {
-                    callback(err, doc);
-                });
+                callback(err, doc);
+                conn.close();
             });
     }).connection;
 }
