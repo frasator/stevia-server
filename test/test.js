@@ -158,8 +158,8 @@ test('file upload', function (t) {
             t.true(stats.size === uploadStats.size, "Check file size");
             getFileById(UPLOADED_FILE._id, function (err, file) {
                 t.isNot(file, null);
+                t.end();
             });
-            t.end();
         }
     };
     var callbackExists = function (file) {
@@ -170,8 +170,8 @@ test('file upload', function (t) {
         t.true(stats.size === uploadStats.size, "Check file size");
         getFileById(UPLOADED_FILE._id, function (err, file) {
             t.isNot(file, null);
+            t.end();
         });
-        t.end();
     };
 
     var resume = true;
@@ -602,7 +602,6 @@ test('file move down', function (t) {
                 t.true(filePath == filePathDb, "Check database path");
                 t.true(shell.test('-e', filePath), "Check file system file");
                 t.end();
-
             });
         });
 });
@@ -688,9 +687,9 @@ test('file delete', function (t) {
 
             getFileById(UPLOADED_FILE._id, function (err, file) {
                 t.is(file, null);
+                t.end();
             });
 
-            t.end();
         });
 });
 test('folder delete', function (t) {
@@ -709,9 +708,9 @@ test('folder delete', function (t) {
 
             getFileById(FOLDER._id, function (err, file) {
                 t.is(file, null);
+                t.end();
             });
 
-            t.end();
         });
 });
 
