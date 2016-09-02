@@ -7,24 +7,24 @@
     "test": "tape test/test.js"
   },
   "dependencies": {
-    "async": "^1.5.2",
-    "body-parser": "^1.15.0",
+    "async": "^2.0.1",
+    "mongoose": "^4.5.10",
+    "shelljs": "^0.7.4",
+    "body-parser": "^1.15.2",
     "compression": "^1.6.2",
-    "cors": "^2.7.1",
-    "express": "^4.13.4",
+    "cors": "^2.8.0",
+    "express": "^4.14.0",
     "file-stream-rotator": "0.0.7",
     "jade": "^1.11.0",
-    "mongoose": "^4.5.7",
     "morgan": "^1.7.0",
     "multiparty": "^4.1.2",
-    "nodemailer": "^2.3.2",
-    "nodemailer-smtp-transport": "^2.4.2",
-    "shelljs": "^0.7.0",
+    "nodemailer": "^2.5.0",
+    "nodemailer-smtp-transport": "^2.6.0",
     "swagger-express": "^1.0.5",
-    "xml2js": "^0.4.16"
+    "xml2js": "^0.4.17"
   },
   "devDependencies": {
-    "supertest": "^1.2.0",
-    "tape": "^4.5.1"
+    "supertest": "^2.0.0",
+    "tape": "4.5.1"
   }
 }

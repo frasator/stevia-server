@@ -6,6 +6,7 @@ const shell = require('shelljs');
 const net = require('net');
 
 const mongoose = require("mongoose");
+mongoose.Promise = global.Promise;
 require('../models/user.js');
 require('../models/file.js');
 require('../models/job.js');
@@ -55,7 +56,7 @@ test('delete user', function (t) {
 /* USER */
 /* ----- */
 test('user create', function (t) {
-	console.log(config.urlPathPrefix + '/users/create?name=' + USER_NAME);
+    console.log(config.urlPathPrefix + '/users/create?name=' + USER_NAME);
     request
         .get(config.urlPathPrefix + '/users/create?name=' + USER_NAME)
         .set('Authorization', 'sid a94a8fe5ccb19ba61c4c0873d391e987982fbbd3')
@@ -802,7 +803,7 @@ test('user logout', function (t) {
         });
 });
 
-test('delete user', function (t) {
+test('delete user after test', function (t) {
     var deleteUser = require('../manteinance/delete-user-module.js');
     deleteUser([USER_ID], function () {
         getUserById(USER_ID, function (err, user) {
@@ -816,51 +817,59 @@ test('delete user', function (t) {
 /*HELP METHODS*/
 /**************/
 function getFileById(id, callback) {
-    var conn = mongoose.connect(config.mongodb, function () {
+    var db = mongoose.createConnection(config.mongodb);
+    db.once('open', function () {
+        var File = db.model('File');
         File.findOne({
                 '_id': id
             },
             function (err, doc) {
+                db.close();
                 callback(err, doc);
-                conn.close();
             }).populate('home');
-    }).connection;
+    });
 }
 
 function getUserByName(query, callback) {
-    var conn = mongoose.connect(config.mongodb, function () {
+    var db = mongoose.createConnection(config.mongodb);
+    db.once('open', function () {
+        var User = db.model('User');
         User.findOne({
                 'name': query
             },
             function (err, doc) {
+                db.close();
                 callback(err, doc);
-                conn.close();
             }).populate('home');
-    }).connection;
+    });
 }
 
 function getUserById(id, callback) {
-    var conn = mongoose.connect(config.mongodb, function () {
+    var db = mongoose.createConnection(config.mongodb);
+    db.once('open', function () {
+        var User = db.model('User');
         User.findOne({
                 '_id': id
             },
             function (err, doc) {
+                db.close();
                 callback(err, doc);
-                conn.close();
             });
-    }).connection;
+    });
 }
 
 function getJobById(id, callback) {
-    var conn = mongoose.connect(config.mongodb, function () {
+    var db = mongoose.createConnection(config.mongodb);
+    db.once('open', function () {
+        var Job = db.model('Job');
         Job.findOne({
                 '_id': id
             },
             function (err, doc) {
+                db.close();
                 callback(err, doc);
-                conn.close();
             });
-    }).connection;
+    });
 }
 
 function portInUse(port, callback) {

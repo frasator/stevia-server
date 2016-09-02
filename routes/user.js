@@ -63,7 +63,6 @@ router.get('/create', function (req, res, next) {
     if (email === 'anonymous@anonymous.anonymous') {
         user.name = 'anonymous___' + user._id;
     }
-    console.log(user.name);
 
     async.waterfall([
         function (cb) {

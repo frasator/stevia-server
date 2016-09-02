@@ -81,17 +81,14 @@ const JobSchema = new Schema({
 
 JobSchema.methods = {
     createJobFolder: function (name, parent, user, callback) {
-      console.log("cjf")
         var job = this;
         File.createFolder(name, parent, user, function (folder) {
-          console.log("File.createfolder")
             folder.job = job._id;
             job.folder = folder._id;
             job.user = user._id;
             async.parallel([
                 folder.save, job.save
             ], function (err) {
-              console.log("parallel error");
                 callback(err)
             });
         });
