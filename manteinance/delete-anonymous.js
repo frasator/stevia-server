@@ -1,19 +1,23 @@
 var config = require('../config.json');
 var mongoose = require("mongoose");
+mongoose.Promise = global.Promise;
 require('../models/user.js');
 require('../models/file.js');
 require('../models/job.js');
-const File = mongoose.model('File');
-const User = mongoose.model('User');
-const Job = mongoose.model('Job');
 
 const shell = require('shelljs');
+const path = require('path');
 
-var conn = mongoose.connect(config.mongodb, function () {
+var db = mongoose.createConnection(config.mongodb);
+db.once('open', function () {
+    var File = db.model('File');
+    var User = db.model('User');
+    var Job = db.model('Job');
 
     User.find({
-            'email': {
-                $regex: new RegExp('^' + 'anonymous_')
+            'email': 'anonymous@anonymous.anonymous',
+            'name': {
+                $regex: new RegExp('^' + 'anonymous___')
             }
         },
         function (err, users) {
@@ -32,39 +36,24 @@ var conn = mongoose.connect(config.mongodb, function () {
                     console.log("File fsDelete: file not exists on file system")
                 }
             }
-            // console.log("asdf");
-            // console.log(ids);
-            // User.remove({
-            //     "id": {
-            //         $in: ids
-            //     }
-            // }, function (err, a) {
-            //     console.log(err);
-            //     console.log(a);
-            //     console.log('done');
-            // });
             var count = 3;
             User.where('_id').in(ids).remove().exec(function () {
                 count--;
                 if (count == 0) {
-                    conn.close(function () {});
+                    db.close();
                 }
             });
             File.where('user').in(ids).remove().exec(function () {
                 count--;
                 if (count == 0) {
-                    conn.close(function () {});
+                    db.close();
                 }
             });
             Job.where('user').in(ids).remove().exec(function () {
                 count--;
                 if (count == 0) {
-                    conn.close(function () {});
+                    db.close();
                 }
             });
-
         }).populate('home');
-
-}).connection;
-
-//
+});
