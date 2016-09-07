@@ -285,7 +285,7 @@ router.get('/:id/report-error', function (req, res, next) {
                 '_id': id
             }, function (err, job) {
                 if (!job) {
-                    cb("report-error: User does not exist")
+                    cb("report-error: Job does not exist")
                 } else {
                     mail.send({
                         to: mailConfig.mail,
@@ -325,7 +325,7 @@ router.get('/delete', function (req, res, next) {
                 '_id': req.query.jobId
             }, function (err, job) {
                 if (!job) {
-                    cb("File not exist");
+                    cb("Job not exist");
                 } else {
                     File.delete(job.folder, function () {
                         cb(null);
@@ -344,6 +344,44 @@ router.get('/delete', function (req, res, next) {
         next();
     });
 });
+
+
+
+/* get file Bean*/
+router.get('/:jobId/info', function (req, res, next) {
+    var stvResult = new StvResult();
+
+    var jobId = req.params.jobId;
+    var sid = req._sid;
+
+    stvResult.id = jobId;
+
+    async.waterfall([
+        function (cb) {
+            Job.findOne({
+                "_id": jobId,
+                "user": req._user._id
+            }, function (err, job) {
+                if (!job) {
+                    cb("Job not exist");
+                } else {
+                    stvResult.results = [job];
+                    cb(null);
+                }
+            });
+        }
+    ], function (err) {
+        if (err) {
+            stvResult.error = err;
+            console.log("Error in ws: " + req.originalUrl);
+            console.log(err);
+        }
+        stvResult.end();
+        res._stvres.response.push(stvResult);
+        next();
+    });
+});
+
 
 /* input from web */
 // var jobConfig = {
