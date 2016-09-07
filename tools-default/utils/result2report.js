@@ -25,8 +25,8 @@ var report = xmlbuilder.create('report',
 var args = process.argv.slice(2);
 var resultFilePath = args[0];
 var outFolderPath = path.dirname(resultFilePath);
-console.log(resultFilePath);
-console.log(outFolderPath);
+// console.log(resultFilePath);
+// console.log(outFolderPath);
 
 var resultContent = shell.cat(resultFilePath.toString());
 
@@ -54,7 +54,7 @@ parser.parseString(resultContent, function (err, r) {
             groups[item.$.group].push(item);
         }
 
-        log(r.result.output[0].item[0])
+        // log(r.result.output[0].item[0])
 
         for (var i = 0; i < groups.length; i++) {
             var item = r.result.output[0].item[i];
@@ -63,18 +63,7 @@ parser.parseString(resultContent, function (err, r) {
             }
             groups[item.$.group].push(item);
         }
-        // var report = {
-        //     $: {
-        //         tool: tool
-        //     },
-        //     'input-params': {
-        //         _: ' '
-        //     },
-        //     'output-params': [
-        //
-        //     ]
-        // };
-        console.log(Object.keys(groups));
+        // console.log(Object.keys(groups));
         report.att('tool', tool);
         report.ele('input-params', {}, ' ');
         var output = report.ele('output-params');
@@ -91,7 +80,7 @@ parser.parseString(resultContent, function (err, r) {
                     output.ele('param', {
                         level: level + 1,
                         key: item.$.title,
-                        title: item._
+                        value: item._
                     });
                 } else if (item.$.type == 'FILE') {
                     if (item.$.tags.split(',').indexOf('TABLE') == -1) {
@@ -112,36 +101,12 @@ parser.parseString(resultContent, function (err, r) {
                 // log(item);
             }
         }
-
-        // log(groups)
-        // log(reportBuilder.builder)
-        // var report = reportBuilder.buildObject(report);
         var reportXML = report.end({
             'pretty': true,
             'indent': ' ',
             'newline': '\n'
         })+'\n';
-        console.log(reportXML);
+        // console.log(reportXML);
         fs.writeFileSync(path.join(outFolderPath,'report.xml'), reportXML);
-
-
-        // var items = [];
-        // var l1 = result.job_info.queue_info[0].job_list;
-        // var l2 = result.job_info.job_info[0].job_list;
-        // if (l1 != null) {
-        //     items = items.concat(l1);
-        // }
-        // if (l2 != null) {
-        //     items = items.concat(l2);
-        // }
-        // for (var i = 0; i < items.length; i++) {
-        //     var item = items[i];
-        //     var jobName = item.JB_name[0];
-        //     var state = item.state[0];
-        //     jobs[jobName] = {
-        //         qId: jobName,
-        //         state: state
-        //     };
-        // }
     }
 });
