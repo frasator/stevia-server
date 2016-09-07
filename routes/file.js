@@ -407,8 +407,6 @@ router.get('/:fileId/download', function (req, res, next) {
                     } catch (e) {
                         cb("Could not read the file");
                     }
-
-                    cb(null, filePath);
                 }
             });
         }

@@ -11,6 +11,7 @@ require('./models/job.js');
 
 // Package require
 const mongoose = require("mongoose");
+mongoose.Promise = global.Promise;
 const cluster = require('cluster');
 
 if (cluster.isMaster) {

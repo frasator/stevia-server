@@ -15,6 +15,7 @@ const exec = require('child_process').exec;
 const xml2js = require('xml2js');
 const path = require('path');
 const mongoose = require('mongoose');
+mongoose.Promise = global.Promise;
 
 const Job = mongoose.model('Job');
 const File = mongoose.model('File');

@@ -83,7 +83,6 @@ router.post('/create', function (req, res, next) {
     var fileMap = {};
     async.waterfall([
         function (cb) {
-            console.log("w1")
             File.where('_id').in(fileIdsFromJobConfig).exec(function (err, result) {
                 if (err) {
                     cb('File id provided in options is not valid.');
@@ -97,7 +96,6 @@ router.post('/create', function (req, res, next) {
             });
         },
         function (cb) {
-            console.log("w2")
             var job = new Job({
                 name: jobName,
                 description: jobDescription,
@@ -111,16 +109,14 @@ router.post('/create', function (req, res, next) {
 
             job.createJobFolder(folderName, req._parent, req._user, function (err) {
                 if (err) {
-                  console.log(err)
+                    console.log(err)
                     cb(err)
                 } else {
-                  console.log("guay")
                     cb(null, job._id)
                 }
             });
         },
         function (jobId, cb) {
-            console.log("w3")
             Job.findOne({
                 '_id': jobId
             }, function (err, job) {
@@ -128,7 +124,6 @@ router.post('/create', function (req, res, next) {
             }).populate('folder').populate('user');
         },
         function (job, cb) {
-            console.log("w4")
             var realOutPath = path.join(config.steviaDir, config.usersPath, job.folder.path);
 
             var computedOptions = computeOptions(jobConfig, fileMap, job.folder, req._user);
@@ -169,7 +164,6 @@ router.post('/create', function (req, res, next) {
 
         },
     ], function (err) {
-        console.log("wend")
         if (err) {
             stvResult.error = err;
             console.log("Error in ws: " + req.originalUrl);
