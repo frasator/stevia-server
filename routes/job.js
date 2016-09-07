@@ -362,7 +362,7 @@ router.get('/:jobId/info', function (req, res, next) {
                     stvResult.results = [job];
                     cb(null);
                 }
-            });
+            }).populate('folder');
         }
     ], function (err) {
         if (err) {
