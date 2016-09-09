@@ -43,40 +43,136 @@ parser.parseString(resultContent, function (err, r) {
             var item = r.result.metadata[0].item[i];
             if (item.$.name == 'tool') {
                 tool = item._;
+                break;
             }
         }
+
         var groups = {};
         for (var i = 0; i < r.result.output[0].item.length; i++) {
             var item = r.result.output[0].item[i];
-            if (groups[item.$.group] == null) {
-                groups[item.$.group] = [];
+            var gsplit = item.$.group.split('.');
+            for (var j = 0; j < gsplit.length; j++) {
+                var group = gsplit.slice(0, j + 1).join('.');
+                if (groups[group] == null) {
+                    groups[group] = [];
+                }
             }
             groups[item.$.group].push(item);
         }
-
-        // log(r.result.output[0].item[0])
-
-        for (var i = 0; i < groups.length; i++) {
-            var item = r.result.output[0].item[i];
-            if (groups[item.$.group] == null) {
-                groups[item.$.group] = [];
+        var groupNames = Object.keys(groups);
+        var aux = [];
+        var map = {};
+        for (var i = 0; i < groupNames.length; i++) {
+            var n = groupNames[i];
+            var arr = n.split('.');
+            var parentGroupName = arr.slice(0, arr.length - 1).join('.');
+            var x = {
+                n: n,
+                groups: []
             }
-            groups[item.$.group].push(item);
+            if (parentGroupName == "") {
+                aux.push(x);
+                map[n] = x;
+            } else {
+                if (map[n] == null) {
+                    map[n] = x;
+                }
+                map[parentGroupName].groups.push(x);
+            }
         }
+        var orderedNames = [];
+        var read = function (el) {
+            orderedNames.push(el.n);
+            if (el.groups.length > 0) {
+                for (var i = 0; i < el.groups.length; i++) {
+                    read(el.groups[i]);
+                }
+            }
+        };
+        for (var i = 0; i < aux.length; i++) {
+            read(aux[i]);
+        }
+        var orderedGroups = {}
+        for (var i = 0; i < orderedNames.length; i++) {
+            var name = orderedNames[i];
+            orderedGroups[name] = groups[name];
+        }
+
+        // log(aux);
+        // log(orderedGroups);
+        // log(groups)
+
+        // for (var i = 0; i < groups.length; i++) {
+        //     var item = r.result.output[0].item[i];
+        //     if (groups[item.$.group] == null) {
+        //         groups[item.$.group] = [];
+        //     }
+        //     groups[item.$.group].push(item);
+        // }
         // console.log(Object.keys(groups));
         report.att('tool', tool);
-        report.ele('input-params', {}, ' ');
+        report.ele('input-params', {}, '');
         var output = report.ele('output-params');
-        for (var gname in groups) {
+
+        /*PRE*/
+        var PVALUE_FATIGO = "";
+        for (var gname in orderedGroups) {
+            for (var i = 0; i < orderedGroups[gname].length; i++) {
+                var item = orderedGroups[gname][i];
+                if (item.$.tags == 'GO_NETWORKVIEWER') {
+                    var files = item._.split(',');
+                    PVALUE_FATIGO = item.$.pvalue;
+                }
+            }
+        }
+
+        for (var gname in orderedGroups) {
             var gsplit = gname.split('.');
             var level = gsplit.length - 1;
             output.ele('section', {
                 level: level,
                 title: gsplit[level]
             });
-            for (var i = 0; i < groups[gname].length; i++) {
-                var item = groups[gname][i];
-                if (item.$.type == 'MESSAGE') {
+            for (var i = 0; i < orderedGroups[gname].length; i++) {
+                var item = orderedGroups[gname][i];
+
+                if (item.$.tags.indexOf('GO_NETWORKVIEWER') != -1) {
+                    var files = item._.split(',');
+                    var pvalue
+                    output.ele('goViewer', {
+                        level: level,
+                        title: item.$.title,
+                        "sub-network": files[0],
+                        "sub-attributes": files[1],
+                        "all-attributes": files[2],
+                    });
+                } else if (item.$.tags.indexOf('INTERACTOME_VIEWER') != -1) {
+                    var tags = item.$.tags.split(",");
+                    var intermediates = "";
+                    var seeds = "";
+                    if (tags[3] != null)
+                        intermediates = tags[3];
+                    if (tags[4] != null)
+                        seeds = tags[4];
+                    output.ele('download', {
+                        level: level + 1,
+                        title: item.$.title,
+                        file: item._
+                    });
+                    output.ele('interactomeViewer', {
+                        level: level,
+                        title: item.$.title,
+                        "network": item._,
+                        "intermediates": intermediates,
+                        "seeds": seeds
+                    });
+                } else if (item.$.tags.indexOf('NETWORKMINER_JSON') != -1) {
+                    output.ele('networkMinerPlot', {
+                        level: level,
+                        title: item.$.title,
+                        file: item._
+                    });
+                } else if (item.$.type == 'MESSAGE') {
                     output.ele('param', {
                         level: level + 1,
                         key: item.$.title,
@@ -90,13 +186,25 @@ parser.parseString(resultContent, function (err, r) {
                             file: item._
                         });
                     } else {
-                        output.ele('table', {
-                            level: level + 1,
-                            title: item.$.title,
-                            file: item._,
-                            'page-size': 10
-                        });
+                        var print = true;
+                        if (PVALUE_FATIGO != "" && item.$.context != "" && item.$.context.indexOf(PVALUE_FATIGO) == -1) {
+                            print = false;
+                        }
+                        if (print) {
+                            output.ele('table', {
+                                level: level + 1,
+                                title: item.$.title,
+                                file: item._,
+                                'page-size': 10
+                            });
+                        }
                     }
+                } else if (item.$.type == 'IMAGE') {
+                    output.ele('image', {
+                        level: level + 1,
+                        title: item.$.title,
+                        file: item._
+                    });
                 }
                 // log(item);
             }
@@ -105,8 +213,8 @@ parser.parseString(resultContent, function (err, r) {
             'pretty': true,
             'indent': ' ',
             'newline': '\n'
-        })+'\n';
+        }) + '\n';
         // console.log(reportXML);
-        fs.writeFileSync(path.join(outFolderPath,'report.xml'), reportXML);
+        fs.writeFileSync(path.join(outFolderPath, 'report.xml'), reportXML);
     }
 });
