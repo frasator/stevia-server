@@ -415,9 +415,9 @@ test('file create-folder', function (t) {
 });
 
 test('file path', function (t) {
-    var path = "myfolder";
+    var p = path.join(USER_NAME, "myfolder");
     request
-        .get(config.urlPathPrefix + '/files/path?path=' + path)
+        .get(config.urlPathPrefix + '/files/path?path=' + p)
         .set('Authorization', 'sid ' + SID)
         .expect('Content-Type', /json/)
         .expect(200)
@@ -446,8 +446,9 @@ test('file path2', function (t) {
 });
 
 test('file path3', function (t) {
+    var p = path.join(USER_NAME, "/this/path/not/exists/");
     request
-        .get(config.urlPathPrefix + '/files/path?path=/this/path/not/exists/')
+        .get(config.urlPathPrefix + '/files/path?path=' + p)
         .set('Authorization', 'sid ' + SID)
         .expect('Content-Type', /json/)
         .expect(200)
