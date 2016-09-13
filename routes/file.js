@@ -175,7 +175,7 @@ router.get('/path', function (req, res, next) {
                 cb(null);
             } else {
                 File.findOne({
-                    'path': path.join(req._user.home.path, pathString),
+                    'path': pathString,
                     "user": req._user._id
                 }, function (err, file) {
                     if (!file) {
