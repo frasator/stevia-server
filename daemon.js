@@ -315,7 +315,8 @@ function notifyUser(email, status, dbJob) {
     }, function (error, info) {
         if (error) {
             console.log(error);
+        }else{
+            console.log('Message sent: ' + info.response);
         }
-        console.log('Message sent: ' + info.response);
     });
 }
