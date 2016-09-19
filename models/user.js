@@ -37,9 +37,10 @@ const UserSchema = new Schema({
     resetPasswordExpires: {
         type: Date
     },
+    // 1GB = 1073741824
     diskQuota: {
         type: Number,
-        default: 1000000
+        default: 1073741824
     },
     diskUsage: {
         type: Number,
