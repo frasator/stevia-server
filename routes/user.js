@@ -278,6 +278,7 @@ router.post('/:name/change-notifications', function (req, res, next) {
                     }
                     user.notifications = obj;
                     user.save(function (err) {
+                        stvResult.results.push(user.notifications);
                         cb(null);
                     });
                 }
