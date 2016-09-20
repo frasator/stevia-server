@@ -28,7 +28,7 @@ const UserSchema = new Schema({
     notifications: {
         type: Schema.Types.Mixed,
         default: {
-            job: true
+            job: false
         }
     },
     password: {
