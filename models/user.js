@@ -25,6 +25,12 @@ const UserSchema = new Schema({
     email: {
         type: String
     },
+    notifications: {
+        type: Schema.Types.Mixed,
+        default: {
+            job: true
+        }
+    },
     password: {
         type: String,
         default: '',

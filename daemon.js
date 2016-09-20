@@ -218,7 +218,9 @@ function checkSGEQacctJob(dbJob, cb) {
                         recordOutputFolder(dbJob.folder, dbJob);
                         dbJob.save();
                         dbJob.user.save();
-                        notifyUser(dbJob.user.email, dbJob.status, dbJob);
+                        if(dbJob.user.notifications.job == true){
+                            notifyUser(dbJob.user.email, dbJob.status, dbJob);
+                        }
                     }
                 } else if (line.indexOf('exit_status') != -1) {
                     var value = line.trim().split('exit_status')[1].trim();
@@ -227,7 +229,9 @@ function checkSGEQacctJob(dbJob, cb) {
                         recordOutputFolder(dbJob.folder, dbJob);
                         dbJob.save();
                         dbJob.user.save();
-                        notifyUser(dbJob.user.email, dbJob.status, dbJob);
+                        if(dbJob.user.notifications.job == true){
+                            notifyUser(dbJob.user.email, dbJob.status, dbJob);
+                        }
                     } else if (dbJob.status != "DONE") {
                         console.time("time DONE")
                         dbJob.status = "DONE";
@@ -235,7 +239,9 @@ function checkSGEQacctJob(dbJob, cb) {
                         dbJob.save();
                         dbJob.user.save();
                         console.timeEnd("time DONE")
-                        notifyUser(dbJob.user.email, dbJob.status, dbJob);
+                        if(dbJob.user.notifications.job == true){
+                            notifyUser(dbJob.user.email, dbJob.status, dbJob);
+                        }
                     }
                 }
             }

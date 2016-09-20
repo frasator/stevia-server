@@ -252,6 +252,46 @@ router.get('/:name/info', function (req, res, next) {
 //     });
 // });
 
+router.post('/:name/change-notifications', function (req, res, next) {
+    var stvResult = new StvResult();
+    var name = req.params.name;
+    var sid = req._sid;
+
+    async.waterfall([
+        function (cb) {
+            User.findOne({
+                'name': name,
+                'sessions.id': sid
+            }, function (err, user) {
+                if (!user) {
+                    stvResult.error = "User does not exist";
+                    console.log("info ws: " + stvResult.error);
+                    cb(stvResult.error);
+                } else {
+                    var newNotifications = req.body;
+                    var obj = {};
+                    for (var key in user.notifications) {
+                        obj[key] = user.notifications[key];
+                    }
+                    for (var key in newNotifications) {
+                        obj[key] = newNotifications[key];
+                    }
+                    user.notifications = obj;
+                    user.save(function (err) {
+                        cb(null);
+                    });
+                }
+            }).populate('home');
+        },
+    ], function (err) {
+        stvResult.end();
+        res._stvres.response.push(stvResult);
+        next();
+    });
+
+});
+
+
 router.get('/:name/change-password', function (req, res, next) {
     var stvResult = new StvResult();
     var name = req.params.name;
@@ -284,7 +324,6 @@ router.get('/:name/change-password', function (req, res, next) {
         res._stvres.response.push(stvResult);
         next();
     });
-
 });
 
 //reset pasword
