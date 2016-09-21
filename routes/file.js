@@ -73,6 +73,63 @@ router.get('/:fileId/delete', function (req, res, next) {
     });
 });
 
+router.post('/:fileId/save-attr-file', function (req, res, next) {
+    var stvResult = new StvResult();
+
+    var fileId = req.params.fileId;
+    var content = req.body.content;
+
+    stvResult.id = fileId;
+
+    async.waterfall([
+        function (cb) {
+            File.findOne({
+                '_id': fileId,
+                'user': req._user._id
+            }, function (err, file) {
+                if (!file) {
+                    cb("File not exist");
+                } else if (file.user.toString() != req._user._id.toString()) {
+                    cb("Authentication error");
+                } else { // File exists
+                    cb(null, file);
+                }
+            }).populate('parent');
+        },
+        function (file, cb) {
+            File.findOne({
+                'path': file.path + ".attrs",
+                'user': req._user._id
+            }, function (err, dbFile) {
+                var realPath = path.join(config.steviaDir, config.usersPath, file.path + ".attrs");
+                if (!dbFile) { // File attrs does not exist
+                    // cb("File not exist");
+                    // File.createFile
+                    shell.echo(content).to(realPath);
+
+                    File.createFile(file.name + ".attrs", file.parent, req._user, function (attrFile) {
+                        cb(null);
+                    });
+                } else if (file.user.toString() != req._user._id.toString()) {
+                    cb("Authentication error");
+                } else { // File attrs exists
+                    shell.echo(content).to(realPath);
+                    cb(null);
+                }
+            });
+        }
+    ], function (err) {
+        if (err) {
+            stvResult.error = err;
+            console.log("Error in ws: " + req.originalUrl);
+            console.log(err);
+        }
+        stvResult.end();
+        res._stvres.response.push(stvResult);
+        next();
+    });
+});
+
 /* Inmediate descendants */
 router.get('/:fileId/list', function (req, res, next) {
     var stvResult = new StvResult();
@@ -305,6 +362,59 @@ router.get('/:fileId/content', function (req, res, next) {
                             cb(null, text);
                         }
                     });
+                }
+            }).populate("user").populate('parent');
+        }
+    ], function (err, text) {
+        if (err) {
+            console.log("Error in ws: " + req.originalUrl);
+            console.log(err);
+            res.send();
+        } else {
+            res.send(text);
+        }
+    });
+});
+
+router.get('/:fileId/grep', function (req, res, next) {
+    var fileId = req.params.fileId;
+    var sid = req._sid;
+
+    console.log(req.query);
+
+    var pattern = req.query.pattern;
+    var ignoreCase = false;
+    var multi = true;
+    if (req.query.ignoreCase) {
+        ignoreCase = Boolean(req.query.ignoreCase);
+    }
+
+    if (req.query.multi) {
+        multi = Boolean(req.query.multi);
+    }
+
+    async.waterfall([
+        function (cb) {
+            File.findOne({
+                '_id': fileId,
+                "user": req._user._id
+            }, function (err, file) {
+                if (!file) {
+                    cb("File not exist")
+                } else {
+                    var filePath = path.join(config.steviaDir, config.usersPath, file.path);
+                    var options = '';
+                    if (ignoreCase) {
+                        options += "i";
+                    }
+                    if (multi) {
+                        options += "g";
+                    }
+
+                    var content = shell.grep(new RegExp(pattern, options), filePath).toString();
+                    // var content = shell.grep(options, pattern, filePath).toString();
+                    console.log(content);
+                    cb(null, content);
                 }
             }).populate("user").populate('parent');
         }
