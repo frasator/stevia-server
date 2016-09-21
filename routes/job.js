@@ -362,8 +362,13 @@ router.get('/:jobId/download', function (req, res, next) {
 
                     output.on('close', function () {
                         // res.attachment(zippath);
-                        res.download(zippath, job.name + ".zip");
-                        cb(null);
+                        res.download(zippath, job.name + ".zip", function(err){
+                          if(err){
+                            cb(err);
+                          }else{
+                            cb(null, zippath)
+                          }
+                        });
                         // shell.rm('-rf', zippath);
                     });
 
@@ -382,6 +387,10 @@ router.get('/:jobId/download', function (req, res, next) {
 
                 }
             }).populate('folder');
+        },
+        function (zippath, cb) {
+            shell.rm('-rf', zippath);
+            cb(null);
         }
     ], function (err) {
         if (err) {
