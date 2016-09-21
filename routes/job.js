@@ -6,6 +6,7 @@ const StvResult = require('../lib/StvResult.js');
 const async = require('async');
 const exec = require('child_process').exec;
 const fs = require('fs');
+const archiver = require('archiver');
 const util = require('util');
 const path = require('path');
 const shell = require('shelljs');
@@ -339,7 +340,57 @@ router.get('/delete', function (req, res, next) {
     });
 });
 
+router.get('/:jobId/download', function (req, res, next) {
+    var jobId = req.params.jobId;
 
+    async.waterfall([
+        function (cb) {
+            Job.findOne({
+                '_id': jobId,
+                "user": req._user._id
+            }, function (err, job) {
+                if (!job) {
+                    cb("Job not exist");
+                } else {
+
+                    var userspath = path.join(config.steviaDir, config.usersPath);
+                    var zippath = path.join(config.steviaDir,"tmp", job._id + ".zip");
+                    var realPath = path.join(userspath, job.folder.path);
+
+                    var output = fs.createWriteStream(zippath);
+                    var archive = archiver('zip');
+
+                    output.on('close', function () {
+                        // res.attachment(zippath);
+                        res.download(zippath, job.name + ".zip");
+                        cb(null);
+                        // shell.rm('-rf', zippath);
+                    });
+
+                    archive.on('error', function (err) {
+                        cb(err);
+                    });
+
+                    archive.pipe(output);
+                    archive.bulk([{
+                        expand: true,
+                        cwd: realPath,
+                        src: ['**']
+                            // dest: 'source'
+                    }]);
+                    archive.finalize();
+
+                }
+            }).populate('folder');
+        }
+    ], function (err) {
+        if (err) {
+            console.log("Error in ws: " + req.originalUrl);
+            console.log(err);
+            res.send();
+        }
+    });
+});
 
 /* get file Bean*/
 router.get('/:jobId/info', function (req, res, next) {
@@ -375,7 +426,6 @@ router.get('/:jobId/info', function (req, res, next) {
         next();
     });
 });
-
 
 /* input from web */
 // var jobConfig = {
