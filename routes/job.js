@@ -10,6 +10,7 @@ const archiver = require('archiver');
 const util = require('util');
 const path = require('path');
 const shell = require('shelljs');
+const tmp = require('tmp');
 
 const express = require('express');
 const router = express.Router();
@@ -217,44 +218,58 @@ router.post('/run', function (req, res, next) {
         function (jobConfig, fileMap, folder, cb) {
             var tool = jobConfig.tool.replace(/[^a-zA-Z0-9._\-]/g, "_");
             var executable = jobConfig.executable.replace(/[^a-zA-Z0-9._\-]/g, "_");
-            var randStr = Date.now() + Math.random().toString().replace('0.', '');
-            var randFolder = path.join('/tmp', "stv-tmp-" + randStr);
-            // var commandQsub = path.join(randFolder, "qsub-sync.sh");
-            // var outFile = path.join(randFolder, "out.job");
+            var prefix = tool + '_' + executable + '_';
+            var tmpobj = tmp.dirSync({
+                prefix: prefix + '-',
+                dir: path.join(config.steviaDir, "tmp"),
+                keep: true
+            });
+            var randFolder = tmpobj.name;
 
             if (folder != null) {
                 var computedOptions = computeOptions(jobConfig, fileMap, folder, req._user, false);
             } else {
-                shell.mkdir('-p', randFolder);
                 var computedOptions = computeOptions(jobConfig, fileMap, randFolder, req._user, false);
             }
 
             var commandLine = "'" + path.join(config.steviaDir, config.toolsPath, tool, executable) + "' " + computedOptions.join(" ");
+            var commandQsub = path.join(randFolder, "sync.command.qsub.sh");
+            var outFile = path.join(randFolder, "out.job");
 
-            // try {
-            //     fs.writeFileSync(commandQsub, "#!/bin/bash\n" + commandLine);
-            // } catch (e) {
-            //     //TODO handle error
-            // }
-            // var command = "qsub -sync y -q '" + config.queue + "' -j y -o '" + randFolder + "' '" + commandQsub + "'";
-
-            // console.log(commandLine);
-            exec(commandLine, function (error, stdout, stderr) {
-                // console.log('stdout: ' + stdout);
-                // console.log('stderr: ' + stderr);
-                stvResult.results.push({
-                    out: stdout,
-                    err: stderr
-                });
-                if (error != null) {
-                    cb(error);
+            fs.writeFile(commandQsub, "#!/bin/bash\n" + commandLine, function (err) {
+                if (err) {
+                    cb('Could not create ' + commandQsub);
                 } else {
-                    cb(null)
-                }
-                if (shell.test('-e', randFolder)) {
-                    shell.rm('-rf', randFolder);
+                    var command = "qsub -sync y -q '" + config.queue + "' -j y -o '" + outFile + "' '" + commandQsub + "'";
+
+                    // console.log('++++++++++++');
+                    // console.log(command);
+                    // console.log(commandLine);
+                    // console.log('++++++++++++');
+
+                    exec(command, function (error, stdout, stderr) {
+                        // console.log('stdout: ' + stdout);
+                        // console.log('stderr: ' + stderr);
+                        stvResult.results.push({
+                            out: stdout,
+                            err: stderr
+                        });
+                        if (error != null) {
+                            cb(error);
+                        } else {
+                            cb(null)
+                        }
+                        if (shell.test('-e', randFolder)) {
+                            shell.rm('-rf', randFolder);
+                        }
+                    });
                 }
             });
+
+            // console.log(commandLine);
+            // exec(commandLine, function (error, stdout, stderr) {
+
+            // });
         },
     ], function (err) {
         if (err) {
@@ -354,7 +369,7 @@ router.get('/:jobId/download', function (req, res, next) {
                 } else {
 
                     var userspath = path.join(config.steviaDir, config.usersPath);
-                    var zippath = path.join(config.steviaDir,"tmp", job._id + ".zip");
+                    var zippath = path.join(config.steviaDir, "tmp", job._id + ".zip");
                     var realPath = path.join(userspath, job.folder.path);
 
                     var output = fs.createWriteStream(zippath);
@@ -362,12 +377,12 @@ router.get('/:jobId/download', function (req, res, next) {
 
                     output.on('close', function () {
                         // res.attachment(zippath);
-                        res.download(zippath, job.name + ".zip", function(err){
-                          if(err){
-                            cb(err);
-                          }else{
-                            cb(null, zippath)
-                          }
+                        res.download(zippath, job.name + ".zip", function (err) {
+                            if (err) {
+                                cb(err);
+                            } else {
+                                cb(null, zippath)
+                            }
                         });
                         // shell.rm('-rf', zippath);
                     });

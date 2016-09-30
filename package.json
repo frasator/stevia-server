@@ -22,6 +22,7 @@
     "nodemailer-smtp-transport": "^2.6.0",
     "shelljs": "^0.7.4",
     "swagger-express": "^1.0.5",
+    "tmp": "0.0.29",
     "xml2js": "^0.4.17",
     "xmlbuilder": "^8.2.2"
   },
