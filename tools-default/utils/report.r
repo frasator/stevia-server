@@ -38,6 +38,19 @@ add.section <- function(res,title, level=0){
   return(res)
 }
 
+add.redirection <- function(res, tool,file,level=0, ...){
+  element <- list()
+  element$type <- "redirection"
+  element$tool <- tool
+  element$file <- file
+  element$level <- level
+  
+  element <- append(element, as.list(substitute(list(...)))[-1L])
+  
+  res <- add.output(res, element)
+  return(res)
+}
+
 add.message <- function(res,text, level=0){
   element <- list()
   element$type <- "message"
@@ -77,6 +90,17 @@ add.table <- function(res,title,file,level=0,page_size=10){
   return(res)
 }
 
+add.boxPlot <- function(res,title,file="boxplot.csv",outliers="outliers.csv",level=0){
+  element <- list()
+  element$type <- "boxplot"
+  element$title <- title
+  element$file <- file
+  element$outliers <- outliers
+  element$level <- level
+  res <- add.output(res,element)
+  return(res)
+}
+
 add.download <- function(res,title,file,level=0){
   element <- list()
   element$type <- "download"
@@ -107,32 +131,45 @@ render.xml <- function(res){
   out <- paste0(out,"\t<output-params>\n")
   for(element in res$output){
     switch(element$type,
-      section = {
-        out <- paste0(out,"\t\t<section level='",element$level,"' title='",element$title,"'></section>\n")
-      },
-      message = {
-        out <- paste0(out,"\t\t<message level='",element$level,"' text='",element$text,"'></message>\n")
-      },
-      param = {
-        out <- paste0(out,"\t\t<param key='",element$key,"' value='",element$value,"'></param>\n")
-      },
-      image = {
-        out <- paste0(out,"\t\t<image level='",element$level,"' title='",element$title,"' file='",element$file,"'></image>\n")
-      },
-      table = {
-        out <- paste0(out,"\t\t<table level='",element$level,"' title='",element$title,"' file='",element$file,"' page-size='",element$page_size,"'></table>\n")
-      },
-      download = {
-        out <- paste0(out,"\t\t<download level='",element$level,"' title='",element$title,"' file='",element$file,"'></download>\n")
-      },
-      html = {
-        out <- paste0(out,"\t\t<html level='",element$level,"' file='",element$file,"'></html>\n")        
-      },
+           section = {
+             out <- paste0(out,"\t\t<section level='",element$level,"' title='",element$title,"'></section>\n")
+           },
+           message = {
+             out <- paste0(out,"\t\t<message level='",element$level,"' text='",element$text,"'></message>\n")
+           },
+           param = {
+             out <- paste0(out,"\t\t<param key='",element$key,"' value='",element$value,"'></param>\n")
+           },
+           image = {
+             out <- paste0(out,"\t\t<image level='",element$level,"' title='",element$title,"' file='",element$file,"'></image>\n")
+           },
+           table = {
+             out <- paste0(out,"\t\t<table level='",element$level,"' title='",element$title,"' file='",element$file,"' page-size='",element$page_size,"'></table>\n")
+           },
+           boxplot = {
+             out <- paste0(out,"\t\t<boxplot level='",element$level,"' title='",element$title,"' file='",element$file,"' outliers='",element$outliers,"'></boxplot>\n")
+           },
+           download = {
+             out <- paste0(out,"\t\t<download level='",element$level,"' title='",element$title,"' file='",element$file,"'></download>\n")
+           },
+           html = {
+             out <- paste0(out,"\t\t<html level='",element$level,"' file='",element$file,"'></html>\n")        
+           },
+           redirection = {
+             attrs <- ""
+             for(key in names(element)){
+               if(!(key == "tool") & !(key == "file") & !(key == 'type')){
+                 attrs <- paste0(attrs, key, "='",element[key]  ,"' ")
+               }
+             }
+             out <- paste0(out, "\t\t<redirection tool='", element$tool, "' file='", element$file  ,"' ",attrs, "></redirection>\n")
+             
+           }
     )
   }
   out <- paste0(out,"\t</output-params>\n")
   out <- paste(out,"</report>")
- 
+  
   return(out)
 }
 
