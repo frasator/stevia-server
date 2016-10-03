@@ -1,28 +1,33 @@
 {
   "name": "stevia-server",
-  "version": "1.0.0-rc.4",
+  "version": "1.0.0-rc.5",
   "license": "",
   "repository": "",
   "scripts": {
     "test": "tape test/test.js"
   },
   "dependencies": {
-    "async": "^1.5.2",
-    "body-parser": "^1.15.0",
-    "cors": "^2.7.1",
-    "express": "^4.13.4",
+    "archiver": "^1.1.0",
+    "async": "^2.0.1",
+    "body-parser": "^1.15.2",
+    "compression": "^1.6.2",
+    "cors": "^2.8.0",
+    "express": "^4.14.0",
+    "file-stream-rotator": "0.0.7",
     "jade": "^1.11.0",
-    "mktemp": "^0.4.0",
-    "mongoose": "4.4.12",
+    "mongoose": "^4.5.10",
+    "morgan": "^1.7.0",
     "multiparty": "^4.1.2",
-    "nodemailer": "^2.3.2",
-    "nodemailer-smtp-transport": "^2.4.2",
-    "shelljs": "^0.7.0",
+    "nodemailer": "^2.5.0",
+    "nodemailer-smtp-transport": "^2.6.0",
+    "shelljs": "^0.7.4",
     "swagger-express": "^1.0.5",
-    "xml2js": "^0.4.16"
+    "tmp": "0.0.29",
+    "xml2js": "^0.4.17",
+    "xmlbuilder": "^8.2.2"
   },
   "devDependencies": {
-    "supertest": "^1.2.0",
-    "tape": "^4.5.1"
+    "supertest": "^2.0.0",
+    "tape": "4.5.1"
   }
 }

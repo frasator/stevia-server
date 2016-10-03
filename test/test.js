@@ -6,6 +6,7 @@ const shell = require('shelljs');
 const net = require('net');
 
 const mongoose = require("mongoose");
+mongoose.Promise = global.Promise;
 require('../models/user.js');
 require('../models/file.js');
 require('../models/job.js');
@@ -21,7 +22,7 @@ var USER_ID;
 var SID;
 var HOMEFOLDER_ID;
 var UPLOADED_FILE;
-var USER_EMAIL = "test@test.com";
+var USER_NAME = "test";
 
 portInUse(config.httpPort, function (returnValue) {
 
@@ -36,11 +37,11 @@ portInUse(config.httpPort, function (returnValue) {
 });
 
 test('delete user', function (t) {
-    getUserByEmail(USER_EMAIL, function (err, user) {
+    getUserByName(USER_NAME, function (err, user) {
         if (user != null) {
             var deleteUser = require('../manteinance/delete-user-module.js');
             deleteUser([user._id], function () {
-                getUserByEmail(USER_EMAIL, function (err, user) {
+                getUserByName(USER_NAME, function (err, user) {
                     t.is(user, null);
                     t.end();
                 });
@@ -55,8 +56,9 @@ test('delete user', function (t) {
 /* USER */
 /* ----- */
 test('user create', function (t) {
+    console.log(config.urlPathPrefix + '/users/create?name=' + USER_NAME);
     request
-        .get(config.urlPathPrefix + '/users/create?email=' + USER_EMAIL)
+        .get(config.urlPathPrefix + '/users/create?name=' + USER_NAME)
         .set('Authorization', 'sid a94a8fe5ccb19ba61c4c0873d391e987982fbbd3')
         .expect('Content-Type', /json/)
         .expect(200)
@@ -64,10 +66,10 @@ test('user create', function (t) {
             // console.log(res.body.response[0]);
             t.is(err, null);
             // t.equal(res.body.response[0].error, undefined);
-            getUserByEmail(USER_EMAIL, function (err, user) {
+            getUserByName(USER_NAME, function (err, user) {
                 t.isNot(user, null);
                 USER_ID = user._id;
-                var userPath = path.join(config.steviaDir, config.usersPath, USER_EMAIL);
+                var userPath = path.join(config.steviaDir, config.usersPath, USER_NAME);
                 t.true(shell.test('-d', userPath), "Directory exists");
                 t.end();
             });
@@ -76,7 +78,7 @@ test('user create', function (t) {
 
 test('user login', function (t) {
     request
-        .get(config.urlPathPrefix + '/users/' + USER_EMAIL + '/login')
+        .get(config.urlPathPrefix + '/users/' + USER_NAME + '/login')
         .set('Authorization', 'sid a94a8fe5ccb19ba61c4c0873d391e987982fbbd3')
         .expect('Content-Type', /json/)
         .expect(200)
@@ -96,7 +98,7 @@ test('user login', function (t) {
 
 test('user info', function (t) {
     request
-        .get(config.urlPathPrefix + '/users/' + USER_EMAIL + '/info')
+        .get(config.urlPathPrefix + '/users/' + USER_NAME + '/info')
         .set('Authorization', 'sid ' + SID)
         .expect('Content-Type', /json/)
         .expect(200)
@@ -106,7 +108,7 @@ test('user info', function (t) {
             t.equal(res.body.response[0].error, undefined);
 
             t.not(res.body.response[0].results[0].tree, undefined);
-            t.equal(res.body.response[0].results[0].email, USER_EMAIL)
+            t.equal(res.body.response[0].results[0].name, USER_NAME)
             HOMEFOLDER_ID = res.body.response[0].results[0].home._id;
 
             t.end();
@@ -115,7 +117,7 @@ test('user info', function (t) {
 
 test('user change password', function (t) {
     request
-        .get(config.urlPathPrefix + '/users/' + USER_EMAIL + '/change-password')
+        .get(config.urlPathPrefix + '/users/' + USER_NAME + '/change-password')
         .set('Authorization', 'sid ' + SID)
         .set('x-stv-1', 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3')
         .set('x-stv-2', 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3')
@@ -157,8 +159,8 @@ test('file upload', function (t) {
             t.true(stats.size === uploadStats.size, "Check file size");
             getFileById(UPLOADED_FILE._id, function (err, file) {
                 t.isNot(file, null);
+                t.end();
             });
-            t.end();
         }
     };
     var callbackExists = function (file) {
@@ -169,8 +171,8 @@ test('file upload', function (t) {
         t.true(stats.size === uploadStats.size, "Check file size");
         getFileById(UPLOADED_FILE._id, function (err, file) {
             t.isNot(file, null);
+            t.end();
         });
-        t.end();
     };
 
     var resume = true;
@@ -364,6 +366,7 @@ test('file info', function (t) {
             t.end();
         });
 });
+
 test('file files', function (t) {
     request
         .get(config.urlPathPrefix + '/files/' + HOMEFOLDER_ID + '/files')
@@ -410,6 +413,53 @@ test('file create-folder', function (t) {
 
         });
 });
+
+test('file path', function (t) {
+    var p = path.join(USER_NAME, "myfolder");
+    request
+        .get(config.urlPathPrefix + '/files/path?path=' + p)
+        .set('Authorization', 'sid ' + SID)
+        .expect('Content-Type', /json/)
+        .expect(200)
+        .end(function (err, res) {
+            // console.log(res.body.response[0]);
+            t.is(err, null);
+            t.equal(res.body.response[0].error, undefined);
+            t.equal(res.body.response[0].results[0]._id, FOLDER._id);
+            t.end();
+        });
+});
+
+test('file path2', function (t) {
+    request
+        .get(config.urlPathPrefix + '/files/path')
+        .set('Authorization', 'sid ' + SID)
+        .expect('Content-Type', /json/)
+        .expect(200)
+        .end(function (err, res) {
+            // console.log(res.body.response[0]);
+            t.is(err, null);
+            t.equal(res.body.response[0].error, undefined);
+            t.equal(res.body.response[0].results[0]._id, HOMEFOLDER_ID);
+            t.end();
+        });
+});
+
+test('file path3', function (t) {
+    var p = path.join(USER_NAME, "/this/path/not/exists/");
+    request
+        .get(config.urlPathPrefix + '/files/path?path=' + p)
+        .set('Authorization', 'sid ' + SID)
+        .expect('Content-Type', /json/)
+        .expect(200)
+        .end(function (err, res) {
+            // console.log(res.body.response[0]);
+            t.is(err, null);
+            t.not(res.body.response[0].error, undefined);
+            t.end();
+        });
+});
+
 var FOLDER2
 test('file create-folder2', function (t) {
     var folderName = "mysubfolder";
@@ -554,10 +604,54 @@ test('file move down', function (t) {
                 t.true(filePath == filePathDb, "Check database path");
                 t.true(shell.test('-e', filePath), "Check file system file");
                 t.end();
-
             });
         });
 });
+
+test('file rename-folder', function (t) {
+    var newName = "theNewSubFolder";
+    request
+        .get(config.urlPathPrefix + '/files/' + FOLDER2._id + '/rename?newname=' + newName)
+        .set('Authorization', 'sid ' + SID)
+        .expect('Content-Type', /json/)
+        .expect(200)
+        .end(function (err, res) {
+            t.is(err, null);
+            t.equal(res.body.response[0].error, undefined);
+            var f = res.body.response[0].results[0];
+            t.not(f, null);
+
+            getFileById(FOLDER2._id, function (err, file) {
+                FOLDER2 = file;
+                t.equal(file.name, newName);
+                var filePath = path.join(config.steviaDir, config.usersPath, file.path);
+                t.true(shell.test('-d', filePath), "Folder exists");
+
+                t.isNot(file, null);
+                t.end();
+            });
+        });
+});
+test('file rename-folder home', function (t) {
+    var newName = "newHome";
+    request
+        .get(config.urlPathPrefix + '/files/' + HOMEFOLDER_ID + '/rename?newname=' + newName)
+        .set('Authorization', 'sid ' + SID)
+        .expect('Content-Type', /json/)
+        .expect(200)
+        .end(function (err, res) {
+            t.is(err, null);
+            t.not(res.body.response[0].error, undefined);
+            var f = res.body.response[0].results[0];
+            t.not(f, null);
+
+            getFileById(HOMEFOLDER_ID, function (err, homeFolder) {
+                t.true(homeFolder.name == USER_NAME, "Home folder not modified");
+                t.end();
+            });
+        });
+});
+
 test('file move up', function (t) {
     var fileId = FOLDER2._id;
     var newParentId = HOMEFOLDER_ID;
@@ -568,11 +662,13 @@ test('file move up', function (t) {
         .expect(200)
         .end(function (err, res) {
             // console.log(res.body.response)
-            var filePath = path.join(config.steviaDir, config.usersPath, USER_EMAIL, FOLDER2.name);
+            var filePath = path.join(config.steviaDir, config.usersPath, USER_NAME, FOLDER2.name);
             getFileById(fileId, function (err, file) {
                 t.is(err, null);
                 t.not(file, null);
                 var filePathDb = path.join(config.steviaDir, config.usersPath, file.path).toString();
+                // console.log(filePath)
+                // console.log(filePathDb)
                 t.true(filePath == filePathDb, "Check database path");
                 t.true(shell.test('-e', filePath), "Check file system file");
                 t.end();
@@ -593,9 +689,9 @@ test('file delete', function (t) {
 
             getFileById(UPLOADED_FILE._id, function (err, file) {
                 t.is(file, null);
+                t.end();
             });
 
-            t.end();
         });
 });
 test('folder delete', function (t) {
@@ -614,9 +710,9 @@ test('folder delete', function (t) {
 
             getFileById(FOLDER._id, function (err, file) {
                 t.is(file, null);
+                t.end();
             });
 
-            t.end();
         });
 });
 
@@ -694,8 +790,8 @@ test('delete job ', function (t) {
 /* ----- */
 test('user logout', function (t) {
     request
-    // .get(config.urlPathPrefix + '/users/'+USER_EMAIL+'/logout?logoutOther=true')
-        .get(config.urlPathPrefix + '/users/' + USER_EMAIL + '/logout')
+    // .get(config.urlPathPrefix + '/users/'+USER_NAME+'/logout?logoutOther=true')
+        .get(config.urlPathPrefix + '/users/' + USER_NAME + '/logout')
         .set('Authorization', 'sid ' + SID)
         .expect('Content-Type', /json/)
         .expect(200)
@@ -708,7 +804,7 @@ test('user logout', function (t) {
         });
 });
 
-test('delete user', function (t) {
+test('delete user after test', function (t) {
     var deleteUser = require('../manteinance/delete-user-module.js');
     deleteUser([USER_ID], function () {
         getUserById(USER_ID, function (err, user) {
@@ -722,55 +818,59 @@ test('delete user', function (t) {
 /*HELP METHODS*/
 /**************/
 function getFileById(id, callback) {
-    var conn = mongoose.connect(config.mongodb, function () {
+    var db = mongoose.createConnection(config.mongodb);
+    db.once('open', function () {
+        var File = db.model('File');
         File.findOne({
                 '_id': id
             },
             function (err, doc) {
-                conn.close(function () {
-                    callback(err, doc);
-                });
+                db.close();
+                callback(err, doc);
             }).populate('home');
-    }).connection;
+    });
 }
 
-function getUserByEmail(query, callback) {
-    var conn = mongoose.connect(config.mongodb, function () {
+function getUserByName(query, callback) {
+    var db = mongoose.createConnection(config.mongodb);
+    db.once('open', function () {
+        var User = db.model('User');
         User.findOne({
-                'email': query
+                'name': query
             },
             function (err, doc) {
-                conn.close(function () {
-                    callback(err, doc);
-                });
+                db.close();
+                callback(err, doc);
             }).populate('home');
-    }).connection;
+    });
 }
 
 function getUserById(id, callback) {
-    var conn = mongoose.connect(config.mongodb, function () {
+    var db = mongoose.createConnection(config.mongodb);
+    db.once('open', function () {
+        var User = db.model('User');
         User.findOne({
                 '_id': id
             },
             function (err, doc) {
-                conn.close(function () {
-                    callback(err, doc);
-                });
+                db.close();
+                callback(err, doc);
             });
-    }).connection;
+    });
 }
 
 function getJobById(id, callback) {
-    var conn = mongoose.connect(config.mongodb, function () {
+    var db = mongoose.createConnection(config.mongodb);
+    db.once('open', function () {
+        var Job = db.model('Job');
         Job.findOne({
                 '_id': id
             },
             function (err, doc) {
-                conn.close(function () {
-                    callback(err, doc);
-                });
+                db.close();
+                callback(err, doc);
             });
-    }).connection;
+    });
 }
 
 function portInUse(port, callback) {

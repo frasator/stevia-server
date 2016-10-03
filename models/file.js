@@ -73,9 +73,23 @@ const FileSchema = new Schema({
 
 FileSchema.pre('save', function (next) {
     if (this.type == 'FILE') {
+        var fsFilePath = path.join(config.steviaDir, config.usersPath, this.path);
+
+        var stats = fs.statSync(fsFilePath);
+        console.log('File ' + fsFilePath + ' created. Final size: ' + stats.size);
+
         this.format = mime.lookup(this.name);
+        this.size = stats.size;
+
+        mongoose.models["User"].findById(this.user, function (err, user) {
+            user.updateDiskUsage(function () {
+                console.log("updateDiskUsage")
+                next();
+            });
+        });
+    } else {
+        next();
     }
-    next();
 });
 /**
  * Methods
@@ -131,7 +145,7 @@ FileSchema.statics = {
         if (parent != undefined) {
             dbParentPath = parent.path;
         } else {
-            dbParentPath = user.email;
+            dbParentPath = user.name;
         }
 
         var finalName = this.getDuplicatedFileName(dbParentPath, name);
@@ -161,12 +175,15 @@ FileSchema.statics = {
         });
     },
     createFile: function (name, parent, user, callback) {
+        var dbFilePath = path.join(parent.path, name);
+
         var file = new this({
             name: name,
             user: user._id,
             parent: parent._id,
             type: "FILE",
-            path: path.join(parent.path, name)
+            path: dbFilePath
+
         });
         parent.files.push(file);
 
@@ -361,7 +378,105 @@ FileSchema.statics = {
                     mongoose.models["File"].find({
                         'user': file.user,
                         'path': {
-                            $regex: new RegExp('^' + oldFilePath)
+                            $regex: new RegExp('^' + oldFilePath + '/')
+                        }
+                    }, function (error, files) {
+                        if (error) {
+                            cb(error)
+                        } else {
+                            async.mapLimit(files, 10, function (f, next) {
+                                f.path = f.path.replace(new RegExp('^' + oldFilePath), file.path);
+                                f.save(next);
+                            }, function (error) {
+                                cb(error);
+                            });
+                        }
+                    });
+                } else {
+                    cb(null);
+                }
+            },
+        ], function (error) {
+            var err = error;
+            callback(err)
+        });
+    },
+    rename: function (file, newname, callback) {
+        var err = null;
+
+        if (file == null) {
+            err = "File not exists";
+            callback(err);
+            return;
+        }
+        if (file.user.name == null) {
+            err = "User file must be populated";
+            callback(err);
+            return;
+        }
+        if (file.user.name == file.path) {
+            err = "User's home folder can not be renamed";
+            callback(err);
+            return;
+        }
+        if (file.parent.path == null) {
+            err = "File parent must be populated";
+            callback(err);
+            return;
+        }
+        if (newname == null || newname == '') {
+            err = "New name is empty";
+            callback(err);
+            return;
+        }
+
+        var oldPath = path.join(config.steviaDir, config.usersPath, file.path);
+        var newPath = path.join(config.steviaDir, config.usersPath, file.parent.path, newname);
+
+        if (shell.test('-e', newPath)) {
+            err = "Already exists a file with that name on the file system";
+            callback(err);
+            return;
+        }
+
+        try {
+            fs.renameSync(oldPath, newPath);
+        } catch (e) {
+            console.log("RenameSync Error");
+            console.log("old " + oldPath)
+            console.log("new " + newPath)
+            callback(e.message);
+            console.log("Rename operation canceled.");
+            return;
+        }
+
+        var oldFilePath = file.path;
+        async.waterfall([
+            function (cb) {
+                mongoose.models["File"].findOne({
+                    'path': path.join(file.parent.path, newname),
+                    'user': file.user
+                }, function (err, checkFile) {
+                    if (!checkFile) {
+                        cb(null);
+                    } else {
+                        cb('File already exists with that name on the database');
+                    }
+                });
+            },
+            function (cb) {
+                file.name = newname;
+                file.path = path.join(file.parent.path, newname);
+                file.save(function (err) {
+                    cb(null);
+                });
+            },
+            function (cb) {
+                if (file.type == 'FOLDER') {
+                    mongoose.models["File"].find({
+                        'user': file.user,
+                        'path': {
+                            $regex: new RegExp('^' + oldFilePath + '/')
                         }
                     }, function (error, files) {
                         if (error) {
@@ -392,10 +507,11 @@ FileSchema.statics = {
             'user': userId,
             'type': 'FOLDER',
             'path': {
-                $regex: new RegExp('^' + folder.path)
+                $regex: new RegExp('^' + folder.path + '/')
             }
         }, {
-            path: 1
+            path: 1,
+            job: 1
         }, function (err, files) {
             for (var i = 0; i < files.length; i++) {
                 var file = files[i];
@@ -407,7 +523,8 @@ FileSchema.statics = {
             index[folder.path] = {
                 _id: folder._id,
                 n: folder.name,
-                f: []
+                f: [],
+                j: folder.job != undefined
             };
             final.push(index[folder.path]);
             for (var i = 0; i < files.length; i++) {
@@ -422,7 +539,8 @@ FileSchema.statics = {
                             var n = {
                                 _id: foundFile._id,
                                 n: part,
-                                f: []
+                                f: [],
+                                j: file.job != undefined
                             };
                             aux.push(n);
                             index[p] = n;

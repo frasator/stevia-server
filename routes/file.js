@@ -34,7 +34,7 @@ router.use(function (req, res, next) {
             req._user = user;
             next();
         }
-    }).select('+password');
+    }).select('+password').populate('home');
 });
 
 router.get('/:fileId/delete', function (req, res, next) {
@@ -58,6 +58,63 @@ router.get('/:fileId/delete', function (req, res, next) {
                     File.delete(file._id, function (err) {
                         cb(null);
                     });
+                }
+            });
+        }
+    ], function (err) {
+        if (err) {
+            stvResult.error = err;
+            console.log("Error in ws: " + req.originalUrl);
+            console.log(err);
+        }
+        stvResult.end();
+        res._stvres.response.push(stvResult);
+        next();
+    });
+});
+
+router.post('/:fileId/save-attr-file', function (req, res, next) {
+    var stvResult = new StvResult();
+
+    var fileId = req.params.fileId;
+    var content = req.body.content;
+
+    stvResult.id = fileId;
+
+    async.waterfall([
+        function (cb) {
+            File.findOne({
+                '_id': fileId,
+                'user': req._user._id
+            }, function (err, file) {
+                if (!file) {
+                    cb("File not exist");
+                } else if (file.user.toString() != req._user._id.toString()) {
+                    cb("Authentication error");
+                } else { // File exists
+                    cb(null, file);
+                }
+            }).populate('parent');
+        },
+        function (file, cb) {
+            File.findOne({
+                'path': file.path + ".attrs",
+                'user': req._user._id
+            }, function (err, dbFile) {
+                var realPath = path.join(config.steviaDir, config.usersPath, file.path + ".attrs");
+                if (!dbFile) { // File attrs does not exist
+                    // cb("File not exist");
+                    // File.createFile
+                    shell.echo(content).to(realPath);
+
+                    File.createFile(file.name + ".attrs", file.parent, req._user, function (attrFile) {
+                        cb(null);
+                    });
+                } else if (file.user.toString() != req._user._id.toString()) {
+                    cb("Authentication error");
+                } else { // File attrs exists
+                    shell.echo(content).to(realPath);
+                    cb(null);
                 }
             });
         }
@@ -153,6 +210,52 @@ router.get('/:fileId/info', function (req, res, next) {
     });
 });
 
+/* get file Bean by path*/
+router.get('/path', function (req, res, next) {
+    var stvResult = new StvResult();
+
+    var pathString = req.query.path;
+    var sid = req._sid;
+
+    async.waterfall([
+        function (cb) {
+            if (pathString == null || pathString == '' || pathString == '/') {
+                cb(null, true);
+            } else {
+                pathString = pathString.replace(/\/+$/, '');
+                cb(null, false);
+            }
+        },
+        function (isHome, cb) {
+            if (isHome) {
+                stvResult.results = [req._user.home];
+                cb(null);
+            } else {
+                File.findOne({
+                    'path': pathString,
+                    "user": req._user._id
+                }, function (err, file) {
+                    if (!file) {
+                        cb("File not exist");
+                    } else {
+                        stvResult.results = [file];
+                        cb(null);
+                    }
+                });
+            }
+        }
+    ], function (err) {
+        if (err) {
+            stvResult.error = err;
+            console.log("Error in ws: " + req.originalUrl);
+            console.log(err);
+        }
+        stvResult.end();
+        res._stvres.response.push(stvResult);
+        next();
+    });
+});
+
 /* Any descendant */
 router.get('/:fileId/files', function (req, res, next) {
     var stvResult = new StvResult();
@@ -174,9 +277,10 @@ router.get('/:fileId/files', function (req, res, next) {
                     File.find({
                         'user': req._user._id,
                         'path': {
-                            $regex: new RegExp('^' + file.path)
+                            $regex: new RegExp('^' + file.path + '/')
                         }
                     }, function (err, files) {
+                        files.push(file);
                         stvResult.results = files;
                         cb(null);
                     });
@@ -258,6 +362,59 @@ router.get('/:fileId/content', function (req, res, next) {
                             cb(null, text);
                         }
                     });
+                }
+            }).populate("user").populate('parent');
+        }
+    ], function (err, text) {
+        if (err) {
+            console.log("Error in ws: " + req.originalUrl);
+            console.log(err);
+            res.send();
+        } else {
+            res.send(text);
+        }
+    });
+});
+
+router.get('/:fileId/grep', function (req, res, next) {
+    var fileId = req.params.fileId;
+    var sid = req._sid;
+
+    console.log(req.query);
+
+    var pattern = req.query.pattern;
+    var ignoreCase = false;
+    var multi = true;
+    if (req.query.ignoreCase) {
+        ignoreCase = Boolean(req.query.ignoreCase);
+    }
+
+    if (req.query.multi) {
+        multi = Boolean(req.query.multi);
+    }
+
+    async.waterfall([
+        function (cb) {
+            File.findOne({
+                '_id': fileId,
+                "user": req._user._id
+            }, function (err, file) {
+                if (!file) {
+                    cb("File not exist")
+                } else {
+                    var filePath = path.join(config.steviaDir, config.usersPath, file.path);
+                    var options = '';
+                    if (ignoreCase) {
+                        options += "i";
+                    }
+                    if (multi) {
+                        options += "g";
+                    }
+
+                    var content = shell.grep(new RegExp(pattern, options), filePath).toString();
+                    // var content = shell.grep(options, pattern, filePath).toString();
+                    console.log(content);
+                    cb(null, content);
                 }
             }).populate("user").populate('parent');
         }
@@ -360,8 +517,6 @@ router.get('/:fileId/download', function (req, res, next) {
                     } catch (e) {
                         cb("Could not read the file");
                     }
-
-                    cb(null, filePath);
                 }
             });
         }
@@ -446,6 +601,59 @@ router.post('/:fileId/add-attribute', function (req, res, next) {
     });
 });
 
+// setHeader
+router.post('/:fileId/set-header', function (req, res, next) {
+    var stvResult = new StvResult();
+
+    var fileId = req.params.fileId;
+    stvResult.id = fileId;
+
+    async.waterfall([
+        function (cb) {
+            File.findOne({
+                '_id': fileId,
+                'user': req._user._id
+            }, function (err, file) {
+                if (!file) {
+                    cb("File not exist");
+                } else if (file.user.toString() != req._user._id.toString()) {
+                    cb("Authentication error");
+                } else {
+
+                    var fileBody = req.body;
+                    var lineSeparator = fileBody.lineSeparator;
+                    var headerSeparator = fileBody.headerSeparator;
+                    var newHeader = fileBody.header;
+
+                    var filePath = path.join(config.steviaDir, config.usersPath, file.path);
+
+                    var newFilePath = filePath + "_new_header";
+
+                    shell.echo(newHeader).to(newFilePath);
+                    shell.echo(lineSeparator).toEnd(newFilePath);
+                    shell.grep("-v", "^" + headerSeparator, filePath).toEnd(newFilePath);
+                    shell.mv(newFilePath, filePath);
+                    console.log(fileBody);
+
+                    file.save(function (err) {
+                        // stvResult.results.push(file);
+                        cb(null);
+                    });
+                }
+            });
+        }
+    ], function (err) {
+        if (err) {
+            stvResult.error = err;
+            console.log("Error in ws: " + req.originalUrl);
+            console.log(err);
+        }
+        stvResult.end();
+        res._stvres.response.push(stvResult);
+        next();
+    });
+});
+
 //move files
 router.get('/move', function (req, res, next) {
     var stvResult = new StvResult();
@@ -494,6 +702,49 @@ router.get('/move', function (req, res, next) {
                     }
                 }
             }).populate('parent').populate('job');
+        }
+    ], function (err) {
+        if (err) {
+            stvResult.error = err;
+            console.log("Error in ws: " + req.originalUrl);
+            console.log(err);
+        }
+        stvResult.end();
+        res._stvres.response.push(stvResult);
+        next();
+    });
+
+});
+
+router.get('/:fileId/rename', function (req, res, next) {
+    var stvResult = new StvResult();
+    var fileId = req.params.fileId;
+    var newname = req.query.newname.replace(/[^a-zA-Z0-9._\-]/g, "_");;
+    stvResult.id = fileId;
+
+    async.waterfall([
+        function (cb) {
+            File.findOne({
+                '_id': fileId,
+                'user': req._user._id
+            }, function (err, file) {
+                if (!file) {
+                    cb("File not exist");
+                } else if (file.user._id.toString() != req._user._id.toString()) {
+                    cb("Authentication error");
+                } else {
+                    File.rename(file, newname, function (renameErr) {
+                        if (renameErr != null) {
+                            cb(renameErr);
+                        } else {
+                            stvResult.results.push("File renamed");
+                            req._user.save(function () {
+                                cb(null);
+                            });
+                        }
+                    });
+                }
+            }).populate('parent').populate('user');
         }
     ], function (err) {
         if (err) {
@@ -649,8 +900,6 @@ function joinAllChunks(folderPath, uploadPath, fields, parent, callback) {
         fs.appendFileSync(fd, data, null);
     }
     fs.closeSync(fd);
-    var stats = fs.statSync(finalFilePath);
-    console.log('File ' + finalFilePath + ' created. Final size: ' + stats.size);
 
     if (mime.lookup(finalFilePath).indexOf('text') != -1) {
         shell.sed('-i', /\r\n/g, '\n', finalFilePath);
@@ -660,7 +909,9 @@ function joinAllChunks(folderPath, uploadPath, fields, parent, callback) {
     /* Database entry */
     File.createFile(fields.name, parent, parent.user, function (file) {
         file.bioformat = fields.bioFormat;
-        shell.rm('-rf', uploadPath);
+        if (shell.test('-e', uploadPath)) {
+            shell.rm('-rf', uploadPath);
+        }
         console.log('Temporal upload folder ' + uploadPath + ' removed');
         file.save(function (err) {
             callback(file);

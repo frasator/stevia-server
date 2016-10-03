@@ -34,8 +34,8 @@ const Job = mongoose.model('Job');
  *      consumes:
  *        - application/json
  *      parameters:
- *        - name: email
- *          description: Your email
+ *        - name: name
+ *          description: User name
  *          paramType: query
  *          required: true
  *          dataType: string
@@ -48,18 +48,20 @@ const Job = mongoose.model('Job');
 router.get('/create', function (req, res, next) {
     var stvResult = new StvResult();
 
+    var name = req.query.name;
     var email = req.query.email;
     var pass = req._sid;
 
     stvResult.id = email;
 
-    const user = new User({
+    var user = new User({
+        name: name,
         email: email,
         password: pass
     });
 
     if (email === 'anonymous@anonymous.anonymous') {
-        user.email = 'anonymous___' + user._id;
+        user.name = 'anonymous___' + user._id;
     }
 
     async.waterfall([
@@ -115,17 +117,17 @@ router.get('/create', function (req, res, next) {
  *          required: true
  *          dataType: string
  */
-router.get('/:email/login', function (req, res, next) {
+router.get('/:name/login', function (req, res, next) {
     var stvResult = new StvResult();
-    var email = req.params.email;
+    var name = req.params.name;
     var pass = req._sid;
 
-    stvResult.id = email;
+    stvResult.id = name;
 
     async.waterfall([
         function (cb) {
             User.findOne({
-                'email': email
+                'name': name
             }, function (err, user) {
                 if (!user) {
                     stvResult.error = "User does not exist";
@@ -153,9 +155,9 @@ router.get('/:email/login', function (req, res, next) {
 });
 
 // logout user
-router.get('/:email/logout', function (req, res, next) {
+router.get('/:name/logout', function (req, res, next) {
     var stvResult = new StvResult();
-    var email = req.params.email;
+    var name = req.params.name;
     var sid = req._sid;
     var logoutOther = false;
     if (req.query.logoutOther != null) {
@@ -164,7 +166,7 @@ router.get('/:email/logout', function (req, res, next) {
     async.waterfall([
         function (cb) {
             User.findOne({
-                'email': email,
+                'name': name,
                 'sessions.id': sid
             }, function (err, user) {
                 if (!user) {
@@ -186,22 +188,22 @@ router.get('/:email/logout', function (req, res, next) {
 });
 
 // info user
-router.get('/:email/info', function (req, res, next) {
+router.get('/:name/info', function (req, res, next) {
     var stvResult = new StvResult();
-    var email = req.params.email;
+    var name = req.params.name;
     var sid = req._sid;
     var updatedAt = (req.query.updatedAt != null) ? new Date(req.query.updatedAt) : new Date();
 
-    stvResult.id = email;
+    stvResult.id = name;
 
     async.waterfall([
         function (cb) {
             User.findOne({
-                'email': req.params.email,
+                'name': req.params.name,
                 'sessions.id': sid
             }, function (err, user) {
                 if (!user) {
-                    stvResult.error = "User does not exist!!";
+                    stvResult.error = "User does not exist";
                     console.log("info ws: " + stvResult.error);
                     cb(stvResult.error);
                 } else {
@@ -238,9 +240,9 @@ router.get('/:email/info', function (req, res, next) {
 
 //
 // //delete user
-// router.get('/:email/delete', function(req, res) {
+// router.get('/:name/delete', function(req, res) {
 //     User.remove({
-//         'email': req.params.email
+//         'name': req.params.name
 //     }, function(err, user) {
 //         if (!err) {
 //             res.send(user);
@@ -250,9 +252,50 @@ router.get('/:email/info', function (req, res, next) {
 //     });
 // });
 
-router.get('/:email/change-password', function (req, res, next) {
+router.post('/:name/change-notifications', function (req, res, next) {
     var stvResult = new StvResult();
-    var email = req.params.email;
+    var name = req.params.name;
+    var sid = req._sid;
+
+    async.waterfall([
+        function (cb) {
+            User.findOne({
+                'name': name,
+                'sessions.id': sid
+            }, function (err, user) {
+                if (!user) {
+                    stvResult.error = "User does not exist";
+                    console.log("info ws: " + stvResult.error);
+                    cb(stvResult.error);
+                } else {
+                    var newNotifications = req.body;
+                    var obj = {};
+                    for (var key in user.notifications) {
+                        obj[key] = user.notifications[key];
+                    }
+                    for (var key in newNotifications) {
+                        obj[key] = newNotifications[key];
+                    }
+                    user.notifications = obj;
+                    user.save(function (err) {
+                        stvResult.results.push(user.notifications);
+                        cb(null);
+                    });
+                }
+            }).populate('home');
+        },
+    ], function (err) {
+        stvResult.end();
+        res._stvres.response.push(stvResult);
+        next();
+    });
+
+});
+
+
+router.get('/:name/change-password', function (req, res, next) {
+    var stvResult = new StvResult();
+    var name = req.params.name;
 
     var password = req.get('x-stv-1');
     var npassword = req.get('x-stv-2');
@@ -261,7 +304,7 @@ router.get('/:email/change-password', function (req, res, next) {
     async.waterfall([
         function (cb) {
             User.findOne({
-                'email': email,
+                'name': name,
                 'sessions.id': sid,
                 'password': password
             }, function (err, user) {
@@ -282,15 +325,14 @@ router.get('/:email/change-password', function (req, res, next) {
         res._stvres.response.push(stvResult);
         next();
     });
-
 });
 
 //reset pasword
 router.get('/reset-password', function (req, res, next) {
     console.log('reset');
     var stvResult = new StvResult();
-    var email = req.query.email;
-    console.log(email);
+    var name = req.query.name;
+    console.log(name);
 
     async.waterfall([
         function (cb) {
@@ -302,10 +344,10 @@ router.get('/reset-password', function (req, res, next) {
         },
         function (token, cb) {
             User.findOne({
-                'email': email
+                'name': name
             }, function (err, user) {
                 if (!user) {
-                    stvResult.error = "No account with that email address exists";
+                    stvResult.error = "User not found";
                     console.log("error: " + stvResult.error);
                     cb(stvResult.error);
                 } else {

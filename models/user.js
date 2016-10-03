@@ -10,17 +10,25 @@ const path = require('path');
 const async = require('async');
 const shell = require('shelljs');
 
-
 /**
  * User Schema
  */
 
 const UserSchema = new Schema({
-    email: {
+    name: {
         type: String,
         default: '',
         index: {
             unique: true
+        }
+    },
+    email: {
+        type: String
+    },
+    notifications: {
+        type: Schema.Types.Mixed,
+        default: {
+            job: false
         }
     },
     password: {
@@ -35,9 +43,10 @@ const UserSchema = new Schema({
     resetPasswordExpires: {
         type: Date
     },
+    // 1GB = 1073741824
     diskQuota: {
         type: Number,
-        default: 1000000
+        default: 1073741824
     },
     diskUsage: {
         type: Number,
@@ -75,15 +84,15 @@ UserSchema.pre('save', function (next) {
 UserSchema.methods = {
     createHomeFolder: function (callback) {
         var user = this;
-        var fsUserHomePath = path.join(config.steviaDir, config.usersPath, user.email);
+        var fsUserHomePath = path.join(config.steviaDir, config.usersPath, user.name);
         if (shell.test('-d', fsUserHomePath)) {
             console.log('User home folder already exists');
         }
         shell.mkdir('-p', fsUserHomePath);
         var homeFolder = new File({
-            name: user.email,
+            name: user.name,
             user: user._id,
-            path: user.email,
+            path: user.name,
             type: 'FOLDER'
         });
         homeFolder.save(function (err) {
@@ -92,6 +101,67 @@ UserSchema.methods = {
                 callback();
             });
         });
+    },
+    updateDiskUsage: function (callback) {
+        var user = this;
+        var totalSize = 0;
+        console.time("updateDiskUsage");
+
+        mongoose.models["File"].aggregate([{
+                $match: {
+                    "user": this._id
+
+                }
+            }, {
+                $group: {
+                    "_id": "user",
+                    totalSize: {
+                        $sum: "$size"
+                    }
+                }
+
+            }],
+            function (err, result) {
+                if (err) {
+                    callback();
+                }
+
+                var totalSize = 0;
+                try {
+                    totalSize = result[0].totalSize;
+                } catch (e) {
+
+                }
+
+                console.log("Total size: " + totalSize);
+                console.log(result);
+
+                user.diskUsage = totalSize;
+                user.save(function () {
+                    console.timeEnd("updateDiskUsage");
+                    callback();
+                });
+
+            });
+        // mongoose.models["File"].find({
+        //     'user': this._id
+        // }, {
+        //     size: 1
+        // }, function (err, files) {
+        //
+        //     for (var i = 0; i < files.length; i++) {
+        //         var file = files[i];
+        //         if (file.size != null) {
+        //             totalSize += file.size;
+        //         }
+        //     }
+        //     user.diskUsage = totalSize;
+        //     user.save(function () {
+        //         console.timeEnd("updateDiskUsage");
+        //         callback();
+        //     });
+        //
+        // });
     },
     removeSessionId: function (sessionId, logoutOther, callback) {
         if (logoutOther === true) {
