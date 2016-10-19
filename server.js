@@ -182,10 +182,31 @@ if (cluster.isMaster) {
         res.json(res._stvres);
     });
 
+    RETRY = false;
     connect()
-        .on('error', console.log)
-        .on('disconnected', connect)
+        .on('error', function (error) {
+            console.log(error.toString());
+            mongoose.connection.close(function () {
+                retry();
+            });
+        })
+        .on('disconnected', function (a) {
+            console.log('Mongo disconnected!');
+            mongoose.connection.close(function () {
+                retry();
+            });
+        })
         .once('open', listen);
+
+    function retry() {
+        if (RETRY == false) {
+            RETRY = true;
+            setTimeout(function () {
+                RETRY = false;
+                connect();
+            }, 5000)
+        }
+    }
 
     function listen() {
         //   if (app.get('env') === 'test') return;
