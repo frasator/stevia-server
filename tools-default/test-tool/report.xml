@@ -1,0 +1,13 @@
+<report tool="fatigo">
+ <input-params></input-params>
+ <output-params>
+  <section level="0" title="Params"/>
+  <param level="1" key="key1" value="value1"/>
+  <param level="1" key="key2" value="value2"/>
+  <download level="1" title="download title" file="report.xml"/>
+  <section level="0" title="Table"/>
+  <table level="1" title="Table" file="table.txt" page-size="10"/>
+  <section level="0" title="Image"/>
+  <image level='1' title='Leaf' file='Leaf_icon_03.svg.png'></image>
+ </output-params>
+</report>
