@@ -252,7 +252,8 @@ router.post('/run', function (req, res, next) {
                         // console.log('stderr: ' + stderr);
                         stvResult.results.push({
                             out: stdout,
-                            err: stderr
+                            err: stderr,
+                            output: shell.cat(outFile)
                         });
                         if (error != null) {
                             cb(error);
