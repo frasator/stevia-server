@@ -76,14 +76,13 @@ FileSchema.pre('save', function (next) {
         var fsFilePath = path.join(config.steviaDir, config.usersPath, this.path);
 
         var stats = fs.statSync(fsFilePath);
-        console.log('File ' + fsFilePath + ' created. Final size: ' + stats.size);
+        console.log('File ' + fsFilePath + ' saved. Final size: ' + stats.size);
 
         this.format = mime.lookup(this.name);
         this.size = stats.size;
 
         mongoose.models["User"].findById(this.user, function (err, user) {
             user.updateDiskUsage(function () {
-                console.log("updateDiskUsage")
                 next();
             });
         });

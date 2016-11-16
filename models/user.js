@@ -133,10 +133,8 @@ UserSchema.methods = {
 
                 }
 
-                console.log("Total size: " + totalSize);
-                console.log(result);
-
                 user.diskUsage = totalSize;
+                console.log("User total size (" + user.name + "): " + user.diskUsage);
                 user.save(function () {
                     console.timeEnd("updateDiskUsage");
                     callback();

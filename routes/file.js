@@ -130,6 +130,53 @@ router.post('/:fileId/save-attr-file', function (req, res, next) {
     });
 });
 
+router.post('/:fileId/write', function (req, res, next) {
+    var stvResult = new StvResult();
+
+    var fileId = req.params.fileId;
+    var content = req.body;
+
+    stvResult.id = fileId;
+
+    async.waterfall([
+        function (cb) {
+            File.findOne({
+                '_id': fileId,
+                'user': req._user._id
+            }, function (err, file) {
+                if (!file) {
+                    cb("File not exist");
+                } else if (file.user.toString() != req._user._id.toString()) {
+                    cb("Authentication error");
+                } else { // File exists
+                    cb(null, file);
+                }
+            }).populate('parent');
+        },
+        function (file, cb) {
+            var realPath = path.join(config.steviaDir, config.usersPath, file.path);
+            if (content != null && content != "") {
+                var contentShellString = new shell.ShellString(content);
+                contentShellString.to(realPath);
+                file.save(function () {
+                    cb(null);
+                });
+            } else {
+                cb('Content is null or empty');
+            }
+        }
+    ], function (err) {
+        if (err) {
+            stvResult.error = err;
+            console.log("Error in ws: " + req.originalUrl);
+            console.log(err);
+        }
+        stvResult.end();
+        res._stvres.response.push(stvResult);
+        next();
+    });
+});
+
 /* Inmediate descendants */
 router.get('/:fileId/list', function (req, res, next) {
     var stvResult = new StvResult();

@@ -115,6 +115,7 @@ if (cluster.isMaster) {
         credentials: true
     }));
 
+    app.use(bodyParser.text());
     app.use(bodyParser.urlencoded({
         extended: true
     })); // support encoded bodies
