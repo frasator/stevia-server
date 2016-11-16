@@ -14,10 +14,13 @@ const fs = require('fs');
 const exec = require('child_process').exec;
 const xml2js = require('xml2js');
 const path = require('path');
+const shell = require('shelljs');
 const mongoose = require('mongoose');
+
 mongoose.Promise = global.Promise;
 
 const Job = mongoose.model('Job');
+const User = mongoose.model('User');
 const File = mongoose.model('File');
 
 var LOCK = false;
@@ -36,16 +39,23 @@ if (cluster.isMaster) {
             console.log('Starting daemon worker...');
             console.log('===================');
             for (var i = 0; i < cpuCount; i += 1) {
-                cluster.fork();
+                cluster.fork({
+                    task: "job"
+                });
             }
+
+            cluster.fork({
+                task: "anonymous"
+            })
 
             // Listen for dying workers
             cluster.on('exit', function (worker) {
                 // Replace the dead worker, we're not sentimental
                 console.log('Worker %d died :(', worker.id);
-                cluster.fork();
+                cluster.fork({
+                    task: worker.env.task
+                });
             });
-
         }
     });
 
@@ -54,6 +64,7 @@ if (cluster.isMaster) {
     /******************************/
     /****** Server instance *******/
     /******************************/
+
     connect()
         .on('error', console.log)
         .on('disconnected', connect)
@@ -61,15 +72,29 @@ if (cluster.isMaster) {
 
     function listen() {
         console.log('Worker %d running!', cluster.worker.id);
-        var interval = setInterval(function () {
-            // console.log('LOCK is: ' + LOCK);
-            if (LOCK == false) {
-                LOCK = true;
-                run(function () {
-                    LOCK = false;
-                });
-            }
-        }, 500);
+
+        switch (process.env.task) {
+        case "job":
+            var interval = setInterval(function () {
+                // console.log('LOCK is: ' + LOCK);
+                if (LOCK == false) {
+                    LOCK = true;
+                    run(function () {
+                        LOCK = false;
+                    });
+                }
+            }, 500);
+            break;
+
+        case "anonymous":
+            var interval = setInterval(function () {
+                deleteAnonymous();
+            }, 1000 * 60 * 60 * 24);
+            break;
+        default:
+
+        }
+
     }
 
     function connect() {
@@ -218,7 +243,7 @@ function checkSGEQacctJob(dbJob, cb) {
                         recordOutputFolder(dbJob.folder, dbJob);
                         dbJob.save();
                         dbJob.user.save();
-                        if(dbJob.user.notifications.job == true){
+                        if (dbJob.user.notifications.job == true) {
                             notifyUser(dbJob.user.email, dbJob.status, dbJob);
                         }
                     }
@@ -229,7 +254,7 @@ function checkSGEQacctJob(dbJob, cb) {
                         recordOutputFolder(dbJob.folder, dbJob);
                         dbJob.save();
                         dbJob.user.save();
-                        if(dbJob.user.notifications.job == true){
+                        if (dbJob.user.notifications.job == true) {
                             notifyUser(dbJob.user.email, dbJob.status, dbJob);
                         }
                     } else if (dbJob.status != "DONE") {
@@ -239,7 +264,7 @@ function checkSGEQacctJob(dbJob, cb) {
                         dbJob.save();
                         dbJob.user.save();
                         console.timeEnd("time DONE")
-                        if(dbJob.user.notifications.job == true){
+                        if (dbJob.user.notifications.job == true) {
                             notifyUser(dbJob.user.email, dbJob.status, dbJob);
                         }
                     }
@@ -321,8 +346,65 @@ function notifyUser(email, status, dbJob) {
     }, function (error, info) {
         if (error) {
             console.log(error);
-        }else{
+        } else {
             console.log('Message sent: ' + info.response);
         }
     });
+}
+
+function deleteAnonymous() {
+
+    var date = new Date();
+    date.setDate(date.getDate() - 1);
+    console.log("Deleting until: " + date);
+
+    User.find({
+            'email': 'anonymous@anonymous.anonymous',
+            'name': {
+                $regex: new RegExp('^' + 'anonymous___')
+            },
+            'createdAt': {
+                $lte: date
+            }
+        },
+        function (err, users) {
+            console.log("Deleting: " + users.length + " users");
+            var ids = [];
+            for (var i = 0; i < users.length; i++) {
+                var user = users[i];
+                ids.push(user._id);
+
+                var realPath = path.join(config.steviaDir, config.usersPath, user.name);
+                console.log(realPath);
+                try {
+                    if (shell.test('-e', realPath)) {
+                        shell.rm('-rf', realPath);
+                    } else {
+                        console.log("NO ENTRA");
+                    }
+                } catch (e) {
+                    console.log(e);
+                    console.log("File fsDelete: file not exists on file system")
+                }
+            }
+            var count = 3;
+            User.where('_id').in(ids).remove().exec(function () {
+                count--;
+                if (count == 0) {
+                    db.close();
+                }
+            });
+            File.where('user').in(ids).remove().exec(function () {
+                count--;
+                if (count == 0) {
+                    db.close();
+                }
+            });
+            Job.where('user').in(ids).remove().exec(function () {
+                count--;
+                if (count == 0) {
+                    db.close();
+                }
+            });
+        }).populate('home');
 }
