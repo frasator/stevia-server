@@ -67,7 +67,9 @@ router.get('/create', function (req, res, next) {
     async.waterfall([
         function (cb) {
             user.save(function (err) {
+
                 if (err != null) {
+                    console.log(err);
                     stvResult.error = 'User already exists';
                     console.log("error: " + stvResult.error);
                     cb(stvResult.error);
@@ -291,7 +293,6 @@ router.post('/:name/change-notifications', function (req, res, next) {
     });
 
 });
-
 
 router.get('/:name/change-password', function (req, res, next) {
     var stvResult = new StvResult();
