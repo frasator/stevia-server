@@ -180,6 +180,7 @@ router.post('/create', function (req, res, next) {
 router.post('/run', function (req, res, next) {
     var stvResult = new StvResult();
     var folderId = req.query.workingdirId;
+
     async.waterfall([
         function (cb) {
             File.findOne({
@@ -240,7 +241,14 @@ router.post('/run', function (req, res, next) {
                 if (err) {
                     cb('Could not create ' + commandQsub);
                 } else {
-                    var command = "qsub -sync y -q '" + config.queue + "' -j y -o '" + outFile + "' '" + commandQsub + "'";
+                    shell.chmod('+x', commandQsub);
+
+                    var command;
+                    if (jobConfig.disableQueue === true) {
+                        command = commandQsub;
+                    } else {
+                        command = "qsub -sync y -q '" + config.queue + "' -j y -o '" + outFile + "' '" + commandQsub + "'";
+                    }
 
                     // console.log('++++++++++++');
                     // console.log(command);
@@ -248,11 +256,9 @@ router.post('/run', function (req, res, next) {
                     // console.log('++++++++++++');
 
                     exec(command, function (error, stdout, stderr) {
-                        // console.log('stdout: ' + stdout);
-                        // console.log('stderr: ' + stderr);
                         stvResult.results.push({
-                            out: stdout,
                             err: stderr,
+                            out: stdout,
                             output: shell.cat(outFile)
                         });
                         if (error != null) {
