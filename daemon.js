@@ -26,35 +26,46 @@ const File = mongoose.model('File');
 var LOCK = false;
 
 if (cluster.isMaster) {
+    var jobWorker;
+    var anonymousWorker;
+
     // Code to run if we're in the master process
     checkconfig(function (err) {
         if (err == null) {
 
             // Count the machine's CPUs
             // var cpuCount = require('os').cpus().length;
-            var cpuCount = 1;
+            // var cpuCount = 1;
 
             // Create a worker for each CPU
             console.log('');
             console.log('Starting daemon worker...');
             console.log('===================');
-            for (var i = 0; i < cpuCount; i += 1) {
-                cluster.fork({
-                    task: "job"
-                });
-            }
+            // for (var i = 0; i < cpuCount; i += 1) {
+            // }
 
-            cluster.fork({
-                task: "anonymous"
-            })
+            jobWorker = cluster.fork({
+                task: 'job'
+            });
+            anonymousWorker = cluster.fork({
+                task: 'anonymous'
+            });
 
             // Listen for dying workers
             cluster.on('exit', function (worker) {
                 // Replace the dead worker, we're not sentimental
-                console.log('Worker %d died :(', worker.id);
-                cluster.fork({
-                    task: worker.env.task
-                });
+                if (worker.id == jobWorker.id) {
+                    console.log('Job Worker %d died :(', worker.id);
+                    jobWorker = cluster.fork({
+                        task: 'job'
+                    });
+                }
+                if (worker.id == anonymousWorker.id) {
+                    console.log('Anonymous Worker %d died :(', worker.id);
+                    anonymousWorker = cluster.fork({
+                        task: 'anonymous'
+                    });
+                }
             });
         }
     });
@@ -369,42 +380,29 @@ function deleteAnonymous() {
         },
         function (err, users) {
             console.log("Deleting: " + users.length + " users");
-            var ids = [];
-            for (var i = 0; i < users.length; i++) {
-                var user = users[i];
-                ids.push(user._id);
+            if (users.length > 0) {
+                var ids = [];
+                for (var i = 0; i < users.length; i++) {
+                    var user = users[i];
+                    ids.push(user._id);
 
-                var realPath = path.join(config.steviaDir, config.usersPath, user.name);
-                console.log(realPath);
-                try {
-                    if (shell.test('-e', realPath)) {
-                        shell.rm('-rf', realPath);
-                    } else {
-                        console.log("NO ENTRA");
+                    var realPath = path.join(config.steviaDir, config.usersPath, user.name);
+                    console.log(realPath);
+                    try {
+                        if (shell.test('-e', realPath)) {
+                            shell.rm('-rf', realPath);
+                        } else {
+                            console.log("NO ENTRA");
+                        }
+                    } catch (e) {
+                        console.log(e);
+                        console.log("File fsDelete: file not exists on file system")
                     }
-                } catch (e) {
-                    console.log(e);
-                    console.log("File fsDelete: file not exists on file system")
                 }
+
+                User.where('_id').in(ids).remove().exec(function () {});
+                File.where('user').in(ids).remove().exec(function () {});
+                Job.where('user').in(ids).remove().exec(function () {});
             }
-            var count = 3;
-            User.where('_id').in(ids).remove().exec(function () {
-                count--;
-                if (count == 0) {
-                    db.close();
-                }
-            });
-            File.where('user').in(ids).remove().exec(function () {
-                count--;
-                if (count == 0) {
-                    db.close();
-                }
-            });
-            Job.where('user').in(ids).remove().exec(function () {
-                count--;
-                if (count == 0) {
-                    db.close();
-                }
-            });
         }).populate('home');
 }
