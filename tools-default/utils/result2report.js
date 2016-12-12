@@ -203,6 +203,16 @@ parser.parseString(resultContent, function (err, r) {
 
                         })
 
+                    } else if (item.$.tags.split(',').indexOf('STV_BOXPLOT') != -1) {
+                      var splits = item.$.tags.split(',');
+
+                      output.ele('boxplot',{
+                        level: level + 1,
+                        title: item.$.title,
+                        file: splits[1],
+                        outliers:splits[2]
+                      });
+
                     } else if (item.$.tags.split(',').indexOf('TABLE') == -1) {
 
                         output.ele('download', {
