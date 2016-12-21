@@ -307,8 +307,8 @@ router.get('/example', function (req, res, next) {
         },
         function (folderPath, cb) {
             var registerScript = path.join(__dirname, '..', 'maintenance', 'register-job-folder.js');
-            var command = [registerScript, req._user.name, folderName, folderPath, execution].join(' ');
-            execFile(command, function (error, stdout, stderr) {
+            var args = [req._user.name, folderName, folderPath, execution];
+            execFile(registerScript, args, function (error, stdout, stderr) {
                 stvResult.results.push({
                     err: stderr,
                     out: stdout
