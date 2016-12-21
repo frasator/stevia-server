@@ -289,6 +289,47 @@ router.post('/run', function (req, res, next) {
 
 });
 
+router.get('/example', function (req, res, next) {
+    var stvResult = new StvResult();
+    var folderName = req.query.folderName;
+    var tool = req.query.tool.replace(/[^a-zA-Z0-9._\-]/g, "_");
+    var execution = req.query.execution.replace(/[^a-zA-Z0-9._\-]/g, "_");
+
+    async.waterfall([
+        function (cb) {
+            var folderPath = path.join(config.steviaDir, config.toolsPath, tool, "examples", "folderName");
+            if (shell.test('-d', folderPath)) {
+                cb(null, folderPath);
+            } else {
+                cb('Example folder not exists.');
+            }
+        },
+        function (folderPath, cb) {
+            var registerScript = path.join(__dirname, '..', 'maintenance', 'register-job-folder.js');
+            var command = [registerScript, req._user.name, folderName, folderPath, execution];
+            exec(command, function (error, stdout, stderr) {
+                stvResult.results.push({
+                    err: stderr,
+                    out: stdout
+                });
+                if (error != null) {
+                    cb(error);
+                } else {
+                    cb(null)
+                }
+            });
+        }
+    ], function (err) {
+        if (err) {
+            stvResult.error = err;
+        }
+        stvResult.end();
+        res._stvres.response.push(stvResult);
+        next();
+    });
+
+});
+
 //Report error in job
 router.get('/:id/report-error', function (req, res, next) {
     var id = req.params.id;

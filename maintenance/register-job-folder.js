@@ -21,7 +21,10 @@ var args = process.argv.slice(2);
 var user = args[0];
 var name = args[1];
 var folder = args[2];
-console.log(args);
+var execution = args[3];
+if(execution == null && execution == ""){
+    execution = "report"
+}
 
 if (shell.test('-d', folder)) {
     var reportPath = path.join(folder, 'report.xml');
@@ -60,7 +63,7 @@ if (shell.test('-d', folder)) {
             function (user, sid, cb) {
                 var jobargs = {
                     tool: 'utils',
-                    execution: 'report',
+                    execution: execution,
                     executable: 'copy-report-folder.sh',
                     options: {
                         "directory": {
