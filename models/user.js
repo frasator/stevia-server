@@ -141,25 +141,6 @@ UserSchema.methods = {
                 });
 
             });
-        // mongoose.models["File"].find({
-        //     'user': this._id
-        // }, {
-        //     size: 1
-        // }, function (err, files) {
-        //
-        //     for (var i = 0; i < files.length; i++) {
-        //         var file = files[i];
-        //         if (file.size != null) {
-        //             totalSize += file.size;
-        //         }
-        //     }
-        //     user.diskUsage = totalSize;
-        //     user.save(function () {
-        //         console.timeEnd("updateDiskUsage");
-        //         callback();
-        //     });
-        //
-        // });
     },
     removeSessionId: function (sessionId, logoutOther, callback) {
         if (logoutOther === true) {

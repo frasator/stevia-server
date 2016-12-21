@@ -80,15 +80,20 @@ FileSchema.pre('save', function (next) {
 
         this.format = mime.lookup(this.name);
         this.size = stats.size;
-
-        mongoose.models["User"].findById(this.user, function (err, user) {
-            user.updateDiskUsage(function () {
-                next();
-            });
-        });
-    } else {
-        next();
     }
+    next();
+});
+
+FileSchema.post('save', function (doc) {
+    mongoose.models["User"].findById(this.user, function (err, user) {
+        user.updateDiskUsage(function () {});
+    });
+});
+
+FileSchema.post('remove', function (doc) {
+    mongoose.models["User"].findById(this.user, function (err, user) {
+        user.updateDiskUsage(function () {});
+    });
 });
 /**
  * Methods

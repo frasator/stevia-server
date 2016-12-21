@@ -2,12 +2,12 @@
 ##############################################################################################
 
 
-init.report <- function(tool){  
+init.report <- function(tool){
   res <- list()
   res$tool <- tool
   res$input <- list()
-  res$output <- list()  
-  return(res)  
+  res$output <- list()
+  return(res)
 }
 
 add.input <- function(res,element){
@@ -44,9 +44,9 @@ add.redirection <- function(res, tool,file,level=0, ...){
   element$tool <- tool
   element$file <- file
   element$level <- level
-  
+
   element <- append(element, as.list(substitute(list(...)))[-1L])
-  
+
   res <- add.output(res, element)
   return(res)
 }
@@ -54,7 +54,7 @@ add.redirection <- function(res, tool,file,level=0, ...){
 add.message <- function(res,text, level=0){
   element <- list()
   element$type <- "message"
-  element$text <- text  
+  element$text <- text
   element$level <- level
   res <- add.output(res,element)
   return(res)
@@ -72,6 +72,16 @@ add.param <- function(res,key,value){
 add.image <- function(res,title,file, level=0){
   element <- list()
   element$type <- "image"
+  element$title <- title
+  element$file <- file
+  element$level <- level
+  res <- add.output(res,element)
+  return(res)
+}
+
+add.heatmap <- function(res,title,file, level=0){
+  element <- list()
+  element$type <- "heatmap"
   element$title <- title
   element$file <- file
   element$level <- level
@@ -113,7 +123,7 @@ add.download <- function(res,title,file,level=0){
 
 add.html <- function(res,file, level=0){
   element <- list()
-  element$type <- "html"  
+  element$type <- "html"
   element$file <- file
   element$level <- level
   res <- add.output(res,element)
@@ -126,14 +136,24 @@ add.go.viewer <- function(res, title, sub.network, sub.attributes, all.attribute
   element$title <- title
   element$sub.network <- sub.network
   element$sub.attributes <- sub.attributes
-  element$all.attributes <- all.attributes  
+  element$all.attributes <- all.attributes
+  element$level <- level
+  res <- add.output(res,element)
+  return(res)
+}
+
+add.protein.viewer <- function(res,title,file,level=0){
+  element <- list()
+  element$type <- "proteinviewer"
+  element$title <- title
+  element$file <- file
   element$level <- level
   res <- add.output(res,element)
   return(res)
 }
 
 render.xml <- function(res){
-  
+
   out <- paste0("<report tool='",res$tool,"'>\n")
   out <- paste0(out,"\t<input-params>\n")
   for(element in res$input){
@@ -164,11 +184,17 @@ render.xml <- function(res){
            goviewer = {
              out <- paste0(out,"\t\t<goViewer level='",element$level,"' title='",element$title,"' sub-network='",element$sub.network,"' sub-attributes='",element$sub.attributes,"' all.attributes='",element$all.attributes,"'></goViewer>\n")
            },
+           heatmap = {
+             out <- paste0(out,"\t\t<heatmap level='",element$level,"' title='",element$title,"' file='",element$file,"'></heatmap>\n")
+           },
+           proteinviewer = {
+             out <- paste0(out,"\t\t<proteinviewer level='",element$level,"' title='",element$title,"' file='",element$file,"'></proteinviewer>\n")
+           },
            download = {
              out <- paste0(out,"\t\t<download level='",element$level,"' title='",element$title,"' file='",element$file,"'></download>\n")
            },
            html = {
-             out <- paste0(out,"\t\t<html level='",element$level,"' file='",element$file,"'></html>\n")        
+             out <- paste0(out,"\t\t<html level='",element$level,"' file='",element$file,"'></html>\n")
            },
            redirection = {
              attrs <- ""
@@ -178,15 +204,12 @@ render.xml <- function(res){
                }
              }
              out <- paste0(out, "\t\t<redirection tool='", element$tool, "' file='", element$file  ,"' ",attrs, "></redirection>\n")
-             
+
            }
     )
   }
   out <- paste0(out,"\t</output-params>\n")
   out <- paste(out,"</report>")
-  
+
   return(out)
 }
-
-
-
