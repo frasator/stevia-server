@@ -5,6 +5,7 @@ const StvResult = require('../lib/StvResult.js');
 
 const async = require('async');
 const exec = require('child_process').exec;
+const execFile = require('child_process').execFile;
 const fs = require('fs');
 const archiver = require('archiver');
 const util = require('util');
