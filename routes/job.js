@@ -298,6 +298,7 @@ router.get('/example', function (req, res, next) {
     async.waterfall([
         function (cb) {
             var folderPath = path.join(config.steviaDir, config.toolsPath, tool, "examples", "folderName");
+            console.log(folderPath);
             if (shell.test('-d', folderPath)) {
                 cb(null, folderPath);
             } else {
