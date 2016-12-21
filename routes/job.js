@@ -298,7 +298,6 @@ router.get('/example', function (req, res, next) {
     async.waterfall([
         function (cb) {
             var folderPath = path.join(config.steviaDir, config.toolsPath, tool, "examples", folderName);
-            console.log(folderPath);
             if (shell.test('-d', folderPath)) {
                 cb(null, folderPath);
             } else {
@@ -307,7 +306,7 @@ router.get('/example', function (req, res, next) {
         },
         function (folderPath, cb) {
             var registerScript = path.join(__dirname, '..', 'maintenance', 'register-job-folder.js');
-            var command = [registerScript, req._user.name, folderName, folderPath, execution];
+            var command = [registerScript, req._user.name, folderName, folderPath, execution].join(' ');
             exec(command, function (error, stdout, stderr) {
                 stvResult.results.push({
                     err: stderr,
