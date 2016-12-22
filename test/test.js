@@ -39,7 +39,7 @@ portInUse(config.httpPort, function (returnValue) {
 test('delete user', function (t) {
     getUserByName(USER_NAME, function (err, user) {
         if (user != null) {
-            var deleteUser = require('../manteinance/delete-user-module.js');
+            var deleteUser = require('../maintenance/delete-user-module.js');
             deleteUser([user._id], function () {
                 getUserByName(USER_NAME, function (err, user) {
                     t.is(user, null);
@@ -805,7 +805,7 @@ test('user logout', function (t) {
 });
 
 test('delete user after test', function (t) {
-    var deleteUser = require('../manteinance/delete-user-module.js');
+    var deleteUser = require('../maintenance/delete-user-module.js');
     deleteUser([USER_ID], function () {
         getUserById(USER_ID, function (err, user) {
             t.is(user, null);
