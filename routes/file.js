@@ -857,12 +857,17 @@ router.post('/upload', function (req, res, next) {
         autoFields: true
     });
 
+    var folderPath = path.join(config.steviaDir, config.usersPath, req._parent.path);
+    var uploadPath;
+
     // Fields
     form.on('field', function (name, value) {
         // console.log(name + ': ' + value);
         fields[name] = value;
         if (fields["name"] != null) {
             fields["name"] = fields["name"].replace(/[^a-zA-Z0-9._\-]/g, "_");
+            uploadPath = path.join(folderPath, fields.name + "_partial");
+            shell.mkdir('-p', uploadPath);
         }
     });
 
@@ -871,13 +876,6 @@ router.post('/upload', function (req, res, next) {
         File.findOne({
             '_id': fields.parentId
         }, function (err, parent) {
-            var folderPath = path.join(config.steviaDir, config.usersPath, parent.path);
-            var uploadPath = path.join(folderPath, fields.name + "_partial");
-            try {
-                fs.mkdirSync(uploadPath);
-            } catch (e) {
-                console.log('Upload: ' + uploadPath + ' ' + 'already created');
-            }
             var filepath = path.join(uploadPath, fields.chunk_id + "_chunk");
             var writeStream = fs.createWriteStream(filepath);
             part.pipe(writeStream);
@@ -905,8 +903,6 @@ router.post('/upload', function (req, res, next) {
         File.findOne({
             '_id': fields.parentId
         }, function (err, parent) {
-            var folderPath = path.join(config.steviaDir, config.usersPath, parent.path);
-            var uploadPath = path.join(folderPath, fields.name + "_partial");
             if (fields.resume_upload === 'true') {
                 var chunkMap = JSON.parse(fields.chunk_map);
                 var resumeInfo = getResumeFileInfo(uploadPath, chunkMap);

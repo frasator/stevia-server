@@ -295,6 +295,16 @@ test('file upload', function (t) {
         }
         chunkId++;
     }
+    if (SIZE == 0) {
+        chunkMap[0] = {
+            id: chunkId,
+            start: 0,
+            end: 0,
+            size: 0,
+            done: false,
+            last: true
+        };
+    }
     // console.log(chunkMap)
 
     if (resume) {
