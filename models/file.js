@@ -81,6 +81,7 @@ FileSchema.pre('save', function (next) {
         this.format = mime.lookup(this.name);
         this.size = stats.size;
     }
+    this.updatedAt = new Date();
     next();
 });
 

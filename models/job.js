@@ -75,6 +75,11 @@ const JobSchema = new Schema({
     }
 });
 
+JobSchema.pre('save', function (next) {
+    this.updatedAt = new Date();
+    next();
+});
+
 /**
  * Methods
  */
