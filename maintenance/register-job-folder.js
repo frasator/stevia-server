@@ -22,7 +22,7 @@ var user = args[0];
 var name = args[1];
 var folder = args[2];
 var execution = args[3];
-if(execution == null && execution.trim() == ""){
+if(execution == null || (execution != null && execution.trim() == "")){
     execution = "report"
 }
 
