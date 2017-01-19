@@ -105,7 +105,6 @@ UserSchema.methods = {
     updateDiskUsage: function (callback) {
         var user = this;
         var totalSize = 0;
-        console.time("updateDiskUsage");
 
         mongoose.models["File"].aggregate([{
                 $match: {
@@ -136,7 +135,6 @@ UserSchema.methods = {
                 user.diskUsage = totalSize;
                 console.log("User total size (" + user.name + "): " + user.diskUsage);
                 user.save(function () {
-                    console.timeEnd("updateDiskUsage");
                     callback();
                 });
 

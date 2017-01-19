@@ -10,6 +10,9 @@ const readline = require('readline');
 const mime = require('mime');
 const shell = require('shelljs');
 const async = require('async');
+const tmp = require('tmp');
+const archiver = require('archiver');
+var DecompressZip = require('decompress-zip');
 
 const express = require('express');
 const router = express.Router();
@@ -554,18 +557,49 @@ router.get('/:fileId/download', function (req, res, next) {
                 if (!file) {
                     cb("File not exist");
                 } else {
-                    try {
-                        var filePath = path.join(config.steviaDir, config.usersPath, file.path);
-                        res.attachment(filePath);
-                        res.sendFile(filePath, {
-                            dotfiles: 'allow'
+                    if (file.type == "FOLDER") {
+                        var tmpobj = tmp.dirSync({
+                            prefix: 'download_folder' + '-' + file.name + '-',
+                            dir: path.join(config.steviaDir, "tmp"),
+                            keep: true
                         });
-                        cb(null);
-                    } catch (e) {
-                        cb("Could not read the file");
+                        var randFolder = tmpobj.name;
+                        var zippath = path.join(randFolder, file.name + ".zip");
+                        var realPath = path.join(config.steviaDir, config.usersPath, file.path);
+                        console.log(randFolder)
+                        var output = fs.createWriteStream(zippath);
+                        var archive = archiver('zip');
+
+                        output.on('close', function () {
+                            cb(null, zippath)
+                        });
+
+                        archive.on('error', function (err) {
+                            cb(err);
+                        });
+
+                        archive.pipe(output);
+                        archive.glob('**', {
+                            expand: true,
+                            cwd: realPath
+                        });
+                        archive.finalize();
+                    } else {
+                        cb(null, path.join(config.steviaDir, config.usersPath, file.path));
                     }
                 }
             });
+        },
+        function (finalFilePath, cb) {
+            try {
+                res.attachment(finalFilePath);
+                res.sendFile(finalFilePath, {
+                    dotfiles: 'allow'
+                });
+                cb(null);
+            } catch (e) {
+                cb("Could not read the file");
+            }
         }
     ], function (err) {
         if (err) {
@@ -886,9 +920,34 @@ router.post('/upload', function (req, res, next) {
                 if (fields.last_chunk === 'true') {
                     console.log('Chunk ' + fields.chunk_id + ' is the last');
                     joinAllChunks(folderPath, uploadPath, fields, parent, function (file) {
-                        res.json({
-                            file: file
-                        });
+                        var finalFilePath = path.join(config.steviaDir, config.usersPath, file.path);
+                        if (req.query.expand == 'true' && mime.lookup(finalFilePath).indexOf('zip') != -1) {
+                            var extractFolderName = file.name.substr(0, file.name.length - 4);
+                            File.createFolder(extractFolderName, req._parent, req._user, function (folder) {
+                                var finalFolderPath = path.join(config.steviaDir, config.usersPath, folder.path);
+                                var unzipper = new DecompressZip(finalFilePath);
+                                unzipper.on('error', function (err) {
+                                    res.json({
+                                        error: 'Expand zip error'
+                                    });
+                                });
+                                unzipper.on('extract', function (log) {
+                                    recordFolderFiles(folder, function () {
+                                        res.json({
+                                            file: folder
+                                        });
+                                    });
+                                });
+                                unzipper.extract({
+                                    path: finalFolderPath,
+                                });
+
+                            });
+                        } else {
+                            res.json({
+                                file: file
+                            });
+                        }
                     })
                 } else {
                     res.json({
@@ -1022,5 +1081,51 @@ function getSortedChunkList(uploadPath) {
     }
     return files;
 };
+
+function recordFolderFiles(folder, cb) {
+    var visited = [];
+    visited.push(folder);
+    walkFolderRecursive(folder, visited);
+    var saveTasks = [];
+    for (var i = 0; i < visited.length; i++) {
+        var file = visited[i];
+        saveTasks.push(file.save);
+    }
+    async.series(saveTasks, function (err, results) {
+        cb();
+    });
+}
+
+function walkFolderRecursive(folder, visited) {
+    var folderPath = path.join(config.steviaDir, config.usersPath, folder.path);
+    var folderStats = fs.statSync(folderPath);
+    if (folderStats.isDirectory()) {
+        var filesInFolder = fs.readdirSync(folderPath);
+        for (var i = 0; i < filesInFolder.length; i++) {
+            var fileName = filesInFolder[i];
+            var filePath = path.join(folderPath, fileName);
+            var fileStats = fs.statSync(filePath);
+
+            /* Database entry */
+            var type = "FILE";
+            if (fileStats.isDirectory()) {
+                type = "FOLDER";
+            }
+            var file = new File({
+                name: fileName,
+                user: folder.user,
+                parent: folder,
+                type: type,
+                path: path.join(folder.path, fileName)
+            });
+            folder.files.push(file);
+            visited.push(file);
+
+            if (fileStats.isDirectory()) {
+                walkFolderRecursive(file, visited);
+            }
+        }
+    }
+}
 
 module.exports = router;

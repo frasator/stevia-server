@@ -441,12 +441,10 @@ router.get('/:jobId/download', function (req, res, next) {
                     });
 
                     archive.pipe(output);
-                    archive.bulk([{
+                    archive.glob('**', {
                         expand: true,
-                        cwd: realPath,
-                        src: ['**']
-                            // dest: 'source'
-                    }]);
+                        cwd: realPath
+                    });
                     archive.finalize();
 
                 }
