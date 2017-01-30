@@ -840,6 +840,46 @@ router.get('/:fileId/rename', function (req, res, next) {
 
 });
 
+router.get('/:fileId/set-bioformat', function (req, res, next) {
+    var stvResult = new StvResult();
+    var fileId = req.params.fileId;
+    var newbioformat = req.query.bioformat.replace(/[^a-zA-Z0-9._\-]/g, "_");
+    stvResult.id = fileId;
+
+    async.waterfall([
+        function (cb) {
+            File.findOne({
+                '_id': fileId,
+                'user': req._user._id
+            }, function (err, file) {
+                if (!file) {
+                    cb("File not exist");
+                } else if (file.user._id.toString() != req._user._id.toString()) {
+                    cb("Authentication error");
+                } else {
+                    file.bioformat = newbioformat;
+                    stvResult.results.push("File bioformat changed");
+                    req._user.save(function () {
+                        file.save(function () {
+                            cb(null);
+                        });
+                    });
+                }
+            }).populate('parent').populate('user');
+        }
+    ], function (err) {
+        if (err) {
+            stvResult.error = err;
+            console.log("Error in ws: " + req.originalUrl);
+            console.log(err);
+        }
+        stvResult.end();
+        res._stvres.response.push(stvResult);
+        next();
+    });
+
+});
+
 /******************************/
 /******** Upload file *********/
 /******************************/
