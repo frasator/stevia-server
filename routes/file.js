@@ -547,6 +547,10 @@ router.get('/content-example', function (req, res, next) {
 
 router.get('/:fileId/download', function (req, res, next) {
     var fileId = req.params.fileId;
+    var globPattern = req.query.pattern;
+    if (!globPattern || globPattern == null || globPattern == '') {
+        globPattern = "**";
+    }
 
     async.waterfall([
         function (cb) {
@@ -566,7 +570,7 @@ router.get('/:fileId/download', function (req, res, next) {
                         var randFolder = tmpobj.name;
                         var zippath = path.join(randFolder, file.name + ".zip");
                         var realPath = path.join(config.steviaDir, config.usersPath, file.path);
-                        console.log(randFolder)
+                        console.log(randFolder);
                         var output = fs.createWriteStream(zippath);
                         var archive = archiver('zip');
 
@@ -579,7 +583,7 @@ router.get('/:fileId/download', function (req, res, next) {
                         });
 
                         archive.pipe(output);
-                        archive.glob('**', {
+                        archive.glob(globPattern, {
                             expand: true,
                             cwd: realPath
                         });
