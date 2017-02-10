@@ -977,9 +977,19 @@ router.post('/upload', function (req, res, next) {
                                 });
                                 unzipper.on('extract', function (log) {
                                     recordFolderFiles(folder, function () {
-                                        res.json({
-                                            file: folder
-                                        });
+                                        console.log('deleteCompressed:', req.query.deleteCompressed);
+                                        if (req.query.deleteCompressed == 'true') {
+                                            console.log('file:', file);
+                                            File.delete(file._id, function () {
+                                                res.json({
+                                                    file: folder
+                                                });
+                                            })
+                                        } else {
+                                            res.json({
+                                                file: folder
+                                            });
+                                        }
                                     });
                                 });
                                 unzipper.extract({
