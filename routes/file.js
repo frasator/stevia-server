@@ -161,6 +161,10 @@ router.post('/:fileId/write', function (req, res, next) {
             if (content != null && content != "") {
                 var contentShellString = new shell.ShellString(content);
                 contentShellString.to(realPath);
+                if (mime.lookup(realPath).indexOf('text') != -1) {
+                    shell.sed('-i', /\r\n/g, '\n', realPath);
+                    shell.sed('-i', /\r/g, '\n', realPath);
+                }
                 file.save(function () {
                     cb(null);
                 });
@@ -965,37 +969,118 @@ router.post('/upload', function (req, res, next) {
                     console.log('Chunk ' + fields.chunk_id + ' is the last');
                     joinAllChunks(folderPath, uploadPath, fields, parent, function (file) {
                         var finalFilePath = path.join(config.steviaDir, config.usersPath, file.path);
-                        if (req.query.expand == 'true' && mime.lookup(finalFilePath).indexOf('zip') != -1) {
-                            var extractFolderName = file.name.substr(0, file.name.length - 4);
-                            File.createFolder(extractFolderName, req._parent, req._user, function (folder) {
-                                var finalFolderPath = path.join(config.steviaDir, config.usersPath, folder.path);
-                                var unzipper = new DecompressZip(finalFilePath);
-                                unzipper.on('error', function (err) {
-                                    res.json({
-                                        error: 'Expand zip error'
+                        if (req.query.extract == 'true' && mime.lookup(finalFilePath).indexOf('zip') != -1) {
+                            async.waterfall([
+                                function (cb) {
+                                    if (req.query.extractFolder == 'true') {
+                                        var extractFolderName = file.name.substr(0, file.name.length - 4);
+                                        File.createFolder(extractFolderName, req._parent, req._user, function (newFolder) {
+                                            cb(null, path.join(config.steviaDir, config.usersPath, newFolder.path), newFolder);
+                                        });
+                                    } else {
+                                        var prefix = 'extract_' + file.name;
+                                        var tmpobj = tmp.dirSync({
+                                            prefix: prefix + '-',
+                                            dir: path.join(config.steviaDir, "tmp"),
+                                            keep: true
+                                        });
+                                        var randFolder = tmpobj.name;
+                                        cb(null, randFolder, null);
+                                    }
+                                },
+                                function (extractFolderPath, newFolder, cb) {
+                                    var unzipper = new DecompressZip(finalFilePath);
+                                    unzipper.on('error', function (err) {
+                                        cb('Expand zip error');
                                     });
-                                });
-                                unzipper.on('extract', function (log) {
-                                    recordFolderFiles(folder, function () {
-                                        console.log('deleteCompressed:', req.query.deleteCompressed);
-                                        if (req.query.deleteCompressed == 'true') {
-                                            console.log('file:', file);
-                                            File.delete(file._id, function () {
-                                                res.json({
-                                                    file: folder
-                                                });
-                                            })
-                                        } else {
-                                            res.json({
-                                                file: folder
-                                            });
+                                    unzipper.on('extract', function (log) {
+                                        cb(null, extractFolderPath, newFolder);
+                                    });
+                                    unzipper.extract({
+                                        path: extractFolderPath,
+                                    });
+                                },
+                                function (extractFolderPath, newFolder, cb) {
+                                    if (newFolder != null) {
+                                        recordFolderFiles(newFolder, function () {
+                                            cb(null, newFolder);
+                                        });
+                                    } else {
+                                        var fileNames = shell.ls(extractFolderPath);
+                                        var filePathsToCheck = [];
+                                        var filePathsToCheckMap = {};
+                                        for (var i = 0; i < fileNames.length; i++) {
+                                            var f = fileNames[i];
+                                            filePathsToCheck.push(path.join(req._parent.path, f));
+                                            filePathsToCheckMap[f] = false;
                                         }
+                                        mongoose.models["File"].find({
+                                            'user': req._user._id,
+                                            'path': {
+                                                $in: filePathsToCheck
+                                            }
+                                        }, function (err, files) {
+                                            var saveTasks = [];
+                                            for (var i = 0; i < files.length; i++) {
+                                                var f = files[i];
+                                                filePathsToCheckMap[f.name] = true;
+                                                if (req.query.overwriteFiles == 'true') {
+                                                    var sourcePath = path.join(extractFolderPath, f.name);
+                                                    if (mime.lookup(sourcePath).indexOf('text') != -1) {
+                                                        shell.sed('-i', /\r\n/g, '\n', sourcePath);
+                                                        shell.sed('-i', /\r/g, '\n', sourcePath);
+                                                    }
+                                                    var destinationPath = path.join(config.steviaDir, config.usersPath, f.path);
+                                                    shell.cp(sourcePath, destinationPath);
+                                                    saveTasks.push(f.save);
+                                                }
+                                            }
+                                            for (var fname in filePathsToCheckMap) {
+                                                if (filePathsToCheckMap[fname] == false) {
+                                                    var registerFile = new File({
+                                                        name: fname,
+                                                        user: req._user,
+                                                        parent: req._parent,
+                                                        type: 'FILE',
+                                                        path: path.join(req._parent.path, fname)
+                                                    });
+                                                    req._parent.files.push(registerFile);
+                                                    saveTasks.push(registerFile.save);
+                                                    var sourcePath = path.join(extractFolderPath, fname);
+                                                    if (mime.lookup(sourcePath).indexOf('text') != -1) {
+                                                        shell.sed('-i', /\r\n/g, '\n', sourcePath);
+                                                        shell.sed('-i', /\r/g, '\n', sourcePath);
+                                                    }
+                                                    var destinationPath = path.join(config.steviaDir, config.usersPath, registerFile.path);
+                                                    shell.cp(sourcePath, destinationPath);
+                                                }
+                                            }
+                                            saveTasks.push(req._parent.save);
+                                            async.series(saveTasks, function (err, results) {
+                                                cb(null, req._parent);
+                                            });
+                                        });
+                                    }
+                                },
+                                function (fileToReturn, cb) {
+                                    if (req.query.deleteCompressed == 'true') {
+                                        File.delete(file._id, function () {
+                                            cb(null, fileToReturn);
+                                        })
+                                    } else {
+                                        cb(null, fileToReturn);
+                                    }
+                                },
+                            ], function (err, fileToReturn) {
+                                if (err) {
+                                    res.json({
+                                        error: err
                                     });
-                                });
-                                unzipper.extract({
-                                    path: finalFolderPath,
-                                });
-
+                                } else {
+                                    res.json({
+                                        file: fileToReturn
+                                    });
+                                }
                             });
                         } else {
                             res.json({
