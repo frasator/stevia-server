@@ -17,3 +17,6 @@ db.getCollection('files').createIndex({
 db.getCollection('jobs').createIndex({
     user: 1
 });
+db.getCollection('jobs').createIndex({
+    status: 1
+});

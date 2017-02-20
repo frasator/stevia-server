@@ -94,7 +94,7 @@ if (cluster.isMaster) {
                         LOCK = false;
                     });
                 }
-            }, 500);
+            }, 5000);
             break;
 
         case "anonymous":
