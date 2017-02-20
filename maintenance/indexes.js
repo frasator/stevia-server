@@ -2,10 +2,13 @@ db.getCollection('users').createIndex({
     email: 1
 });
 db.getCollection('users').createIndex({
+    name: 1
+});
+db.getCollection('users').createIndex({
     resetPasswordToken: 1
 });
 db.getCollection('users').createIndex({
-    sessions: 1
+    sessions.id: 1
 });
 db.getCollection('files').createIndex({
     user: 1
