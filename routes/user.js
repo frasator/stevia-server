@@ -66,8 +66,20 @@ router.get('/create', function (req, res, next) {
 
     async.waterfall([
         function (cb) {
+            User.findOne({
+                'name': name
+            }, function (err, dbUser) {
+                if (dbUser == null) {
+                    cb(null);
+                } else {
+                    stvResult.error = 'User already exists.';
+                    console.log("error: " + stvResult.error);
+                    cb(stvResult.error);
+                }
+            })
+        },
+        function (cb) {
             user.save(function (err) {
-
                 if (err != null) {
                     console.log(err);
                     stvResult.error = 'User already exists';
