@@ -173,9 +173,14 @@ FileSchema.statics = {
 
         parent.files.push(folder);
 
-        async.parallel([
-            folder.save, parent.save, user.save
-        ], function () {
+        async.each([folder, parent, user], function(dbItem, savecb) {
+            dbItem.save(function(err){
+                savecb(err);
+            });
+        }, function(err) {
+            if(err) {
+              console.log(err);
+            }
             callback(folder);
         });
     },

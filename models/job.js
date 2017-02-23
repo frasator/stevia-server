@@ -91,9 +91,13 @@ JobSchema.methods = {
             folder.job = job._id;
             job.folder = folder._id;
             job.user = user._id;
-            async.parallel([
-                folder.save, job.save
-            ], function (err) {
+
+
+            async.each([folder, job], function(dbItem, savecb) {
+                dbItem.save(function(err){
+                    savecb(err);
+                });
+            }, function(err) {
                 callback(err)
             });
         });
