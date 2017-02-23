@@ -1020,7 +1020,7 @@ router.post('/upload', function (req, res, next) {
                                                 $in: filePathsToCheck
                                             }
                                         }, function (err, files) {
-                                            var saveTasks = [];
+                                            var toSave = [];
                                             for (var i = 0; i < files.length; i++) {
                                                 var f = files[i];
                                                 filePathsToCheckMap[f.name] = true;
@@ -1032,7 +1032,7 @@ router.post('/upload', function (req, res, next) {
                                                     }
                                                     var destinationPath = path.join(config.steviaDir, config.usersPath, f.path);
                                                     shell.cp(sourcePath, destinationPath);
-                                                    saveTasks.push(f.save);
+                                                    toSave.push(f);
                                                 }
                                             }
                                             for (var fname in filePathsToCheckMap) {
@@ -1045,7 +1045,7 @@ router.post('/upload', function (req, res, next) {
                                                         path: path.join(req._parent.path, fname)
                                                     });
                                                     req._parent.files.push(registerFile);
-                                                    saveTasks.push(registerFile.save);
+                                                    toSave.push(registerFile);
                                                     var sourcePath = path.join(extractFolderPath, fname);
                                                     if (mime.lookup(sourcePath).indexOf('text') != -1) {
                                                         shell.sed('-i', /\r\n/g, '\n', sourcePath);
@@ -1055,8 +1055,11 @@ router.post('/upload', function (req, res, next) {
                                                     shell.cp(sourcePath, destinationPath);
                                                 }
                                             }
-                                            saveTasks.push(req._parent.save);
-                                            async.series(saveTasks, function (err, results) {
+                                            async.each(toSave, function (dbItem, savecb) {
+                                                dbItem.save(function (err) {
+                                                    savecb(err);
+                                                });
+                                            }, function (err) {
                                                 cb(null, req._parent);
                                             });
                                         });
@@ -1225,12 +1228,17 @@ function recordFolderFiles(folder, cb) {
     var visited = [];
     visited.push(folder);
     walkFolderRecursive(folder, visited);
-    var saveTasks = [];
+
+    var toSave = [];
     for (var i = 0; i < visited.length; i++) {
         var file = visited[i];
-        saveTasks.push(file.save);
+        toSave.push(file);
     }
-    async.series(saveTasks, function (err, results) {
+    async.each(toSave, function (dbItem, savecb) {
+        dbItem.save(function (err) {
+            savecb(err);
+        });
+    }, function (err) {
         cb();
     });
 }
