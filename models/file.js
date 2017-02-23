@@ -192,9 +192,14 @@ FileSchema.statics = {
         });
         parent.files.push(file);
 
-        async.parallel([
-            file.save, parent.save, user.save
-        ], function () {
+        async.each([file, parent, user], function(dbItem, savecb) {
+            dbItem.save(function(err){
+                savecb(err);
+            });
+        }, function(err) {
+            if(err) {
+              console.log(err);
+            }
             callback(file);
         });
     },
