@@ -10,7 +10,7 @@ require('./models/file.js');
 require('./models/job.js');
 
 // Package require
-const mongoose = require("mongoose");
+var mongoose = require("mongoose");
 mongoose.Promise = global.Promise;
 const cluster = require('cluster');
 

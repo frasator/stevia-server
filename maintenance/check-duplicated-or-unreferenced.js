@@ -8,7 +8,7 @@ const shell = require('shelljs');
 const async = require('async');
 var util = require('util')
 
-const mongoose = require("mongoose");
+var mongoose = require("mongoose");
 mongoose.Promise = global.Promise;
 require('../models/user.js');
 require('../models/file.js');

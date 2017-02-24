@@ -16,7 +16,8 @@ var DecompressZip = require('decompress-zip');
 
 const express = require('express');
 const router = express.Router();
-const mongoose = require('mongoose');
+var mongoose = require("mongoose");
+mongoose.Promise = global.Promise;
 const User = mongoose.model('User');
 const File = mongoose.model('File');
 

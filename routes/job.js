@@ -15,7 +15,8 @@ const tmp = require('tmp');
 
 const express = require('express');
 const router = express.Router();
-const mongoose = require('mongoose');
+var mongoose = require("mongoose");
+mongoose.Promise = global.Promise;
 const Job = mongoose.model('Job');
 const File = mongoose.model('File');
 const User = mongoose.model('User');

@@ -7,7 +7,8 @@
 //
 // const config = require('../config.json');
 // const fs = require('fs');
-// const mongoose = require('mongoose');
+// var mongoose = require("mongoose");
+// mongoose.Promise = global.Promise;
 // const Job = mongoose.model('Job');
 // const User = mongoose.model('User');
 // const File = mongoose.model('File');

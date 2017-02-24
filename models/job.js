@@ -1,6 +1,7 @@
 const config = require('../config.json');
 
-const mongoose = require('mongoose');
+var mongoose = require("mongoose");
+mongoose.Promise = global.Promise;
 const Schema = mongoose.Schema;
 require('./file.js');
 const File = mongoose.model('File');

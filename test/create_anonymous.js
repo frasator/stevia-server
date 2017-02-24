@@ -5,7 +5,7 @@ const fs = require('fs');
 const shell = require('shelljs');
 const net = require('net');
 
-const mongoose = require("mongoose");
+var mongoose = require("mongoose");
 mongoose.Promise = global.Promise;
 require('../models/user.js');
 require('../models/file.js');
