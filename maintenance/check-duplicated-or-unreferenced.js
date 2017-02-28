@@ -106,6 +106,20 @@ db.once('open', function () {
             }, function (err) {
                 cb();
             });
+        },
+        function (cb) {
+            console.log('');
+            console.log('/////////////////////////////////////')
+            console.log('//       File path check           //')
+            console.log('/////////////////////////////////////')
+            for (var i = 0; i < files.length; i++) {
+                var f = files[i];
+                var realPath = path.join(config.steviaDir, config.usersPath, f.path);
+                if (shell.test('-e', realPath) == false) {
+                    console.log(realPath);
+                }
+            }
+            cb();
         }
     ], function (err) {
         console.log('');
