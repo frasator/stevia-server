@@ -960,6 +960,7 @@ router.post('/upload', function (req, res, next) {
             '_id': fields.parentId
         }, function (err, parent) {
             var filepath = path.join(uploadPath, fields.chunk_id + "_chunk");
+            shell.touch(filepath);
             var writeStream = fs.createWriteStream(filepath);
             part.pipe(writeStream);
             writeStream.on('finish', function () {
