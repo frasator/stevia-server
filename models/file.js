@@ -174,13 +174,13 @@ FileSchema.statics = {
 
         parent.files.push(folder);
 
-        async.each([folder, parent, user], function(dbItem, savecb) {
-            dbItem.save(function(err){
+        async.each([folder, parent, user], function (dbItem, savecb) {
+            dbItem.save(function (err) {
                 savecb(err);
             });
-        }, function(err) {
-            if(err) {
-              console.log(err);
+        }, function (err) {
+            if (err) {
+                console.log(err);
             }
             callback(folder);
         });
@@ -198,13 +198,13 @@ FileSchema.statics = {
         });
         parent.files.push(file);
 
-        async.each([file, parent, user], function(dbItem, savecb) {
-            dbItem.save(function(err){
+        async.each([file, parent, user], function (dbItem, savecb) {
+            dbItem.save(function (err) {
                 savecb(err);
             });
-        }, function(err) {
-            if(err) {
-              console.log(err);
+        }, function (err) {
+            if (err) {
+                console.log(err);
             }
             callback(file);
         });
@@ -236,17 +236,6 @@ FileSchema.statics = {
                         console.log('qdel: end.');
                     });
                     cb(null, file);
-                } else cb(null, file);
-            },
-            function (file, cb) {
-                if (file.parent != null) {
-                    var index = file.parent.files.indexOf(file._id);
-                    if (index != -1) {
-                        file.parent.files.splice(index, 1);
-                        file.parent.save(function () {
-                            cb(null, file);
-                        });
-                    } else cb(null, file);
                 } else cb(null, file);
             },
             function (file, cb) {
@@ -295,6 +284,21 @@ FileSchema.statics = {
                 file.remove(function (err) {
                     cb(null, file);
                 });
+            },
+            function (file, cb) {
+                if (file.parent != null) {
+                    //Update parent file ARRAY
+                    mongoose.models["File"].find({
+                        'parent': file.parent
+                    }, function (err, filesFound) {
+                        file.parent.files = filesFound;
+                        file.parent.save(function () {
+                            cb(null, file);
+                        });
+                    });
+                } else {
+                    cb(null, file);
+                }
             },
             function (file, cb) {
                 file.fsDelete();

@@ -28,84 +28,80 @@ db.once('open', function () {
     var userIdsToFindMap = {};
     var userIdsToFind = [];
     var jobs;
+    var jobsMap = {};
     var files;
+    var filesMap = {};
     var users;
+    var usersMap = {};
     async.series([
         function (cb) {
             console.log('');
             console.log('/////////////////////////////////////')
             console.log('//       User count                //')
             console.log('/////////////////////////////////////')
-            User.count({}, function (err, count) {
-                console.log("Number of users:", count);
-                cb();
-            });
-        },
-        function (cb) {
-            console.log('');
-            console.log('/////////////////////////////////////')
-            console.log('//       Job user check            //')
-            console.log('/////////////////////////////////////')
-            Job.find({}, function (err, results) {
-                jobs = results;
-                console.log("Jobs length: " + results.length);
+            User.find({}, {
+                _id: 1
+            }, function (err, results) {
+                users = results;
+                console.log("Number of users:", results.length);
                 for (var i = 0; i < results.length; i++) {
-                    var j = results[i];
-                    userIdsToFindMap[j.user.toString()] = true;
+                    var u = results[i];
+                    usersMap[u._id.toString()] = true;
                 }
-                userIdsToFind = Object.keys(userIdsToFindMap);
-                console.log("Users with jobs length: " + userIdsToFind.length);
-                cb();
-            });
-        },
-        function (cb) {
-            async.each(userIdsToFind, function (u, eachcb) {
-                User.findOne({
-                    "_id": u
-                }, function (err, result) {
-                    if (result == null) {
-                        console.log("Error job user not found," + j._id);
-                    } else {
-                        // console.log('OK user found: '+ result._id);
-                    }
-                    eachcb();
-                });
-            }, function (err) {
                 cb();
             });
         },
         function (cb) {
             console.log('');
             console.log('/////////////////////////////////////')
-            console.log('//       File user check           //')
+            console.log('//       File count                //')
             console.log('/////////////////////////////////////')
             File.find({}, function (err, results) {
                 files = results;
-                console.log("Files length: " + results.length);
+                console.log("Number of files: " + results.length);
                 for (var i = 0; i < results.length; i++) {
                     var f = results[i];
-                    userIdsToFindMap[f.user.toString()] = true;
+                    filesMap[f._id.toString()] = true;
                 }
-                userIdsToFind = Object.keys(userIdsToFindMap);
-                console.log("Users with files length: " + userIdsToFind.length);
                 cb();
             });
         },
         function (cb) {
-            async.each(userIdsToFind, function (u, eachcb) {
-                User.findOne({
-                    "_id": u
-                }, function (err, result) {
-                    if (result == null) {
-                        console.log("Error user not found," + u);
-                    } else {
-                        // console.log('OK user found: '+ result._id);
-                    }
-                    eachcb();
-                });
-            }, function (err) {
+            console.log('');
+            console.log('/////////////////////////////////////')
+            console.log('//       Job count                 //')
+            console.log('/////////////////////////////////////')
+            Job.find({}, function (err, results) {
+                jobs = results;
+                console.log("Number of Jobs: " + results.length);
+                for (var i = 0; i < results.length; i++) {
+                    var j = results[i];
+                    jobsMap[j._id.toString()] = true;
+                }
                 cb();
             });
+            console.log('')
+            console.log('/////////////////////////////////////')
+            console.log('/////////////////////////////////////')
+            console.log('')
+        },
+        function (cb) {
+            console.log('');
+            console.log('/////////////////////////////////////')
+            console.log('//   Folder children files check   //')
+            console.log('/////////////////////////////////////')
+            for (var i = 0; i < files.length; i++) {
+                var f = files[i];
+                if (Array.isArray(f.files)) {
+                    for (var j = 0; j < f.files.length; j++) {
+                        var ff = f.files[j];
+                        if (filesMap[ff.toString()] != true) {
+                            console.log('File id: ' + ff + ' inside Folder: ' + f.path + ' not found.');
+                        }
+                    }
+                }
+            }
+            cb();
         },
         function (cb) {
             console.log('');
@@ -117,6 +113,19 @@ db.once('open', function () {
                 var realPath = path.join(config.steviaDir, config.usersPath, f.path);
                 if (shell.test('-e', realPath) == false) {
                     console.log(realPath);
+                }
+            }
+            cb();
+        },
+        function (cb) {
+            console.log('');
+            console.log('/////////////////////////////////////')
+            console.log('//       Job user check            //')
+            console.log('/////////////////////////////////////')
+            for (var i = 0; i < jobs.length; i++) {
+                var j = jobs[i];
+                if (usersMap[j.user.toString()] != true) {
+                    console.log('Job user ' + j.user + ' not found for Job id: ' + j._id + ', Job name:' + j.name);
                 }
             }
             cb();
