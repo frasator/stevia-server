@@ -809,7 +809,7 @@ router.get('/move', function (req, res, next) {
 router.get('/:fileId/rename', function (req, res, next) {
     var stvResult = new StvResult();
     var fileId = req.params.fileId;
-    var newname = req.query.newname.replace(/[^a-zA-Z0-9._\-]/g, "_");;
+    var newname = req.query.newname.replace(/[^a-zA-Z0-9._\-]/g, "_");
     stvResult.id = fileId;
 
     async.waterfall([
