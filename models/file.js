@@ -86,15 +86,19 @@ FileSchema.pre('save', function (next) {
     next();
 });
 
-FileSchema.post('save', function (doc) {
+FileSchema.post('save', function (doc, next) {
     mongoose.models["User"].findById(this.user, function (err, user) {
-        user.updateDiskUsage(function () {});
+        user.updateDiskUsage(function () {
+            next();
+        });
     });
 });
 
-FileSchema.post('remove', function (doc) {
+FileSchema.post('remove', function (doc, next) {
     mongoose.models["User"].findById(this.user, function (err, user) {
-        user.updateDiskUsage(function () {});
+        user.updateDiskUsage(function () {
+            next();
+        });
     });
 });
 /**
