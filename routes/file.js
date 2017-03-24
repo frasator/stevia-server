@@ -10,10 +10,14 @@ const readline = require('readline');
 const mime = require('mime');
 const shell = require('shelljs');
 const async = require('async');
+const tmp = require('tmp');
+const archiver = require('archiver');
+var DecompressZip = require('decompress-zip');
 
 const express = require('express');
 const router = express.Router();
-const mongoose = require('mongoose');
+var mongoose = require("mongoose");
+mongoose.Promise = global.Promise;
 const User = mongoose.model('User');
 const File = mongoose.model('File');
 
@@ -117,6 +121,57 @@ router.post('/:fileId/save-attr-file', function (req, res, next) {
                     cb(null);
                 }
             });
+        }
+    ], function (err) {
+        if (err) {
+            stvResult.error = err;
+            console.log("Error in ws: " + req.originalUrl);
+            console.log(err);
+        }
+        stvResult.end();
+        res._stvres.response.push(stvResult);
+        next();
+    });
+});
+
+router.post('/:fileId/write', function (req, res, next) {
+    var stvResult = new StvResult();
+
+    var fileId = req.params.fileId;
+    var content = req.body;
+
+    stvResult.id = fileId;
+
+    async.waterfall([
+        function (cb) {
+            File.findOne({
+                '_id': fileId,
+                'user': req._user._id
+            }, function (err, file) {
+                if (!file) {
+                    cb("File not exist");
+                } else if (file.user.toString() != req._user._id.toString()) {
+                    cb("Authentication error");
+                } else { // File exists
+                    cb(null, file);
+                }
+            }).populate('parent');
+        },
+        function (file, cb) {
+            var realPath = path.join(config.steviaDir, config.usersPath, file.path);
+            if (content != null && content != "") {
+                var contentShellString = new shell.ShellString(content);
+                contentShellString.to(realPath);
+                if (mime.lookup(realPath).indexOf('text') != -1) {
+                    shell.sed('-i', /\r\n/g, '\n', realPath);
+                    shell.sed('-i', /\r/g, '\n', realPath);
+                }
+                file.save(function () {
+                    cb(null);
+                });
+            } else {
+                cb('Content is null or empty');
+            }
         }
     ], function (err) {
         if (err) {
@@ -497,6 +552,10 @@ router.get('/content-example', function (req, res, next) {
 
 router.get('/:fileId/download', function (req, res, next) {
     var fileId = req.params.fileId;
+    var globPattern = req.query.pattern;
+    if (!globPattern || globPattern == null || globPattern == '') {
+        globPattern = "**";
+    }
 
     async.waterfall([
         function (cb) {
@@ -507,18 +566,49 @@ router.get('/:fileId/download', function (req, res, next) {
                 if (!file) {
                     cb("File not exist");
                 } else {
-                    try {
-                        var filePath = path.join(config.steviaDir, config.usersPath, file.path);
-                        res.attachment(filePath);
-                        res.sendFile(filePath, {
-                            dotfiles: 'allow'
+                    if (file.type == "FOLDER") {
+                        var tmpobj = tmp.dirSync({
+                            prefix: 'download_folder' + '-' + file.name + '-',
+                            dir: path.join(config.steviaDir, "tmp"),
+                            keep: true
                         });
-                        cb(null);
-                    } catch (e) {
-                        cb("Could not read the file");
+                        var randFolder = tmpobj.name;
+                        var zippath = path.join(randFolder, file.name + ".zip");
+                        var realPath = path.join(config.steviaDir, config.usersPath, file.path);
+                        console.log(randFolder);
+                        var output = fs.createWriteStream(zippath);
+                        var archive = archiver('zip');
+
+                        output.on('close', function () {
+                            cb(null, zippath)
+                        });
+
+                        archive.on('error', function (err) {
+                            cb(err);
+                        });
+
+                        archive.pipe(output);
+                        archive.glob(globPattern, {
+                            expand: true,
+                            cwd: realPath
+                        });
+                        archive.finalize();
+                    } else {
+                        cb(null, path.join(config.steviaDir, config.usersPath, file.path));
                     }
                 }
             });
+        },
+        function (finalFilePath, cb) {
+            try {
+                res.attachment(finalFilePath);
+                res.sendFile(finalFilePath, {
+                    dotfiles: 'allow'
+                });
+                cb(null);
+            } catch (e) {
+                cb("Could not read the file");
+            }
         }
     ], function (err) {
         if (err) {
@@ -719,7 +809,7 @@ router.get('/move', function (req, res, next) {
 router.get('/:fileId/rename', function (req, res, next) {
     var stvResult = new StvResult();
     var fileId = req.params.fileId;
-    var newname = req.query.newname.replace(/[^a-zA-Z0-9._\-]/g, "_");;
+    var newname = req.query.newname.replace(/[^a-zA-Z0-9._\-]/g, "_");
     stvResult.id = fileId;
 
     async.waterfall([
@@ -742,6 +832,46 @@ router.get('/:fileId/rename', function (req, res, next) {
                                 cb(null);
                             });
                         }
+                    });
+                }
+            }).populate('parent').populate('user');
+        }
+    ], function (err) {
+        if (err) {
+            stvResult.error = err;
+            console.log("Error in ws: " + req.originalUrl);
+            console.log(err);
+        }
+        stvResult.end();
+        res._stvres.response.push(stvResult);
+        next();
+    });
+
+});
+
+router.get('/:fileId/set-bioformat', function (req, res, next) {
+    var stvResult = new StvResult();
+    var fileId = req.params.fileId;
+    var newbioformat = req.query.bioformat.replace(/[^a-zA-Z0-9._\-]/g, "_");
+    stvResult.id = fileId;
+
+    async.waterfall([
+        function (cb) {
+            File.findOne({
+                '_id': fileId,
+                'user': req._user._id
+            }, function (err, file) {
+                if (!file) {
+                    cb("File not exist");
+                } else if (file.user._id.toString() != req._user._id.toString()) {
+                    cb("Authentication error");
+                } else {
+                    file.bioformat = newbioformat;
+                    stvResult.results.push("File bioformat changed");
+                    req._user.save(function () {
+                        file.save(function () {
+                            cb(null);
+                        });
                     });
                 }
             }).populate('parent').populate('user');
@@ -810,12 +940,17 @@ router.post('/upload', function (req, res, next) {
         autoFields: true
     });
 
+    var folderPath = path.join(config.steviaDir, config.usersPath, req._parent.path);
+    var uploadPath;
+
     // Fields
     form.on('field', function (name, value) {
         // console.log(name + ': ' + value);
         fields[name] = value;
         if (fields["name"] != null) {
             fields["name"] = fields["name"].replace(/[^a-zA-Z0-9._\-]/g, "_");
+            uploadPath = path.join(folderPath, fields.name + "_partial");
+            shell.mkdir('-p', uploadPath);
         }
     });
 
@@ -824,14 +959,8 @@ router.post('/upload', function (req, res, next) {
         File.findOne({
             '_id': fields.parentId
         }, function (err, parent) {
-            var folderPath = path.join(config.steviaDir, config.usersPath, parent.path);
-            var uploadPath = path.join(folderPath, fields.name + "_partial");
-            try {
-                fs.mkdirSync(uploadPath);
-            } catch (e) {
-                console.log('Upload: ' + uploadPath + ' ' + 'already created');
-            }
             var filepath = path.join(uploadPath, fields.chunk_id + "_chunk");
+            shell.touch(filepath);
             var writeStream = fs.createWriteStream(filepath);
             part.pipe(writeStream);
             writeStream.on('finish', function () {
@@ -841,9 +970,128 @@ router.post('/upload', function (req, res, next) {
                 if (fields.last_chunk === 'true') {
                     console.log('Chunk ' + fields.chunk_id + ' is the last');
                     joinAllChunks(folderPath, uploadPath, fields, parent, function (file) {
-                        res.json({
-                            file: file
-                        });
+                        var finalFilePath = path.join(config.steviaDir, config.usersPath, file.path);
+                        if (req.query.extract == 'true' && mime.lookup(finalFilePath).indexOf('zip') != -1) {
+                            async.waterfall([
+                                function (cb) {
+                                    if (req.query.extractFolder == 'true') {
+                                        var extractFolderName = file.name.substr(0, file.name.length - 4);
+                                        File.createFolder(extractFolderName, req._parent, req._user, function (newFolder) {
+                                            cb(null, path.join(config.steviaDir, config.usersPath, newFolder.path), newFolder);
+                                        });
+                                    } else {
+                                        var prefix = 'extract_' + file.name;
+                                        var tmpobj = tmp.dirSync({
+                                            prefix: prefix + '-',
+                                            dir: path.join(config.steviaDir, "tmp"),
+                                            keep: true
+                                        });
+                                        var randFolder = tmpobj.name;
+                                        cb(null, randFolder, null);
+                                    }
+                                },
+                                function (extractFolderPath, newFolder, cb) {
+                                    var unzipper = new DecompressZip(finalFilePath);
+                                    unzipper.on('error', function (err) {
+                                        cb('Expand zip error');
+                                    });
+                                    unzipper.on('extract', function (log) {
+                                        cb(null, extractFolderPath, newFolder);
+                                    });
+                                    unzipper.extract({
+                                        path: extractFolderPath,
+                                    });
+                                },
+                                function (extractFolderPath, newFolder, cb) {
+                                    if (newFolder != null) {
+                                        recordFolderFiles(newFolder, function () {
+                                            cb(null, newFolder);
+                                        });
+                                    } else {
+                                        var fileNames = shell.ls(extractFolderPath);
+                                        var filePathsToCheck = [];
+                                        var filePathsToCheckMap = {};
+                                        for (var i = 0; i < fileNames.length; i++) {
+                                            var f = fileNames[i];
+                                            filePathsToCheck.push(path.join(req._parent.path, f));
+                                            filePathsToCheckMap[f] = false;
+                                        }
+                                        mongoose.models["File"].find({
+                                            'user': req._user._id,
+                                            'path': {
+                                                $in: filePathsToCheck
+                                            }
+                                        }, function (err, files) {
+                                            var toSave = [];
+                                            for (var i = 0; i < files.length; i++) {
+                                                var f = files[i];
+                                                filePathsToCheckMap[f.name] = true;
+                                                if (req.query.overwriteFiles == 'true') {
+                                                    var sourcePath = path.join(extractFolderPath, f.name);
+                                                    if (mime.lookup(sourcePath).indexOf('text') != -1) {
+                                                        shell.sed('-i', /\r\n/g, '\n', sourcePath);
+                                                        shell.sed('-i', /\r/g, '\n', sourcePath);
+                                                    }
+                                                    var destinationPath = path.join(config.steviaDir, config.usersPath, f.path);
+                                                    shell.cp(sourcePath, destinationPath);
+                                                    toSave.push(f);
+                                                }
+                                            }
+                                            for (var fname in filePathsToCheckMap) {
+                                                if (filePathsToCheckMap[fname] == false) {
+                                                    var registerFile = new File({
+                                                        name: fname,
+                                                        user: req._user,
+                                                        parent: req._parent,
+                                                        type: 'FILE',
+                                                        path: path.join(req._parent.path, fname)
+                                                    });
+                                                    req._parent.files.push(registerFile);
+                                                    toSave.push(registerFile);
+                                                    var sourcePath = path.join(extractFolderPath, fname);
+                                                    if (mime.lookup(sourcePath).indexOf('text') != -1) {
+                                                        shell.sed('-i', /\r\n/g, '\n', sourcePath);
+                                                        shell.sed('-i', /\r/g, '\n', sourcePath);
+                                                    }
+                                                    var destinationPath = path.join(config.steviaDir, config.usersPath, registerFile.path);
+                                                    shell.cp(sourcePath, destinationPath);
+                                                }
+                                            }
+                                            async.each(toSave, function (dbItem, savecb) {
+                                                dbItem.save(function (err) {
+                                                    savecb(err);
+                                                });
+                                            }, function (err) {
+                                                cb(null, req._parent);
+                                            });
+                                        });
+                                    }
+                                },
+                                function (fileToReturn, cb) {
+                                    if (req.query.deleteCompressed == 'true') {
+                                        File.delete(file._id, function () {
+                                            cb(null, fileToReturn);
+                                        })
+                                    } else {
+                                        cb(null, fileToReturn);
+                                    }
+                                },
+                            ], function (err, fileToReturn) {
+                                if (err) {
+                                    res.json({
+                                        error: err
+                                    });
+                                } else {
+                                    res.json({
+                                        file: fileToReturn
+                                    });
+                                }
+                            });
+                        } else {
+                            res.json({
+                                file: file
+                            });
+                        }
                     })
                 } else {
                     res.json({
@@ -858,8 +1106,6 @@ router.post('/upload', function (req, res, next) {
         File.findOne({
             '_id': fields.parentId
         }, function (err, parent) {
-            var folderPath = path.join(config.steviaDir, config.usersPath, parent.path);
-            var uploadPath = path.join(folderPath, fields.name + "_partial");
             if (fields.resume_upload === 'true') {
                 var chunkMap = JSON.parse(fields.chunk_map);
                 var resumeInfo = getResumeFileInfo(uploadPath, chunkMap);
@@ -979,5 +1225,56 @@ function getSortedChunkList(uploadPath) {
     }
     return files;
 };
+
+function recordFolderFiles(folder, cb) {
+    var visited = [];
+    visited.push(folder);
+    walkFolderRecursive(folder, visited);
+
+    var toSave = [];
+    for (var i = 0; i < visited.length; i++) {
+        var file = visited[i];
+        toSave.push(file);
+    }
+    async.each(toSave, function (dbItem, savecb) {
+        dbItem.save(function (err) {
+            savecb(err);
+        });
+    }, function (err) {
+        cb();
+    });
+}
+
+function walkFolderRecursive(folder, visited) {
+    var folderPath = path.join(config.steviaDir, config.usersPath, folder.path);
+    var folderStats = fs.statSync(folderPath);
+    if (folderStats.isDirectory()) {
+        var filesInFolder = fs.readdirSync(folderPath);
+        for (var i = 0; i < filesInFolder.length; i++) {
+            var fileName = filesInFolder[i];
+            var filePath = path.join(folderPath, fileName);
+            var fileStats = fs.statSync(filePath);
+
+            /* Database entry */
+            var type = "FILE";
+            if (fileStats.isDirectory()) {
+                type = "FOLDER";
+            }
+            var file = new File({
+                name: fileName,
+                user: folder.user,
+                parent: folder,
+                type: type,
+                path: path.join(folder.path, fileName)
+            });
+            folder.files.push(file);
+            visited.push(file);
+
+            if (fileStats.isDirectory()) {
+                walkFolderRecursive(file, visited);
+            }
+        }
+    }
+}
 
 module.exports = router;

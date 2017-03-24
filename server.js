@@ -10,7 +10,7 @@ require('./models/file.js');
 require('./models/job.js');
 
 // Package require
-const mongoose = require("mongoose");
+var mongoose = require("mongoose");
 mongoose.Promise = global.Promise;
 const cluster = require('cluster');
 
@@ -115,6 +115,7 @@ if (cluster.isMaster) {
         credentials: true
     }));
 
+    app.use(bodyParser.text());
     app.use(bodyParser.urlencoded({
         extended: true
     })); // support encoded bodies
@@ -211,7 +212,8 @@ if (cluster.isMaster) {
     function listen() {
         //   if (app.get('env') === 'test') return;
         // Bind to a port
-        app.listen(config.httpPort);
+        var server = app.listen(config.httpPort);
+        server.timeout = 360000;
         console.log('Worker %d running!', cluster.worker.id);
     }
 

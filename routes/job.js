@@ -5,6 +5,7 @@ const StvResult = require('../lib/StvResult.js');
 
 const async = require('async');
 const exec = require('child_process').exec;
+const execFile = require('child_process').execFile;
 const fs = require('fs');
 const archiver = require('archiver');
 const util = require('util');
@@ -14,7 +15,8 @@ const tmp = require('tmp');
 
 const express = require('express');
 const router = express.Router();
-const mongoose = require('mongoose');
+var mongoose = require("mongoose");
+mongoose.Promise = global.Promise;
 const Job = mongoose.model('Job');
 const File = mongoose.model('File');
 const User = mongoose.model('User');
@@ -180,6 +182,7 @@ router.post('/create', function (req, res, next) {
 router.post('/run', function (req, res, next) {
     var stvResult = new StvResult();
     var folderId = req.query.workingdirId;
+
     async.waterfall([
         function (cb) {
             File.findOne({
@@ -240,7 +243,14 @@ router.post('/run', function (req, res, next) {
                 if (err) {
                     cb('Could not create ' + commandQsub);
                 } else {
-                    var command = "qsub -sync y -q '" + config.queue + "' -j y -o '" + outFile + "' '" + commandQsub + "'";
+                    shell.chmod('+x', commandQsub);
+
+                    var command;
+                    if (jobConfig.disableQueue === true) {
+                        command = commandQsub;
+                    } else {
+                        command = "qsub -sync y -q '" + config.queue + "' -j y -o '" + outFile + "' '" + commandQsub + "'";
+                    }
 
                     // console.log('++++++++++++');
                     // console.log(command);
@@ -248,11 +258,10 @@ router.post('/run', function (req, res, next) {
                     // console.log('++++++++++++');
 
                     exec(command, function (error, stdout, stderr) {
-                        // console.log('stdout: ' + stdout);
-                        // console.log('stderr: ' + stderr);
                         stvResult.results.push({
+                            err: stderr,
                             out: stdout,
-                            err: stderr
+                            output: shell.cat(outFile)
                         });
                         if (error != null) {
                             cb(error);
@@ -271,6 +280,47 @@ router.post('/run', function (req, res, next) {
 
             // });
         },
+    ], function (err) {
+        if (err) {
+            stvResult.error = err;
+        }
+        stvResult.end();
+        res._stvres.response.push(stvResult);
+        next();
+    });
+
+});
+
+router.get('/example', function (req, res, next) {
+    var stvResult = new StvResult();
+    var folderName = req.query.folderName;
+    var tool = req.query.tool.replace(/[^a-zA-Z0-9._\-]/g, "_");
+    var execution = req.query.execution.replace(/[^a-zA-Z0-9._\-]/g, "_");
+
+    async.waterfall([
+        function (cb) {
+            var folderPath = path.join(config.steviaDir, config.toolsPath, tool, "examples", folderName);
+            if (shell.test('-d', folderPath)) {
+                cb(null, folderPath);
+            } else {
+                cb('Example folder not exists.');
+            }
+        },
+        function (folderPath, cb) {
+            var registerScript = path.join(__dirname, '..', 'maintenance', 'register-job-folder.js');
+            var args = [req._user.name, folderName, folderPath, execution];
+            execFile(registerScript, args, function (error, stdout, stderr) {
+                stvResult.results.push({
+                    err: stderr,
+                    out: stdout
+                });
+                if (error != null) {
+                    cb(error);
+                } else {
+                    cb(null)
+                }
+            });
+        }
     ], function (err) {
         if (err) {
             stvResult.error = err;
@@ -392,12 +442,10 @@ router.get('/:jobId/download', function (req, res, next) {
                     });
 
                     archive.pipe(output);
-                    archive.bulk([{
+                    archive.glob('**', {
                         expand: true,
-                        cwd: realPath,
-                        src: ['**']
-                            // dest: 'source'
-                    }]);
+                        cwd: realPath
+                    });
                     archive.finalize();
 
                 }

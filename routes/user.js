@@ -12,7 +12,8 @@ const async = require('async');
 
 const express = require('express');
 const router = express.Router();
-const mongoose = require('mongoose');
+var mongoose = require("mongoose");
+mongoose.Promise = global.Promise;
 const User = mongoose.model('User');
 const File = mongoose.model('File');
 const Job = mongoose.model('Job');
@@ -66,8 +67,22 @@ router.get('/create', function (req, res, next) {
 
     async.waterfall([
         function (cb) {
+            User.findOne({
+                'name': name
+            }, function (err, dbUser) {
+                if (dbUser == null) {
+                    cb(null);
+                } else {
+                    stvResult.error = 'User already exists.';
+                    console.log("error: " + stvResult.error);
+                    cb(stvResult.error);
+                }
+            })
+        },
+        function (cb) {
             user.save(function (err) {
                 if (err != null) {
+                    console.log(err);
                     stvResult.error = 'User already exists';
                     console.log("error: " + stvResult.error);
                     cb(stvResult.error);
@@ -291,7 +306,6 @@ router.post('/:name/change-notifications', function (req, res, next) {
     });
 
 });
-
 
 router.get('/:name/change-password', function (req, res, next) {
     var stvResult = new StvResult();

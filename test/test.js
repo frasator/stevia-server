@@ -5,7 +5,7 @@ const fs = require('fs');
 const shell = require('shelljs');
 const net = require('net');
 
-const mongoose = require("mongoose");
+var mongoose = require("mongoose");
 mongoose.Promise = global.Promise;
 require('../models/user.js');
 require('../models/file.js');
@@ -39,7 +39,7 @@ portInUse(config.httpPort, function (returnValue) {
 test('delete user', function (t) {
     getUserByName(USER_NAME, function (err, user) {
         if (user != null) {
-            var deleteUser = require('../manteinance/delete-user-module.js');
+            var deleteUser = require('../maintenance/delete-user-module.js');
             deleteUser([user._id], function () {
                 getUserByName(USER_NAME, function (err, user) {
                     t.is(user, null);
@@ -294,6 +294,16 @@ test('file upload', function (t) {
             end = SIZE;
         }
         chunkId++;
+    }
+    if (SIZE == 0) {
+        chunkMap[0] = {
+            id: chunkId,
+            start: 0,
+            end: 0,
+            size: 0,
+            done: false,
+            last: true
+        };
     }
     // console.log(chunkMap)
 
@@ -805,7 +815,7 @@ test('user logout', function (t) {
 });
 
 test('delete user after test', function (t) {
-    var deleteUser = require('../manteinance/delete-user-module.js');
+    var deleteUser = require('../maintenance/delete-user-module.js');
     deleteUser([USER_ID], function () {
         getUserById(USER_ID, function (err, user) {
             t.is(user, null);

@@ -1,6 +1,7 @@
 const config = require('../config.json');
 
-const mongoose = require('mongoose');
+var mongoose = require("mongoose");
+mongoose.Promise = global.Promise;
 const Schema = mongoose.Schema;
 const util = require('util');
 const exec = require('child_process').exec;
@@ -76,20 +77,29 @@ FileSchema.pre('save', function (next) {
         var fsFilePath = path.join(config.steviaDir, config.usersPath, this.path);
 
         var stats = fs.statSync(fsFilePath);
-        console.log('File ' + fsFilePath + ' created. Final size: ' + stats.size);
+        console.log('File ' + fsFilePath + ' saved. Final size: ' + stats.size);
 
         this.format = mime.lookup(this.name);
         this.size = stats.size;
-
-        mongoose.models["User"].findById(this.user, function (err, user) {
-            user.updateDiskUsage(function () {
-                console.log("updateDiskUsage")
-                next();
-            });
-        });
-    } else {
-        next();
     }
+    this.updatedAt = new Date();
+    next();
+});
+
+FileSchema.post('save', function (doc, next) {
+    mongoose.models["User"].findById(this.user, function (err, user) {
+        user.updateDiskUsage(function () {
+            next();
+        });
+    });
+});
+
+FileSchema.post('remove', function (doc, next) {
+    mongoose.models["User"].findById(this.user, function (err, user) {
+        user.updateDiskUsage(function () {
+            next();
+        });
+    });
 });
 /**
  * Methods
@@ -168,9 +178,14 @@ FileSchema.statics = {
 
         parent.files.push(folder);
 
-        async.parallel([
-            folder.save, parent.save, user.save
-        ], function () {
+        async.each([folder, parent, user], function (dbItem, savecb) {
+            dbItem.save(function (err) {
+                savecb(err);
+            });
+        }, function (err) {
+            if (err) {
+                console.log(err);
+            }
             callback(folder);
         });
     },
@@ -187,9 +202,14 @@ FileSchema.statics = {
         });
         parent.files.push(file);
 
-        async.parallel([
-            file.save, parent.save, user.save
-        ], function () {
+        async.each([file, parent, user], function (dbItem, savecb) {
+            dbItem.save(function (err) {
+                savecb(err);
+            });
+        }, function (err) {
+            if (err) {
+                console.log(err);
+            }
             callback(file);
         });
     },
@@ -220,17 +240,6 @@ FileSchema.statics = {
                         console.log('qdel: end.');
                     });
                     cb(null, file);
-                } else cb(null, file);
-            },
-            function (file, cb) {
-                if (file.parent != null) {
-                    var index = file.parent.files.indexOf(file._id);
-                    if (index != -1) {
-                        file.parent.files.splice(index, 1);
-                        file.parent.save(function () {
-                            cb(null, file);
-                        });
-                    } else cb(null, file);
                 } else cb(null, file);
             },
             function (file, cb) {
@@ -279,6 +288,21 @@ FileSchema.statics = {
                 file.remove(function (err) {
                     cb(null, file);
                 });
+            },
+            function (file, cb) {
+                if (file.parent != null) {
+                    //Update parent file ARRAY
+                    mongoose.models["File"].find({
+                        'parent': file.parent
+                    }, function (err, filesFound) {
+                        file.parent.files = filesFound;
+                        file.parent.save(function () {
+                            cb(null, file);
+                        });
+                    });
+                } else {
+                    cb(null, file);
+                }
             },
             function (file, cb) {
                 file.fsDelete();

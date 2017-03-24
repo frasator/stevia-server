@@ -2,12 +2,12 @@
 ##############################################################################################
 
 
-init.report <- function(tool){  
+init.report <- function(tool){
   res <- list()
   res$tool <- tool
   res$input <- list()
-  res$output <- list()  
-  return(res)  
+  res$output <- list()
+  return(res)
 }
 
 add.input <- function(res,element){
@@ -44,9 +44,9 @@ add.redirection <- function(res, tool,file,level=0, ...){
   element$tool <- tool
   element$file <- file
   element$level <- level
-  
+
   element <- append(element, as.list(substitute(list(...)))[-1L])
-  
+
   res <- add.output(res, element)
   return(res)
 }
@@ -54,7 +54,7 @@ add.redirection <- function(res, tool,file,level=0, ...){
 add.message <- function(res,text, level=0){
   element <- list()
   element$type <- "message"
-  element$text <- text  
+  element$text <- text
   element$level <- level
   res <- add.output(res,element)
   return(res)
@@ -72,6 +72,16 @@ add.param <- function(res,key,value){
 add.image <- function(res,title,file, level=0){
   element <- list()
   element$type <- "image"
+  element$title <- title
+  element$file <- file
+  element$level <- level
+  res <- add.output(res,element)
+  return(res)
+}
+
+add.heatmap <- function(res,title,file, level=0){
+  element <- list()
+  element$type <- "heatmap"
   element$title <- title
   element$file <- file
   element$level <- level
@@ -113,7 +123,29 @@ add.download <- function(res,title,file,level=0){
 
 add.html <- function(res,file, level=0){
   element <- list()
-  element$type <- "html"  
+  element$type <- "html"
+  element$file <- file
+  element$level <- level
+  res <- add.output(res,element)
+  return(res)
+}
+
+add.go.viewer <- function(res, title, sub.network, sub.attributes, all.attributes, level=0){
+  element <- list()
+  element$type <- "goviewer"
+  element$title <- title
+  element$sub.network <- sub.network
+  element$sub.attributes <- sub.attributes
+  element$all.attributes <- all.attributes
+  element$level <- level
+  res <- add.output(res,element)
+  return(res)
+}
+
+add.protein.viewer <- function(res,title,file,level=0){
+  element <- list()
+  element$type <- "proteinviewer"
+  element$title <- title
   element$file <- file
   element$level <- level
   res <- add.output(res,element)
@@ -121,7 +153,7 @@ add.html <- function(res,file, level=0){
 }
 
 render.xml <- function(res){
-  
+
   out <- paste0("<report tool='",res$tool,"'>\n")
   out <- paste0(out,"\t<input-params>\n")
   for(element in res$input){
@@ -149,11 +181,20 @@ render.xml <- function(res){
            boxplot = {
              out <- paste0(out,"\t\t<boxplot level='",element$level,"' title='",element$title,"' file='",element$file,"' outliers='",element$outliers,"'></boxplot>\n")
            },
+           goviewer = {
+             out <- paste0(out,"\t\t<goViewer level='",element$level,"' title='",element$title,"' sub-network='",element$sub.network,"' sub-attributes='",element$sub.attributes,"' all.attributes='",element$all.attributes,"'></goViewer>\n")
+           },
+           heatmap = {
+             out <- paste0(out,"\t\t<heatmap level='",element$level,"' title='",element$title,"' file='",element$file,"'></heatmap>\n")
+           },
+           proteinviewer = {
+             out <- paste0(out,"\t\t<proteinviewer level='",element$level,"' title='",element$title,"' file='",element$file,"'></proteinviewer>\n")
+           },
            download = {
              out <- paste0(out,"\t\t<download level='",element$level,"' title='",element$title,"' file='",element$file,"'></download>\n")
            },
            html = {
-             out <- paste0(out,"\t\t<html level='",element$level,"' file='",element$file,"'></html>\n")        
+             out <- paste0(out,"\t\t<html level='",element$level,"' file='",element$file,"'></html>\n")
            },
            redirection = {
              attrs <- ""
@@ -163,81 +204,12 @@ render.xml <- function(res){
                }
              }
              out <- paste0(out, "\t\t<redirection tool='", element$tool, "' file='", element$file  ,"' ",attrs, "></redirection>\n")
-             
+
            }
     )
   }
   out <- paste0(out,"\t</output-params>\n")
   out <- paste(out,"</report>")
-  
+
   return(out)
 }
-
-
-######### html
-
-# html_param <- function(key,value){
-#   html <- paste0("<blockquote><span style='color: #777777';>",key,": </span><span style='color: #aaaaff;'>",value,"</span></blockquote>\n")
-#   return(html)
-# }
-# html_title <- function(title){
-#   html <- "<blockquote><div style='width=100%; border-bottom: dashed 2px #aaaaff; color:#aaaaff;'>\n"
-#   html <- paste0(html,"<h2>",title,"</h2>\n")
-#   html <- paste0(html,"</div></blockquote>\n")
-#   return(html)
-# }
-# html_image <- function(file,title){
-#   html <- "<blockquote><br><div>\n"
-#   html <- paste0(html,"   <h4>",title,"</h4>\n")
-#   html <- paste0(html,"   <img src='",file,"'/>\n")
-#   html <- paste0(html,"</div></blockquote>\n")
-#   return(html)
-# }
-# html_table <- function(file,title){
-#   html <- "<blockquote><div>\n"
-#   html <- paste0(html,"   <h4>",title,"</h4>\n")
-#   html <- paste0(html,"   <a href='",file,"'>",basename(file),"</a>\n")
-#   html <- paste0(html,"</div></blockquote>\n")
-#   return(html)
-# }
-
-# extra_javascript <- ""
-# 
-# before_html <- ""
-# before_html <- paste(before_html,html_title("Input params"),sep="<br>\n")
-# before_html <- paste(before_html,html_param("Expression file",basename(exp_file)),sep="\n")
-# before_html <- paste(before_html,html_param("Design file",basename(design_file)),sep="\n")
-# before_html <- paste(before_html,html_param("Decomposed paths",decompose),sep="\n")
-# before_html <- paste(before_html,html_param("GO",go),sep="\n")
-# before_html <- paste(before_html,html_param("Uniprot keywords",uniprot),sep="\n")
-# before_html <- paste(before_html,html_title("Path values"),sep="<br>\n")
-# before_html <- paste(before_html,html_table("paths_vals.txt","Path values"),sep="<br>\n")
-# before_html <- paste(before_html,html_image("paths_heatmap.png","Heatmap"),sep="<br>\n")
-# before_html <- paste(before_html,html_image("paths_pca.png","PCA"),sep="<br>\n")
-# before_html <- paste(before_html,html_table("paths_comparison.txt","Path significance"),sep="<br>\n")
-# 
-# after_html <- ""
-# if(go==T){
-#   after_html <- paste(after_html,html_title("GO values"))
-#   after_html <- paste(after_html,html_table("go_vals.txt","GO term values"),sep="<br>\n")
-#   after_html <- paste(after_html,html_image("go_heatmap.png","Heatmap"),sep="<br>\n")
-#   after_html <- paste(after_html,html_image("go_pca.png","PCA"),sep="<br>\n")
-#   after_html <- paste(after_html,html_table("go_comparison.txt","GO term significance"),sep="<br>\n")
-# }
-# if(uniprot==T){
-#   after_html <- paste(after_html,html_title("Uniprot keywords values"))
-#   after_html <- paste(after_html,html_table("uniprot_vals.txt","Uniprot keyword values"),sep="<br>\n")
-#   after_html <- paste(after_html,html_image("uniprot_heatmap.png","Heatmap"),sep="<br>\n")
-#   after_html <- paste(after_html,html_image("uniprot_pca.png","PCA"),sep="<br>\n")
-#   after_html <- paste(after_html,html_table("uniprot_comparison.txt","Uniprot keyword significance"),sep="<br>\n")
-# }
-# 
-# create.html.report2(fpathigraphs,wt,pretty_home,output_folder,effector=(decompose==F),extra_javascript = extra_javascript, before_html = before_html,after_html = after_html)
-
-
-
-
-
-
-
-

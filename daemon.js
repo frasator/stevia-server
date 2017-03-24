@@ -14,38 +14,59 @@ const fs = require('fs');
 const exec = require('child_process').exec;
 const xml2js = require('xml2js');
 const path = require('path');
-const mongoose = require('mongoose');
+const shell = require('shelljs');
+
+var mongoose = require("mongoose");
 mongoose.Promise = global.Promise;
 
 const Job = mongoose.model('Job');
+const User = mongoose.model('User');
 const File = mongoose.model('File');
 
 var LOCK = false;
 
 if (cluster.isMaster) {
+    var jobWorker;
+    var anonymousWorker;
+
     // Code to run if we're in the master process
     checkconfig(function (err) {
         if (err == null) {
 
             // Count the machine's CPUs
             // var cpuCount = require('os').cpus().length;
-            var cpuCount = 1;
+            // var cpuCount = 1;
 
             // Create a worker for each CPU
             console.log('');
             console.log('Starting daemon worker...');
             console.log('===================');
-            for (var i = 0; i < cpuCount; i += 1) {
-                cluster.fork();
-            }
+            // for (var i = 0; i < cpuCount; i += 1) {
+            // }
+
+            jobWorker = cluster.fork({
+                task: 'job'
+            });
+            anonymousWorker = cluster.fork({
+                task: 'anonymous'
+            });
 
             // Listen for dying workers
             cluster.on('exit', function (worker) {
                 // Replace the dead worker, we're not sentimental
-                console.log('Worker %d died :(', worker.id);
-                cluster.fork();
+                if (worker.id == jobWorker.id) {
+                    console.log('Job Worker %d died :(', worker.id);
+                    jobWorker = cluster.fork({
+                        task: 'job'
+                    });
+                }
+                if (worker.id == anonymousWorker.id) {
+                    console.log('Anonymous Worker %d died :(', worker.id);
+                    anonymousWorker = cluster.fork({
+                        task: 'anonymous'
+                    });
+                }
             });
-
         }
     });
 
@@ -54,6 +75,7 @@ if (cluster.isMaster) {
     /******************************/
     /****** Server instance *******/
     /******************************/
+
     connect()
         .on('error', console.log)
         .on('disconnected', connect)
@@ -61,15 +83,29 @@ if (cluster.isMaster) {
 
     function listen() {
         console.log('Worker %d running!', cluster.worker.id);
-        var interval = setInterval(function () {
-            // console.log('LOCK is: ' + LOCK);
-            if (LOCK == false) {
-                LOCK = true;
-                run(function () {
-                    LOCK = false;
-                });
-            }
-        }, 500);
+
+        switch (process.env.task) {
+        case "job":
+            var interval = setInterval(function () {
+                // console.log('LOCK is: ' + LOCK);
+                if (LOCK == false) {
+                    LOCK = true;
+                    run(function () {
+                        LOCK = false;
+                    });
+                }
+            }, 5000);
+            break;
+
+        case "anonymous":
+            var interval = setInterval(function () {
+                deleteAnonymous();
+            }, 1000 * 60 * 60 * 24);
+            break;
+        default:
+
+        }
+
     }
 
     function connect() {
@@ -218,7 +254,7 @@ function checkSGEQacctJob(dbJob, cb) {
                         recordOutputFolder(dbJob.folder, dbJob);
                         dbJob.save();
                         dbJob.user.save();
-                        if(dbJob.user.notifications.job == true){
+                        if (dbJob.user.notifications.job == true) {
                             notifyUser(dbJob.user.email, dbJob.status, dbJob);
                         }
                     }
@@ -229,7 +265,7 @@ function checkSGEQacctJob(dbJob, cb) {
                         recordOutputFolder(dbJob.folder, dbJob);
                         dbJob.save();
                         dbJob.user.save();
-                        if(dbJob.user.notifications.job == true){
+                        if (dbJob.user.notifications.job == true) {
                             notifyUser(dbJob.user.email, dbJob.status, dbJob);
                         }
                     } else if (dbJob.status != "DONE") {
@@ -239,7 +275,7 @@ function checkSGEQacctJob(dbJob, cb) {
                         dbJob.save();
                         dbJob.user.save();
                         console.timeEnd("time DONE")
-                        if(dbJob.user.notifications.job == true){
+                        if (dbJob.user.notifications.job == true) {
                             notifyUser(dbJob.user.email, dbJob.status, dbJob);
                         }
                     }
@@ -321,8 +357,52 @@ function notifyUser(email, status, dbJob) {
     }, function (error, info) {
         if (error) {
             console.log(error);
-        }else{
+        } else {
             console.log('Message sent: ' + info.response);
         }
     });
+}
+
+function deleteAnonymous() {
+
+    var date = new Date();
+    date.setDate(date.getDate() - 1);
+    console.log("Deleting until: " + date);
+
+    User.find({
+            'email': 'anonymous@anonymous.anonymous',
+            'name': {
+                $regex: new RegExp('^' + 'anonymous___')
+            },
+            'createdAt': {
+                $lte: date
+            }
+        },
+        function (err, users) {
+            console.log("Deleting: " + users.length + " users");
+            if (users.length > 0) {
+                var ids = [];
+                for (var i = 0; i < users.length; i++) {
+                    var user = users[i];
+                    ids.push(user._id);
+
+                    var realPath = path.join(config.steviaDir, config.usersPath, user.name);
+                    console.log(realPath);
+                    try {
+                        if (shell.test('-e', realPath)) {
+                            shell.rm('-rf', realPath);
+                        } else {
+                            console.log("NO ENTRA");
+                        }
+                    } catch (e) {
+                        console.log(e);
+                        console.log("File fsDelete: file not exists on file system")
+                    }
+                }
+
+                User.where('_id').in(ids).remove().exec(function () {});
+                File.where('user').in(ids).remove().exec(function () {});
+                Job.where('user').in(ids).remove().exec(function () {});
+            }
+        }).populate('home');
 }

@@ -1,6 +1,7 @@
 const config = require('../config.json');
 
-const mongoose = require('mongoose');
+var mongoose = require("mongoose");
+mongoose.Promise = global.Promise;
 const Schema = mongoose.Schema;
 require('./file.js');
 const File = mongoose.model('File');
@@ -75,6 +76,11 @@ const JobSchema = new Schema({
     }
 });
 
+JobSchema.pre('save', function (next) {
+    this.updatedAt = new Date();
+    next();
+});
+
 /**
  * Methods
  */
@@ -86,9 +92,13 @@ JobSchema.methods = {
             folder.job = job._id;
             job.folder = folder._id;
             job.user = user._id;
-            async.parallel([
-                folder.save, job.save
-            ], function (err) {
+
+
+            async.each([folder, job], function(dbItem, savecb) {
+                dbItem.save(function(err){
+                    savecb(err);
+                });
+            }, function(err) {
                 callback(err)
             });
         });

@@ -10,6 +10,7 @@ var parser = new xml2js.Parser({
     explicitChildren: true,
     preserveChildrenOrder: true
 });
+
 const xmlbuilder = require('xmlbuilder');
 var report = xmlbuilder.create('report',
     null, null, {
@@ -179,7 +180,41 @@ parser.parseString(resultContent, function (err, r) {
                         value: item._
                     });
                 } else if (item.$.type == 'FILE') {
-                    if (item.$.tags.split(',').indexOf('TABLE') == -1) {
+                    if (item.$.tags.split(',').indexOf('REDIRECT_TOOL_SNOW') != -1) {
+                        var splits = item.$.tags.split(',');
+                        output.ele('redirection', {
+                            tool: 'snow',
+                            level: level + 1,
+                            interactome: splits[1],
+                            type: splits[2],
+                            group: splits[3],
+                            intermediate: splits[5],
+                            inputFile: item._
+                        })
+                    } else if (item.$.tags.split(',').indexOf('REDIRECT_TOOL_FATIGO') != -1) {
+                        var splits = item.$.tags.split(',');
+
+                        output.ele('redirection', {
+                            tool: 'fatigo',
+                            level: level + 1,
+                            species: splits[1],
+                            inputFile: item._,
+                            inputFile2: splits[4]
+
+                        })
+
+                    } else if (item.$.tags.split(',').indexOf('STV_BOXPLOT') != -1) {
+                      var splits = item.$.tags.split(',');
+
+                      output.ele('boxplot',{
+                        level: level + 1,
+                        title: item.$.title,
+                        file: splits[1],
+                        outliers:splits[2]
+                      });
+
+                    } else if (item.$.tags.split(',').indexOf('TABLE') == -1) {
+
                         output.ele('download', {
                             level: level + 1,
                             title: item.$.title,
@@ -206,15 +241,18 @@ parser.parseString(resultContent, function (err, r) {
                         file: item._
                     });
                 }
-                // log(item);
+                // console.log(item);
             }
         }
+
+        // console.log(outFolderPath)
+
         var reportXML = report.end({
             'pretty': true,
             'indent': ' ',
             'newline': '\n'
         }) + '\n';
-        // console.log(reportXML);
+        console.log(reportXML);
         fs.writeFileSync(path.join(outFolderPath, 'report.xml'), reportXML);
     }
 });
