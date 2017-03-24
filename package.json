@@ -5,12 +5,12 @@
     "license": "GPL-3.0",
     "contributors": [
         "Francisco Salavert Torres <frasator@gmail.com>",
-        "Alejandro Alemán Ramos",
+        "Alejandro Alemán Ramos"
     ],
     "repository": {
         "type": "git",
         "url": "https://github.com/frasator/stevia-server.git"
-    }
+    },
     "scripts": {
         "test": "tape test/test.js"
     },
