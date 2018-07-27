@@ -10,7 +10,7 @@ In order to get it working you need the following dependencies installed and con
 * Node
 
 ## Installing SGE
-To install Sun Grid Engine check our [installation guide](https://github.com/babelomics/stevia-server/wiki/Installing-Sun-Grid-Engine).
+To install Sun Grid Engine check our [installation guide](https://github.com/frasator/stevia-server/wiki/Installing-Sun-Grid-Engine).
 
 ## Installing Mongo
 Please read mongodb installation tutorial:
